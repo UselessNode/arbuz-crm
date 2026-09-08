@@ -51,7 +51,7 @@ arbuz-crm/
 - [Bun](https://bun.sh) `1.4.2` — установить и добавить в `PATH`.
 - PostgreSQL и `DATABASE_URL` в `.env` в корне репозитория (см. `.env.example`).
 
-## Быстрый старт
+## Установка
 
 ```sh
 # 1. Установить зависимости
@@ -70,10 +70,11 @@ bun db:push
 bun dev
 
 # либо по отдельности
-bun dev:backend   # http://localhost:3000
-bun dev:frontend  # http://localhost:5173
+bun dev:backend    # http://127.0.0.1:3000
+bun dev:frontend   # http://127.0.0.1:5173
 ```
 
+> Vite явно слушает `127.0.0.1` (IPv4), чтобы страница открывалась в браузере по `localhost`.
 > Примечание: `bun run build` (а не `bun build`) — имя скрипта конфликтует со встроенной командой bundler'а.
 
 ## Скрипты (корень `package.json`)
@@ -111,5 +112,12 @@ bun dev:frontend  # http://localhost:5173
 - ✅ Backend: Express-сервер, `GET /` и `GET /health` (проверка БД), корректное завершение по SIGINT/SIGTERM.
 - ✅ Frontend: минимальное React-приложение на Vite с прокси на backend.
 - ✅ Prisma Client генерируется (`bun db:generate`) и работает с PostgreSQL через `@prisma/adapter-pg`.
+- ✅ Vite слушает `127.0.0.1:5173` (IPv4) — страница открывается в браузере.
 - ⚠️ `bun --watch` из `apps/backend` следит только за файлами пакета; правки в `packages/shared` требуют ручного перезапуска dev-сервера.
-- ⚠️ Миграция `20260907120417_init` создана пустой (без `migration.sql`) — рабочая схема задаётся через `db:push`.
+- ✅ Миграция `20260907120417_init` содержит полный SQL схемы; для создания таблиц — `bun db:push` или `bun db:migrate`.
+
+## Версионирование и changelog
+
+- Каждое изменение поднимает версию пакетов-воркспейсов (`apps/backend`, `apps/frontend`, `packages/shared`) — синхронно по semver.
+- Текущая версия указывается в сообщении git-коммита.
+- Все изменения фиксируются в [`CHANGELOG.md`](CHANGELOG.md).
