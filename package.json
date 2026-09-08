@@ -1,0 +1,36 @@
+{
+  "name": "arbuz-crm",
+  "private": true,
+  "packageManager": "bun@1.4.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "/* === ЗАПУСК В РАЗРАБОТКЕ === */": "",
+    "dev:frontend": "bun --cwd apps/frontend dev",
+    "dev:backend": "dotenv -e .env -- bun --cwd apps/backend dev",
+    "dev": "concurrently -n \"front,back\" -c \"cyan,magenta\" \"bun dev:frontend\" \"bun dev:backend\"",
+    "/* === ПРОВЕРКА ОШИБОК (TYPE-CHECK) === */": "",
+    "typecheck:shared": "bun --cwd packages/shared tsc --noEmit",
+    "typecheck:frontend": "bun --cwd apps/frontend tsc --noEmit",
+    "typecheck:backend": "bun --cwd apps/backend tsc --noEmit",
+    "typecheck": "bun typecheck:shared && bun typecheck:backend && bun typecheck:frontend",
+    "/* === СБОРКА ПРОЕКТА === */": "",
+    "build:frontend": "bun --cwd apps/frontend build",
+    "build:backend": "bun --cwd apps/backend build",
+    "build": "bun typecheck && bun build:backend && bun build:frontend",
+    "/* === РАБОТА С БАЗОЙ ДАННЫХ (PRISMA v7 & dotenv-cli) === */": "",
+    "db:update": "bun db:push && bun db:generate",
+    "db:push": "dotenv -e .env -- prisma db push",
+    "db:generate": "dotenv -e .env -- prisma generate",
+    "db:migrate": "dotenv -e .env -- prisma migrate dev"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.1",
+    "concurrently": "^8.2.2",
+    "dotenv-cli": "^11.0.0",
+    "prisma": "^7.10.0",
+    "typescript": "^5.0.0"
+  }
+}

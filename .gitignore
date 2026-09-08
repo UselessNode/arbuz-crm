@@ -1,0 +1,25 @@
+# Зависимости
+node_modules/
+
+# Сборка
+dist/
+build/
+*.tsbuildinfo
+
+# Prisma: сгенерированный клиент
+packages/shared/src/generated/
+
+# Локальное окружение и секреты
+.env
+.env.*
+!.env.example
+
+# Логи и файлы ОС
+*.log
+.DS_Store
+Thumbs.db
+
+# Редакторы / IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json

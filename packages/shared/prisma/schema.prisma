@@ -1,0 +1,333 @@
+// C:\project\arbuz-crm\packages\shared\prisma\schema.prisma
+generator client {
+  provider        = "prisma-client-js"           // "prisma-client" for Prisma v7+
+  output          = "../src/generated/prisma" // "prisma-client-js" for Prisma v6 and older
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RoleType {
+  admin
+  expert
+  applicant
+}
+
+enum ReviewStatus {
+  draft
+  approved
+  rejected
+}
+
+model additional_materials {
+  id              Int          @id @default(autoincrement())
+  application_id  Int
+  file_path       String       @db.VarChar(255)
+  file_name       String       @db.VarChar(255)
+  file_type       String?      @db.VarChar(50)
+  file_bytes_size Decimal?     @db.Decimal(10, 2)
+  comment         String?
+  uploaded_at     DateTime     @default(now()) @db.Timestamptz(6)
+  created_at      DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime     @default(now()) @db.Timestamptz(6)
+  deleted_at      DateTime?    @db.Timestamptz(6)
+  applications    applications @relation(fields: [application_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([application_id], map: "idx_additional_materials_application")
+  @@index([deleted_at], map: "idx_additional_materials_deleted", where: raw("(deleted_at IS NULL)"))
+}
+
+model application_reviews {
+  id             Int      @id @default(autoincrement())
+  application_id Int
+  expert_id      Int
+  review_status  ReviewStatus?
+  review_text    String?
+  rating         Json?    // Оценка эксперта по критериям в JSON формате: { criterion_id: value }
+  total_score    Float?   // Итоговая оценка (сумма с учётом весов)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @default(now()) @db.Timestamptz(6)
+  deleted_at     DateTime? @db.Timestamptz(6)
+  applications   applications @relation(fields: [application_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users          users        @relation(fields: [expert_id], references: [id], onUpdate: NoAction)
+
+  @@unique([application_id, expert_id])
+  @@index([application_id], map: "idx_app_reviews_application")
+  @@index([deleted_at], map: "idx_app_reviews_deleted", where: raw("(deleted_at IS NULL)"))
+  @@index([expert_id], map: "idx_app_reviews_expert")
+}
+
+model application_statuses {
+  id           Int            @id @default(autoincrement())
+  name         String         @db.VarChar(50)
+  is_editable  Boolean?       @default(true)
+  is_deletable Boolean?       @default(true)
+  description  String?
+  created_at   DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime       @default(now()) @db.Timestamptz(6)
+  deleted_at   DateTime?      @db.Timestamptz(6)
+  applications applications[]
+
+  @@index([deleted_at], map: "idx_application_statuses_deleted", where: raw("(deleted_at IS NULL)"))
+}
+
+model applications {
+  id                        Int                    @id @default(autoincrement())
+  owner_id                  Int?
+  title                     String                 @db.VarChar(255)
+  tender_id                 Int?
+  direction_id              Int?
+  status_id                 Int                    @default(1)
+  idea_description          String
+  importance_to_team        String
+  project_goal              String
+  project_tasks             String
+  implementation_experience String?
+  results_description       String?
+  submitted_at              DateTime?              @db.Timestamptz(6)
+  created_at                DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime               @default(now()) @db.Timestamptz(6)
+  deleted_at                DateTime?              @db.Timestamptz(6)
+  additional_materials      additional_materials[]
+  application_reviews       application_reviews[]
+  directions                directions?            @relation(fields: [direction_id], references: [id], onUpdate: NoAction)
+  users                     users?                 @relation(fields: [owner_id], references: [id], onUpdate: NoAction)
+  application_statuses      application_statuses   @relation(fields: [status_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  tenders                   tenders?               @relation(fields: [tender_id], references: [id], onUpdate: NoAction)
+  change_logs               change_logs[]
+  project_budget            project_budget[]
+  project_plans             project_plans[]
+  team_members              team_members[]
+
+  @@index([created_at], map: "idx_applications_created")
+  @@index([deleted_at], map: "idx_applications_deleted", where: raw("(deleted_at IS NULL)"))
+  @@index([direction_id], map: "idx_applications_direction")
+  @@index([owner_id], map: "idx_applications_owner")
+  @@index([status_id], map: "idx_applications_status")
+  @@index([status_id, created_at], map: "idx_applications_status_created")
+  @@index([submitted_at], map: "idx_applications_submitted")
+  @@index([tender_id], map: "idx_applications_tender")
+}
+
+model change_logs {
+  id             Int           @id @default(autoincrement())
+  application_id Int?
+  user_id        Int?
+  action         String        @db.VarChar(50)
+  old_value      Json?
+  new_value      Json?
+  created_at     DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime      @default(now()) @db.Timestamptz(6)
+  deleted_at     DateTime?     @db.Timestamptz(6)
+  applications   applications? @relation(fields: [application_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users          users?        @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+
+  @@index([application_id], map: "idx_change_logs_application")
+  @@index([created_at], map: "idx_change_logs_created")
+  @@index([deleted_at], map: "idx_change_logs_deleted", where: raw("(deleted_at IS NULL)"))
+  @@index([user_id], map: "idx_change_logs_user")
+}
+
+model directions {
+  id           Int            @id @default(autoincrement())
+  name         String         @db.VarChar(255)
+  description  String?
+  tender_id    Int?
+  created_at   DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime       @default(now()) @db.Timestamptz(6)
+  deleted_at   DateTime?      @db.Timestamptz(6)
+  applications applications[]
+  tenders      tenders?       @relation(fields: [tender_id], references: [id], onUpdate: NoAction)
+
+  @@index([deleted_at], map: "idx_directions_deleted", where: raw("(deleted_at IS NULL)"))
+  @@index([tender_id], map: "idx_directions_tender")
+}
+
+model file_categories {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique @db.VarChar(100)
+  description String?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  files       files[]
+
+  @@index([deleted_at], map: "idx_file_categories_deleted", where: raw("(deleted_at IS NULL)"))
+}
+
+model files {
+  id              Int              @id @default(autoincrement())
+  name            String           @db.VarChar(100)
+  description     String?
+  file_type       String?          @db.VarChar(50)
+  category_id     Int?
+  path            String?          @db.VarChar(500)
+  created_at      DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime         @default(now()) @db.Timestamptz(6)
+  deleted_at      DateTime?        @db.Timestamptz(6)
+  file_categories file_categories? @relation(fields: [category_id], references: [id], onUpdate: NoAction)
+
+  @@index([category_id], map: "idx_files_category")
+  @@index([deleted_at], map: "idx_files_deleted", where: raw("(deleted_at IS NULL)"))
+  @@index([name], map: "idx_files_name")
+}
+
+model project_budget {
+  id             Int          @id @default(autoincrement())
+  application_id Int
+  resource_type  String       @db.VarChar(255)
+  unit_cost      Decimal?     @db.Decimal(10, 2)
+  quantity       Int?
+  own_funds      Decimal?     @db.Decimal(10, 2)
+  grant_funds    Decimal?     @db.Decimal(10, 2)
+  comment        String?
+  created_at     DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime     @default(now()) @db.Timestamptz(6)
+  deleted_at     DateTime?    @db.Timestamptz(6)
+  applications   applications @relation(fields: [application_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([application_id], map: "idx_project_budget_application")
+  @@index([deleted_at], map: "idx_project_budget_deleted", where: raw("(deleted_at IS NULL)"))
+}
+
+model project_plans {
+  id                Int          @id @default(autoincrement())
+  application_id    Int
+  task              String
+  event_name        String
+  event_description String?
+  start_date        DateTime?    @db.Date
+  end_date          DateTime?    @db.Date
+  results           String?
+  fixation_form     String?
+  created_at        DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime     @default(now()) @db.Timestamptz(6)
+  deleted_at        DateTime?    @db.Timestamptz(6)
+  applications      applications @relation(fields: [application_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([application_id], map: "idx_project_plans_application")
+  @@index([deleted_at], map: "idx_project_plans_deleted", where: raw("(deleted_at IS NULL)"))
+}
+
+model schema_migrations {
+  version    String    @id @db.VarChar(255)
+  applied_at DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model team_members {
+  id                 Int          @id @default(autoincrement())
+  application_id     Int
+  surname            String       @db.VarChar(100)
+  name               String       @db.VarChar(100)
+  patronymic         String?      @db.VarChar(100)
+  tasks_in_project   String?
+  contact_info       String?      @db.VarChar(255)
+  social_media_links String?
+  forum_url          String?      @db.VarChar(255)
+  is_responsible     Boolean?
+  is_coordinator     Boolean?
+  education          String?
+  work_experience    String?
+  is_adult           Boolean?
+  consent_file_path  String       @db.VarChar(500)
+  consent_files      consent_files[]
+  created_at         DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime     @default(now()) @db.Timestamptz(6)
+  deleted_at         DateTime?    @db.Timestamptz(6)
+  applications       applications @relation(fields: [application_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([application_id], map: "idx_team_members_application")
+  @@index([deleted_at], map: "idx_team_members_deleted", where: raw("(deleted_at IS NULL)"))
+}
+
+model tenders {
+  id           Int            @id @default(autoincrement())
+  name         String         @db.VarChar(255)
+  description  String?
+  created_at   DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime       @default(now()) @db.Timestamptz(6)
+  deleted_at   DateTime?      @db.Timestamptz(6)
+  applications applications[]
+  directions   directions[]
+  evaluation_criteria evaluation_criteria[]
+
+  @@index([deleted_at], map: "idx_tenders_deleted", where: raw("(deleted_at IS NULL)"))
+}
+
+model evaluation_criteria {
+  id           Int      @id @default(autoincrement())
+  tender_id    Int
+  name         String   @db.VarChar(255)
+  description  String?
+  min_value    Float    @default(0)
+  max_value    Float    @default(10)
+  weight       Float    @default(1)
+  config       Json?    // Дополнительная конфигурация в JSON формате
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+  tenders      tenders  @relation(fields: [tender_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tender_id], map: "idx_evaluation_criteria_tender")
+  @@index([deleted_at], map: "idx_evaluation_criteria_deleted", where: raw("(deleted_at IS NULL)"))
+}
+
+model users {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique @db.VarChar(255)
+  password_hash String         @db.VarChar(255)
+  surname       String?        @db.VarChar(100)
+  name          String?        @db.VarChar(100)
+  patronymic    String?        @db.VarChar(100)
+  role          RoleType       @default(applicant)
+  last_activity DateTime       @default(now()) @db.Timestamptz(6)
+  created_at    DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime       @default(now()) @db.Timestamptz(6)
+  deleted_at    DateTime?      @db.Timestamptz(6)
+  applications  applications[]
+  change_logs   change_logs[]
+  application_reviews application_reviews[]
+  posts         posts[]
+
+  @@index([deleted_at], map: "idx_users_deleted", where: raw("(deleted_at IS NULL)"))
+  @@index([last_activity], map: "idx_users_last_activity")
+  @@index([role], map: "idx_users_role")
+}
+
+model consent_files {
+  id             Int          @id @default(autoincrement())
+  team_member_id Int
+  file_path      String       @db.VarChar(500)
+  file_name      String?      @db.VarChar(255)
+  file_type      String?      @db.VarChar(50)
+  file_size      Int?
+  uploaded_at    DateTime     @default(now()) @db.Timestamptz(6)
+  created_at     DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime     @default(now()) @db.Timestamptz(6)
+  deleted_at     DateTime?    @db.Timestamptz(6)
+  team_members   team_members @relation(fields: [team_member_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([team_member_id], map: "idx_consent_files_team_member")
+  @@index([deleted_at], map: "idx_consent_files_deleted", where: raw("(deleted_at IS NULL)"))
+}
+
+model posts {
+  id           Int      @id @default(autoincrement())
+  title        String   @db.VarChar(255)
+  content      String   @db.Text
+  is_published Boolean  @default(false)
+  created_by   Int?
+  category_id  Int?
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+
+  author    users?           @relation(fields: [created_by], references: [id])
+
+  @@index([is_published], map: "idx_posts_published")
+  @@index([category_id], map: "idx_posts_category")
+  @@index([created_at], map: "idx_posts_created")
+  @@index([deleted_at], map: "idx_posts_deleted", where: raw("(deleted_at IS NULL)"))
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@arbuz/shared",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/client": "7",
+    "@prisma/client-runtime-utils": "7.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "prisma": "7",
+    "typescript": "^5.3.3"
+  }
+}
