@@ -46,8 +46,16 @@
 
 ### Очередь
 
-- Session 2: архитектура модулей (files/pdf-export/posts) — обрамить текущие роуты в модули, pdf-export и posts.
-- Вопрос для заказчика на будущее: нужен ли минимальный UI загрузки файлов раньше Session 3.
+- Session 3: frontend. Design system + Component Library.
+- Session 4: функционал администратора (пользователи/роли, редактирование всего).
+- Сессия 2 выполнена — детали ниже.
+
+### Сессия 2 «Архитектура модулей» — выполнена (v1.1.0)
+
+- Схема расширена миграцией `20260908154317_session2_modules`: `pdf_export_jobs` + `posts_files`.
+- pdf-export: асинхронный воркер `scripts/pdf-worker.ts`, pdfmake (Roboto/кириллица), 9 секций + бюджет (шаблон → техдолг в `docs/technical-debt.md`).
+- posts: CRUD админа (Markdown), чтение опубликованного для остальных; вложения через `posts_files` + модуль files.
+- app.ts/index.ts разделены; multipart в `lib/multipart.ts`. file_type в БД — короткие токены (fix).
 
 ### Тестирование (запланировано — выделить время в графике)
 

@@ -132,6 +132,9 @@ bun dev:frontend   # http://127.0.0.1:5173
 - Доступ: владелец заявки или администратор; файлы отдаются только через API.
 - Материалы заявки (`additional_materials`): `POST/GET /api/applications/:id/files`, `GET .../files/:fileId/download`, `DELETE .../files/:fileId`.
 - Согласия участников (`consent_files`): `GET/POST /api/applications/:id/team-members/:memberId/consents`, `GET .../consents/:consentId/download`, `DELETE .../consents/:consentId`.
+- Посты (лента новостей): `GET/POST/PATCH/DELETE /api/posts[/:id]` (создание/правка/публикация — администратор; чтение опубликованного — все), вложения `POST/GET/DELETE /api/posts/:id/files[/:fileId][/download]`.
+- PDF-экспорт заявки (асинхронно, статус в `pdf_export_jobs`): `POST /api/applications/:id/pdf-export`, `GET /api/pdf-export-jobs/:jobId`, `GET .../download`.
+- Известные «хвосты» и отложенные решения: `docs/technical-debt.md`.
 - Аудит действий (вход, загрузка/скачивание/удаление) пишется в `logs/audit.log`.
 - Очистка: `bun storage:cleanup` (например, в cron).
 - Проверка API без опыта: готовая коллекция `postman/arbuz-crm.postman_collection.json`, инструкция — `docs/api-testing-postman.md`.

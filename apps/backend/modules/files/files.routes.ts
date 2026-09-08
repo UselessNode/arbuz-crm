@@ -1,12 +1,12 @@
 // HTTP API модуля файлов. Все маршруты требуют аутентификации;
 // права проверяются по владельцу заявки или роли администратора.
 import { Router } from 'express';
-import busboy from 'busboy';
 import type { Request, Response } from 'express';
 import { prisma } from '../../lib/prisma';
 import { config } from '../../lib/config';
 import { asyncHandler, httpError } from '../../lib/http';
 import { log } from '../../lib/logger';
+import { readMultipartFile } from '../../lib/multipart';
 import { requireAuth } from '../auth/auth.middleware';
 import type { CurrentUser } from './files.service';
 import {
@@ -16,7 +16,7 @@ import {
   resolveApplicationFolder,
   syncMemberConsentPath,
 } from './files.service';
-import { isImageOrPdf, safeOriginalName, validateUpload } from './file-validation';
+import { fileMime, isPreviewableFile, safeOriginalName, validateUpload } from './file-validation';
 import { openStored, removeStored, storeUpload } from './file-storage';
 
 export const filesRouter = Router();
@@ -30,69 +30,17 @@ function parseId(raw: string | undefined): number {
   return value;
 }
 
-interface MultipartFile {
-  buffer: Buffer;
-  originalName: string;
-  comment?: string;
-}
-
-/** Читает multipart-запрос: одно поле file (+ необязательный comment). */
-function readMultipartFile(req: Request): Promise<MultipartFile> {
-  return new Promise((resolve, reject) => {
-    const bb = busboy({
-      headers: req.headers,
-      limits: { files: 1, fileSize: config.limits.maxFileBytes + 1 },
-    });
-    const chunks: Buffer[] = [];
-    const comments: string[] = [];
-    let bytes = 0;
-    let fileStarted = false;
-    let duplicateFile = false;
-    let tooLarge = false;
-    let originalName = '';
-
-    bb.on('file', (_field, stream, info) => {
-      if (fileStarted) {
-        duplicateFile = true;
-        stream.resume();
-        return;
-      }
-      fileStarted = true;
-      originalName = safeOriginalName(info.filename);
-      stream.on('data', (chunk: Buffer) => {
-        bytes += chunk.length;
-        if (!tooLarge) chunks.push(chunk);
-        if (bytes > config.limits.maxFileBytes) tooLarge = true;
-      });
-      stream.on('error', reject);
-    });
-    bb.on('field', (field, value) => {
-      if (field === 'comment') comments.push(value);
-    });
-    bb.on('error', reject);
-    bb.on('close', () => {
-      if (duplicateFile) {
-        reject(httpError(400, 'За один запрос можно загрузить только один файл', 'ONE_FILE_PER_REQUEST'));
-        return;
-      }
-      if (!fileStarted) {
-        reject(httpError(400, 'Файл не передан (поле "file")', 'FILE_REQUIRED'));
-        return;
-      }
-      if (tooLarge) {
-        const mb = Math.floor(config.limits.maxFileBytes / (1024 * 1024));
-        reject(
-          httpError(413, `Файл превышает лимит ${mb} МБ. Уменьшите файл и попробуйте снова.`, 'FILE_TOO_LARGE'),
-        );
-        return;
-      }
-      resolve({
-        buffer: Buffer.concat(chunks, bytes),
-        originalName,
-        comment: comments.length ? comments.join('\n') : undefined,
-      });
-    });
-    req.pipe(bb);
+function assertApplicationQuota(applicationId: number, newBytes: number): Promise<number> {
+  return applicationUsedBytes(applicationId).then((usedBytes) => {
+    const mb = Math.floor(config.limits.maxApplicationBytes / (1024 * 1024));
+    if (usedBytes + newBytes > config.limits.maxApplicationBytes) {
+      throw httpError(
+        413,
+        `Превышен общий лимит файлов заявки (${mb} МБ). Удалите часть файлов или уменьшите их размер.`,
+        'APPLICATION_QUOTA_EXCEEDED',
+      );
+    }
+    return usedBytes;
   });
 }
 
@@ -136,11 +84,10 @@ function serializeConsent(row: ConsentRow) {
   };
 }
 
-function setDownloadHeaders(res: Response, fileName: string | null, mime: string | null, size: number): void {
-  const type = mime ?? 'application/octet-stream';
-  const disposition = isImageOrPdf(type) ? 'inline' : 'attachment';
+function setDownloadHeaders(res: Response, fileName: string | null, fileType: string | null, size: number): void {
+  const disposition = isPreviewableFile(fileType) ? 'inline' : 'attachment';
   const encoded = encodeURIComponent(fileName ?? 'file');
-  res.setHeader('Content-Type', type);
+  res.setHeader('Content-Type', fileMime(fileType));
   res.setHeader('Content-Length', String(size));
   res.setHeader('Content-Disposition', `${disposition}; filename*=UTF-8''${encoded}`);
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -150,33 +97,24 @@ function setDownloadHeaders(res: Response, fileName: string | null, mime: string
 
 filesRouter.post(
   '/:applicationId/files',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     const application = await requireManageableApplication(actor, applicationId);
     const { buffer, originalName, comment } = await readMultipartFile(req);
 
-    const { ext, mime } = validateUpload(buffer, originalName);
-
-    const usedBytes = await applicationUsedBytes(applicationId);
-    const mb = Math.floor(config.limits.maxApplicationBytes / (1024 * 1024));
-    if (usedBytes + buffer.byteLength > config.limits.maxApplicationBytes) {
-      throw httpError(
-        413,
-        `Превышен общий лимит файлов заявки (${mb} МБ). Удалите часть файлов или уменьшите их размер.`,
-        'APPLICATION_QUOTA_EXCEEDED',
-      );
-    }
+    const type = validateUpload(buffer, originalName);
+    await assertApplicationQuota(applicationId, buffer.byteLength);
 
     const folder = await resolveApplicationFolder(applicationId, application.owner_id);
-    const relativePath = await storeUpload(buffer, folder, ext);
+    const relativePath = await storeUpload(buffer, folder, type);
 
     const record = await prisma.additional_materials.create({
       data: {
         application_id: applicationId,
         file_path: relativePath,
-        file_name: originalName,
-        file_type: mime,
+        file_name: safeOriginalName(originalName),
+        file_type: type,
         file_bytes_size: buffer.byteLength,
         comment,
       },
@@ -185,7 +123,7 @@ filesRouter.post(
       userId: actor.id,
       applicationId,
       fileId: record.id,
-      fileName: originalName,
+      fileName: record.file_name,
       sizeBytes: buffer.byteLength,
       path: relativePath,
     });
@@ -195,7 +133,7 @@ filesRouter.post(
 
 filesRouter.get(
   '/:applicationId/files',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     await requireManageableApplication(actor, applicationId);
@@ -209,7 +147,7 @@ filesRouter.get(
 
 filesRouter.get(
   '/:applicationId/files/:fileId/download',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     const fileId = parseId(req.params.fileId);
@@ -231,7 +169,7 @@ filesRouter.get(
 
 filesRouter.delete(
   '/:applicationId/files/:fileId',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     const fileId = parseId(req.params.fileId);
@@ -253,7 +191,7 @@ filesRouter.delete(
 
 filesRouter.get(
   '/:applicationId/team-members/:memberId/consents',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     const memberId = parseId(req.params.memberId);
@@ -270,7 +208,7 @@ filesRouter.get(
 
 filesRouter.post(
   '/:applicationId/team-members/:memberId/consents',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     const memberId = parseId(req.params.memberId);
@@ -278,27 +216,18 @@ filesRouter.post(
     await requireTeamMemberOfApplication(applicationId, memberId);
 
     const { buffer, originalName } = await readMultipartFile(req);
-    const { ext, mime } = validateUpload(buffer, originalName);
-
-    const usedBytes = await applicationUsedBytes(applicationId);
-    const mb = Math.floor(config.limits.maxApplicationBytes / (1024 * 1024));
-    if (usedBytes + buffer.byteLength > config.limits.maxApplicationBytes) {
-      throw httpError(
-        413,
-        `Превышен общий лимит файлов заявки (${mb} МБ). Удалите часть файлов или уменьшите их размер.`,
-        'APPLICATION_QUOTA_EXCEEDED',
-      );
-    }
+    const type = validateUpload(buffer, originalName);
+    await assertApplicationQuota(applicationId, buffer.byteLength);
 
     const folder = await resolveApplicationFolder(applicationId, application.owner_id);
-    const relativePath = await storeUpload(buffer, folder, ext, 'consents');
+    const relativePath = await storeUpload(buffer, folder, type, 'consents');
 
     const record = await prisma.consent_files.create({
       data: {
         team_member_id: memberId,
         file_path: relativePath,
-        file_name: originalName,
-        file_type: mime,
+        file_name: safeOriginalName(originalName),
+        file_type: type,
         file_size: buffer.byteLength,
       },
     });
@@ -308,7 +237,7 @@ filesRouter.post(
       applicationId,
       teamMemberId: memberId,
       consentId: record.id,
-      fileName: originalName,
+      fileName: record.file_name,
       sizeBytes: buffer.byteLength,
     });
     res.status(201).json({ consent: serializeConsent(record) });
@@ -317,7 +246,7 @@ filesRouter.post(
 
 filesRouter.get(
   '/:applicationId/consents/:consentId/download',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     const consentId = parseId(req.params.consentId);
@@ -339,7 +268,7 @@ filesRouter.get(
 
 filesRouter.delete(
   '/:applicationId/consents/:consentId',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     const consentId = parseId(req.params.consentId);

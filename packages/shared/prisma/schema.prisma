@@ -21,6 +21,13 @@ enum ReviewStatus {
   rejected
 }
 
+enum PdfExportStatus {
+  pending
+  processing
+  done
+  error
+}
+
 model additional_materials {
   id              Int          @id @default(autoincrement())
   application_id  Int
@@ -100,6 +107,7 @@ model applications {
   project_budget            project_budget[]
   project_plans             project_plans[]
   team_members              team_members[]
+  pdf_export_jobs           pdf_export_jobs[]
 
   @@index([created_at], map: "idx_applications_created")
   @@index([deleted_at], map: "idx_applications_deleted", where: raw("(deleted_at IS NULL)"))
@@ -168,6 +176,8 @@ model files {
   updated_at      DateTime         @default(now()) @db.Timestamptz(6)
   deleted_at      DateTime?        @db.Timestamptz(6)
   file_categories file_categories? @relation(fields: [category_id], references: [id], onUpdate: NoAction)
+  posts_files     posts_files[]
+  pdf_export_jobs pdf_export_jobs[]
 
   @@index([category_id], map: "idx_files_category")
   @@index([deleted_at], map: "idx_files_deleted", where: raw("(deleted_at IS NULL)"))
@@ -325,9 +335,39 @@ model posts {
   deleted_at   DateTime? @db.Timestamptz(6)
 
   author    users?           @relation(fields: [created_by], references: [id])
+  posts_files posts_files[]
 
   @@index([is_published], map: "idx_posts_published")
   @@index([category_id], map: "idx_posts_category")
   @@index([created_at], map: "idx_posts_created")
   @@index([deleted_at], map: "idx_posts_deleted", where: raw("(deleted_at IS NULL)"))
+}
+
+// Задачи асинхронной генерации PDF-экспорта заявки.
+model pdf_export_jobs {
+  id             Int             @id @default(autoincrement())
+  application_id Int
+  status         PdfExportStatus @default(pending)
+  file_id        Int? // файл с готовым PDF (строки из tables files), заполняется после генерации
+  error          String?         @db.Text
+  created_at     DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime        @default(now()) @db.Timestamptz(6)
+  applications   applications    @relation(fields: [application_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  files          files?          @relation(fields: [file_id], references: [id], onUpdate: NoAction, onDelete: SetNull)
+
+  @@index([application_id], map: "idx_pdf_export_jobs_application")
+  @@index([status], map: "idx_pdf_export_jobs_status")
+  @@index([file_id], map: "idx_pdf_export_jobs_file")
+}
+
+// Связь поста со вложениями (файлы модуля files).
+model posts_files {
+  post_id    Int
+  file_id    Int
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  posts      posts    @relation(fields: [post_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  files      files    @relation(fields: [file_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([post_id, file_id])
+  @@index([file_id], map: "idx_posts_files_file")
 }

@@ -4,6 +4,33 @@
 
 **Правило версионирования:** каждое изменение (фикс, фича, рефакторинг) поднимает версию пакетов воркспейсов — `apps/backend`, `apps/frontend`, `packages/shared` (все синхронно, семантическое версионирование). Версия фиксируется в git-коммитах и вносится в этот файл.
 
+## [1.1.0] - 2026-09-08
+
+Сессия 2 — архитектура модулей: pdf-export и посты.
+
+### Added
+
+- **Схема БД** (миграция `20260908154317_session2_modules`): `pdf_export_jobs`
+  (статусы `pending|processing|done|error`) и join-таблица `posts_files`.
+- **Модуль pdf-export**: асинхронная генерация PDF заявки отдельным воркером
+  (`scripts/pdf-worker.ts`), статусы заданий, скачивание готового PDF.
+  Рендер — pdfmake со встроенными шрифтами Roboto (кириллица). 9 секций
+  текста + таблица бюджета (шаблон — см. `docs/technical-debt.md`).
+  Эндпоинты: `POST /api/applications/:id/pdf-export`,
+  `GET /api/pdf-export-jobs/:jobId`, `GET /api/pdf-export-jobs/:jobId/download`.
+- **Модуль posts**: CRUD для администратора (Markdown в `posts.content`),
+  остальные читают только опубликованное; вложения к постам через `posts_files`
+  и модуль files. Эндпоинты: `GET/POST/PATCH/DELETE /api/posts[/:id]`,
+  `POST/GET/DELETE /api/posts/:id/files[/:fileId][/download]`.
+- **Архитектура**: разделение `app.ts` (сборка Express) и `index.ts` (запуск);
+  чтение multipart вынесено в `lib/multipart.ts`.
+
+### Fixed
+
+- Тип файла в БД (`file_type`, VARCHAR(50)) теперь хранится коротким токеном
+  (`pdf/docx/jpg/png/mp4`) — полный MIME у DOCX длиннее 50 символов и не влезал бы
+  в колонку. MIME вычисляется при отдаче файла.
+
 ## [1.0.4] - 2026-09-08
 
 ### Added

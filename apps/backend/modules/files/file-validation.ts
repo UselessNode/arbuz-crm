@@ -1,23 +1,42 @@
 // Проверка загружаемых файлов: допустимые типы (PDF, DOCX, JPEG, PNG, MP4)
 // по «магическим байтам» и расширению. Никакого выполнения содержимого.
+//
+// В БД (колонки file_type, VARCHAR(50)) хранится короткий токен типа
+// (pdf/docx/jpg/png/mp4) — полный MIME у DOCX длиннее 50 символов.
+// MIME вычисляется при отдаче файла (см. fileMime).
 import path from 'node:path';
 import { httpError } from '../../lib/http';
 
-export interface DetectedFile {
-  ext: string; // нормализованное расширение для имени на диске
-  mime: string;
-}
+export const ALLOWED_TYPES = ['pdf', 'docx', 'jpg', 'png', 'mp4'] as const;
+export type FileType = (typeof ALLOWED_TYPES)[number];
 
-export const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'jpg', 'jpeg', 'png', 'mp4'] as const;
-
-const MIME_BY_EXT: Record<string, string> = {
+const MIME_BY_TYPE: Record<FileType, string> = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
   png: 'image/png',
   mp4: 'video/mp4',
 };
+
+const EXTENSION_TO_TYPE: Record<string, FileType> = {
+  pdf: 'pdf',
+  docx: 'docx',
+  jpg: 'jpg',
+  jpeg: 'jpg',
+  png: 'png',
+  mp4: 'mp4',
+};
+
+/** MIME по сохранённому токену типа (для заголовка Content-Type). */
+export function fileMime(fileType: string | null | undefined): string {
+  if (fileType && fileType in MIME_BY_TYPE) return MIME_BY_TYPE[fileType as FileType];
+  return 'application/octet-stream';
+}
+
+/** PDF и картинки можно показывать в браузере (inline), остальное — скачивать. */
+export function isPreviewableFile(fileType: string | null | undefined): boolean {
+  return fileType === 'pdf' || fileType === 'jpg' || fileType === 'png';
+}
 
 function ascii(buf: Buffer, start: number, len: number): string {
   return buf.subarray(start, start + len).toString('latin1');
@@ -32,7 +51,7 @@ const ZIP_SIGNATURE = [0x50, 0x4b, 0x03, 0x04];
 const DOCX_MARKER = '[Content_Types].xml'; // обязательная часть OOXML (docx) внутри ZIP
 
 /** Определяет тип по первым байтам (окно до 256 КБ достаточно для всех разрешённых форматов). */
-function sniff(buffer: Buffer): string | undefined {
+function sniff(buffer: Buffer): FileType | undefined {
   if (hasBytes(buffer, 0, [0x25, 0x50, 0x44, 0x46]) && ascii(buffer, 1, 3) === 'PDF') return 'pdf';
   if (hasBytes(buffer, 0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'png';
   if (hasBytes(buffer, 0, [0xff, 0xd8, 0xff])) return 'jpg';
@@ -48,40 +67,40 @@ function sniff(buffer: Buffer): string | undefined {
   return undefined;
 }
 
-/** Санитизирует имя файла (без путей и управляющих символов) и возвращает расширение. */
+/** Санитизирует имя файла (без путей и управляющих символов). */
 export function safeOriginalName(filename: string): string {
   const base = path.basename(String(filename ?? '').trim()).replace(/[\u0000-\u001f\u007f]/g, '');
   return base.length > 200 ? base.slice(0, 200) : base;
 }
 
 /**
- * Проверяет содержимое и расширение. Возвращает тип файла либо бросает 415.
- * При mismatch содержимого и расширения файл отклоняется.
+ * Проверяет содержимое и расширение. Возвращает токен типа либо бросает 415.
+ * При несовпадении содержимого и расширения файл отклоняется.
  */
-export function validateUpload(buffer: Buffer, originalName: string): DetectedFile {
+export function validateUpload(buffer: Buffer, originalName: string): FileType {
   const name = safeOriginalName(originalName);
   const dot = name.lastIndexOf('.');
   const rawExt = dot === -1 ? '' : name.slice(dot + 1).toLowerCase();
-  if (!(rawExt in MIME_BY_EXT)) {
-    throw httpError(415, `Тип файла не поддерживается. Разрешены: ${ALLOWED_EXTENSIONS.join(', ')}`, 'UNSUPPORTED_FILE_TYPE');
+  const declaredType = EXTENSION_TO_TYPE[rawExt];
+  if (!declaredType) {
+    throw httpError(
+      415,
+      `Тип файла не поддерживается. Разрешены: ${ALLOWED_TYPES.join(', ')}`,
+      'UNSUPPORTED_FILE_TYPE',
+    );
   }
 
   const detected = sniff(buffer);
-  if (!detected || !(detected in MIME_BY_EXT)) {
+  if (!detected) {
     throw httpError(415, 'Содержимое файла не распознано или повреждено', 'INVALID_FILE_CONTENT');
   }
-  if (MIME_BY_EXT[detected] !== MIME_BY_EXT[rawExt]) {
+  if (detected !== declaredType) {
     throw httpError(
       415,
-      `Содержимое файла не соответствует расширению (.${rawExt}). Переименование файла не поможет — проверьте файл.`,
+      `Содержимое файла не соответствует расширению (.${rawExt}). Проверьте файл.`,
       'FILE_CONTENT_MISMATCH',
     );
   }
 
-  // Для имён на диске используем расширение, которым файл опознан (jpg для jpeg/jpg).
-  return { ext: detected, mime: MIME_BY_EXT[detected] };
-}
-
-export function isImageOrPdf(mime: string): boolean {
-  return mime === 'application/pdf' || mime.startsWith('image/');
+  return detected;
 }
