@@ -1,0 +1,147 @@
+{
+  "info": {
+    "name": "Arbuz CRM API",
+    "_postman_id": "9c1a7f2e-4b6d-4f3a-9c8e-2a1b0d5f7e3a",
+    "description": "Проверка API (Сессия 1): аутентификация и файлы заявок. Перед запуском: bun db:generate, bun seed, bun dev. Cookie сессии Postman запоминает автоматически.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Вход (login)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('login: статус 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('login: есть user', function () { pm.expect(pm.response.json().user.email).to.eql(pm.variables.get('adminEmail')); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "2. Текущий пользователь (me)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me"]
+        }
+      }
+    },
+    {
+      "name": "3. Загрузить материал заявки",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "multipart/form-data" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "file", "type": "file", "src": "" },
+            { "key": "comment", "type": "text", "value": "фото-отчёт (тест)" }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/files",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "applications", "{{applicationId}}", "files"]
+        }
+      }
+    },
+    {
+      "name": "4. Список материалов заявки",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/files",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "applications", "{{applicationId}}", "files"]
+        }
+      }
+    },
+    {
+      "name": "5. Скачать материал",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/files/{{fileId}}/download",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "applications", "{{applicationId}}", "files", "{{fileId}}", "download"]
+        }
+      }
+    },
+    {
+      "name": "6. Удалить материал",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/files/{{fileId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "applications", "{{applicationId}}", "files", "{{fileId}}"]
+        }
+      }
+    },
+    {
+      "name": "7. Загрузить согласие участника",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "multipart/form-data" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [{ "key": "file", "type": "file", "src": "" }]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/team-members/{{teamMemberId}}/consents",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "applications", "{{applicationId}}", "team-members", "{{teamMemberId}}", "consents"]
+        }
+      }
+    },
+    {
+      "name": "8. Список согласий участника",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/team-members/{{teamMemberId}}/consents",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "applications", "{{applicationId}}", "team-members", "{{teamMemberId}}", "consents"]
+        }
+      }
+    },
+    {
+      "name": "9. Выход (logout)",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/logout",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "logout"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:3000" },
+    { "key": "adminEmail", "value": "admin@arbuz.local" },
+    { "key": "adminPassword", "value": "admin12345" },
+    { "key": "applicationId", "value": "1" },
+    { "key": "teamMemberId", "value": "1" },
+    { "key": "fileId", "value": "1" }
+  ]
+}

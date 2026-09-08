@@ -1,6 +1,6 @@
 # 🍉 Arbuz CRM
 
-Монорепозиторий CRM-системы для управления заявками (гранты, тендеры, конкурсы): приём заявок, экспертные оценки, бюджеты и планы проектов, командный состав, файлы и согласия, публикации.
+Монорепозиторий CRM-системы для управления заявками (направления, тендеры, конкурсы): приём заявок, экспертные оценки, бюджеты и планы проектов, командный состав, файлы и согласия, публикации.
 
 ## Технологический стек
 
@@ -54,10 +54,14 @@ arbuz-crm/
 ## Установка
 
 ```sh
+# 0. Клонировать репозиторий
+git clone # <...>
+cd ./arbuz-crm/
+
 # 1. Установить зависимости
 bun install
 
-# 2. Создать .env в корне (по образцу .env.example)
+# 2. Настроить `.env` в корне (по образцу `.env.example`)
 #    DATABASE_URL="postgresql://user:password@localhost:5432/arbuz_crm"
 #    JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD (для входа и seed)
 
@@ -67,7 +71,7 @@ bun db:generate
 # 4. Применить схему к БД (создаст таблицы)
 bun db:push
 
-# 4.1. Создать администратора (и демо-данные при желании)
+# 4.1. Опционально: тестовые данные
 bun seed                    # или SEED_DEMO=true bun seed
 
 # 5. Запустить frontend и backend одновременно
@@ -114,7 +118,7 @@ bun dev:frontend   # http://127.0.0.1:5173
 
 ## Файлы и аутентификация (API)
 
-### Аутентификация (Сессия 1)
+### Аутентификация
 
 - `POST /api/auth/login` — вход по email/паролю, выдаёт JWT в httpOnly-cookie `arbuz_session`.
 - `POST /api/auth/logout`, `GET /api/auth/me` — выход и текущий пользователь.
@@ -130,6 +134,8 @@ bun dev:frontend   # http://127.0.0.1:5173
 - Согласия участников (`consent_files`): `GET/POST /api/applications/:id/team-members/:memberId/consents`, `GET .../consents/:consentId/download`, `DELETE .../consents/:consentId`.
 - Аудит действий (вход, загрузка/скачивание/удаление) пишется в `logs/audit.log`.
 - Очистка: `bun storage:cleanup` (например, в cron).
+- Проверка API без опыта: готовая коллекция `postman/arbuz-crm.postman_collection.json`, инструкция — `docs/api-testing-postman.md`.
+- Автотесты (unit + интеграционные, Postman Runner/Newman) — запланированы в график.
 
 ### Заметки для деплоя
 
@@ -149,7 +155,7 @@ bun dev:frontend   # http://127.0.0.1:5173
 - ⚠️ `bun --watch` из `apps/backend` следит только за файлами пакета; правки в `packages/shared` требуют ручного перезапуска dev-сервера.
 - ✅ Миграция `20260907120417_init` содержит полный SQL схемы; для создания таблиц — `bun db:push` или `bun db:migrate`.
 
-## Версионирование и changelog
+## Версионирование
 
 - Каждое изменение поднимает версию пакетов-воркспейсов (`apps/backend`, `apps/frontend`, `packages/shared`) — синхронно по semver.
 - Текущая версия указывается в сообщении git-коммита.
