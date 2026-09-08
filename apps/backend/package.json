@@ -1,20 +1,25 @@
 {
   "name": "@arbuz/backend",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "scripts": {
     "dev": "bun --watch index.ts",
+    "seed": "bun seed.ts",
+    "storage:cleanup": "bun scripts/cleanup-storage.ts",
     "build": "echo 'Бэкенд на Bun не требует сборки, запускается напрямую из TS'",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@arbuz/shared": "workspace:*",
     "@prisma/adapter-pg": "7.10.0",
+    "busboy": "^1.6.0",
     "express": "^4.18.2",
+    "jose": "^5.9.6",
     "pg": "^8.11.0"
   },
   "devDependencies": {
+    "@types/busboy": "^1.5.4",
     "@types/express": "^4.17.21",
     "@types/node": "^20.11.5",
     "@types/pg": "^8.10.0",

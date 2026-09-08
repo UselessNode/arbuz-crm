@@ -59,12 +59,16 @@ bun install
 
 # 2. Создать .env в корне (по образцу .env.example)
 #    DATABASE_URL="postgresql://user:password@localhost:5432/arbuz_crm"
+#    JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD (для входа и seed)
 
 # 3. Сгенерировать Prisma Client (папка gitignored)
 bun db:generate
 
 # 4. Применить схему к БД (создаст таблицы)
 bun db:push
+
+# 4.1. Создать администратора (и демо-данные при желании)
+bun seed                    # или SEED_DEMO=true bun seed
 
 # 5. Запустить frontend и backend одновременно
 bun dev
@@ -91,6 +95,8 @@ bun dev:frontend   # http://127.0.0.1:5173
 | `bun db:generate`      | Сгенерировать Prisma Client                            |
 | `bun db:update`        | `db:push` + `db:generate`                              |
 | `bun db:migrate`       | Создать/применить миграции (`prisma migrate dev`)      |
+| `bun seed`             | Начальное наполнение: администратор (+демо при `SEED_DEMO=true`) |
+| `bun storage:cleanup`  | Очистка удалённых/осиротевших файлов (для cron)       |
 
 ## База данных
 
@@ -106,6 +112,32 @@ bun dev:frontend   # http://127.0.0.1:5173
   - **Прочее** — `files`/`file_categories`, `posts`, журнал `change_logs`.
 - Конвенции: `snake_case`, мягкое удаление через `deleted_at`, частичные индексы `(deleted_at IS NULL)`.
 
+## Файлы и аутентификация (API)
+
+### Аутентификация (Сессия 1)
+
+- `POST /api/auth/login` — вход по email/паролю, выдаёт JWT в httpOnly-cookie `arbuz_session`.
+- `POST /api/auth/logout`, `GET /api/auth/me` — выход и текущий пользователь.
+- Пароли: argon2id (`Bun.password`). В будущем возможны внешние провайдеры (Госуслуги/ВК) без изменения схемы.
+
+### Файлы заявок
+
+- Хранение: диск `./uploads/` (env `UPLOAD_DIR`). Папка заявки — `<owner_id>-<application_id>-<время>`; согласия — в подпапке `consents/`.
+- В БД хранятся относительные пути; разрешены PDF, DOCX, JPEG, PNG, MP4 (проверка содержимого + расширения). Имена на диске — UUID.
+- Лимиты: 10 МБ на файл, 25 МБ на все файлы заявки.
+- Доступ: владелец заявки или администратор; файлы отдаются только через API.
+- Материалы заявки (`additional_materials`): `POST/GET /api/applications/:id/files`, `GET .../files/:fileId/download`, `DELETE .../files/:fileId`.
+- Согласия участников (`consent_files`): `GET/POST /api/applications/:id/team-members/:memberId/consents`, `GET .../consents/:consentId/download`, `DELETE .../consents/:consentId`.
+- Аудит действий (вход, загрузка/скачивание/удаление) пишется в `logs/audit.log`.
+- Очистка: `bun storage:cleanup` (например, в cron).
+
+### Заметки для деплоя
+
+- Каталог `uploads/` держать вне статики веб-сервера (файлы раздаёт только API): nginx не должен обслуживать его.
+- Права на сервере: файлы `640`, каталоги `750`; запрет исполнения в `uploads/`.
+- `JWT_SECRET` — длинная случайная строка; в production без него сервер не стартует.
+- Резервное копирование: БД + `uploads/` (+ `logs/` при необходимости).
+
 ## Текущее состояние (2026-09-08)
 
 - ✅ `bun install`, `bun typecheck` (shared, backend, frontend) и `bun run build` проходят.
@@ -113,6 +145,7 @@ bun dev:frontend   # http://127.0.0.1:5173
 - ✅ Frontend: минимальное React-приложение на Vite с прокси на backend.
 - ✅ Prisma Client генерируется (`bun db:generate`) и работает с PostgreSQL через `@prisma/adapter-pg`.
 - ✅ Vite слушает `127.0.0.1:5173` (IPv4) — страница открывается в браузере.
+- ✅ Сессия 1: аутентификация (email/пароль, JWT-cookie) и модуль файлов заявок (загрузка/скачивание/удаление, согласия, лимиты, права, аудит).
 - ⚠️ `bun --watch` из `apps/backend` следит только за файлами пакета; правки в `packages/shared` требуют ручного перезапуска dev-сервера.
 - ✅ Миграция `20260907120417_init` содержит полный SQL схемы; для создания таблиц — `bun db:push` или `bun db:migrate`.
 

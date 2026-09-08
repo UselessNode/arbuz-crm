@@ -1,29 +1,19 @@
-// C:\project\arbuz-crm\apps\backend\index.ts
+// Точка входа backend: Express, маршруты аутентификации и файлов, проверка БД.
 import express from 'express';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@arbuz/shared';
+import { config } from './lib/config';
+import { prisma } from './lib/prisma';
+import { errorHandler, notFoundHandler } from './lib/http';
+import { log } from './lib/logger';
+import { authRouter } from './modules/auth/auth.routes';
+import { filesRouter } from './modules/files/files.routes';
 
 const app = express();
-const port = Number(process.env.PORT) || 3000;
-
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  console.error('[Backend] DATABASE_URL не задан. Добавьте его в .env в корне репозитория.');
-  process.exit(1);
-}
-
-// Prisma 7 подключается к PostgreSQL через driver adapter.
-const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString }),
-});
-
 app.use(express.json());
 
 app.get('/', (_req, res) => {
-  res.json({ name: 'Arbuz CRM API', status: 'running' });
+  res.json({ name: 'Arbuz CRM API', status: 'running', version: '1.0.3' });
 });
 
-// Проверка живости сервиса и доступности базы данных.
 app.get('/health', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -34,11 +24,17 @@ app.get('/health', async (_req, res) => {
   }
 });
 
-const server = app.listen(port, () => {
-  console.log(`[Backend] запущен на http://localhost:${port}`);
+app.use('/api/auth', authRouter);
+app.use('/api/applications', filesRouter);
+
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+const server = app.listen(config.port, () => {
+  log.info('[Backend] запущен', { port: config.port, url: `http://127.0.0.1:${config.port}` });
 });
 
-async function shutdown() {
+async function shutdown(): Promise<void> {
   await prisma.$disconnect();
   server.close(() => process.exit(0));
 }

@@ -14,6 +14,12 @@ packages/shared/src/generated/
 .env.*
 !.env.example
 
+# Загруженные пользователями файлы (локальное хранилище)
+uploads/
+
+# Файловые логи аудита
+logs/
+
 # Логи и файлы ОС
 *.log
 .DS_Store
