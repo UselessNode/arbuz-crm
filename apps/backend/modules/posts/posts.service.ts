@@ -1,4 +1,5 @@
 // Бизнес-логика модуля постов (лента новостей).
+import { RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 import type { CurrentUser } from '../files/files.service';
@@ -7,7 +8,7 @@ export const POST_TITLE_MAX = 255;
 export const POST_CONTENT_MAX = 1_000_000;
 
 export function isAdmin(user: CurrentUser): boolean {
-  return user.role === 'admin';
+  return user.role === RoleType.admin;
 }
 
 function requireAdmin(user: CurrentUser): void {

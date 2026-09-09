@@ -163,3 +163,4 @@ bun dev:frontend   # http://127.0.0.1:5173
 - Каждое изменение поднимает версию пакетов-воркспейсов (`apps/backend`, `apps/frontend`, `packages/shared`) — синхронно по semver.
 - Текущая версия указывается в сообщении git-коммита.
 - Все изменения фиксируются в [`CHANGELOG.md`](CHANGELOG.md).
+- Детальный план сессий и заметки — в [`PLANS.md`](PLANS.md), технический долг — в [`docs/technical-debt.md`](docs/technical-debt.md).

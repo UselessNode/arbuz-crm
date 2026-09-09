@@ -2,6 +2,7 @@
 //  1) администратор из env ADMIN_EMAIL / ADMIN_PASSWORD (обязательно);
 //  2) при SEED_DEMO=true — демо-заявитель, демо-заявка и участник команды
 //     (чтобы можно было проверить загрузку файлов и согласий).
+import { RoleType } from '@arbuz/shared';
 import { prisma } from './lib/prisma';
 import { hashPassword } from './modules/auth/auth.service';
 import { log } from './lib/logger';
@@ -20,7 +21,7 @@ async function ensureStatuses(): Promise<void> {
   log.info('seed: созданы статусы заявок');
 }
 
-async function ensureUser(email: string, password: string, role: 'admin' | 'applicant') {
+async function ensureUser(email: string, password: string, role: RoleType) {
   const existing = await prisma.users.findUnique({ where: { email } });
   if (existing) {
     log.info('seed: пользователь уже существует', { email, role });
@@ -40,7 +41,7 @@ async function main(): Promise<void> {
   }
 
   await ensureStatuses();
-  const admin = await ensureUser(adminEmail, adminPassword, 'admin');
+  const admin = await ensureUser(adminEmail, adminPassword, RoleType.admin);
 
   if (process.env.SEED_DEMO !== 'true') {
     log.info('seed: демо-данные пропущены (SEED_DEMO=true для создания)');
@@ -49,7 +50,7 @@ async function main(): Promise<void> {
 
   const demoEmail = process.env.DEMO_EMAIL ?? 'demo@arbuz.local';
   const demoPassword = process.env.DEMO_PASSWORD ?? 'demo12345';
-  const applicant = await ensureUser(demoEmail, demoPassword, 'applicant');
+  const applicant = await ensureUser(demoEmail, demoPassword, RoleType.applicant);
 
   const existingApp = await prisma.applications.findFirst({
     where: { owner_id: applicant.id },

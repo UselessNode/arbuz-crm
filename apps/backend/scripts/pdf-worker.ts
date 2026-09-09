@@ -1,9 +1,12 @@
 // Фоновый воркер генерации PDF (запускается отдельным процессом, чтобы
 // не блокировать HTTP-сервер при массовой генерации отчётов).
 // Использование: bun scripts/pdf-worker.ts --job <jobId>
+import { PdfExportStatus } from '@arbuz/shared';
 import { prisma } from '../lib/prisma';
 import { log } from '../lib/logger';
 import { storeUpload } from '../modules/files/file-storage';
+import { FileTypes } from '../modules/files/file-validation';
+import { WORKER_JOB_ARG } from '../modules/pdf-export/constants';
 import {
   buildPdfDefinition,
   renderPdfBuffer,
@@ -11,7 +14,7 @@ import {
 } from '../modules/pdf-export/pdf-document';
 
 function jobIdFromArgv(): number | null {
-  const index = process.argv.indexOf('--job');
+  const index = process.argv.indexOf(WORKER_JOB_ARG);
   const raw = index === -1 ? undefined : process.argv[index + 1];
   const value = Number(raw);
   return Number.isInteger(value) && value > 0 ? value : null;
@@ -67,36 +70,36 @@ async function loadApplicationData(applicationId: number): Promise<ExportApplica
 
 async function main(): Promise<void> {
   const jobId = jobIdFromArgv();
-  if (!jobId) throw new Error('Укажите --job <id>');
+  if (!jobId) throw new Error(`Укажите ${WORKER_JOB_ARG} <id>`);
 
   const job = await prisma.pdf_export_jobs.findUnique({ where: { id: jobId } });
   if (!job) throw new Error(`Задание ${jobId} не найдено`);
-  await prisma.pdf_export_jobs.update({ where: { id: jobId }, data: { status: 'processing' } });
+  await prisma.pdf_export_jobs.update({ where: { id: jobId }, data: { status: PdfExportStatus.processing } });
 
   try {
     const data = await loadApplicationData(job.application_id);
     if (!data) throw new Error('Заявка не найдена');
 
     const pdfBuffer = await renderPdfBuffer(buildPdfDefinition(data));
-    const relativePath = await storeUpload(Buffer.from(pdfBuffer), `pdf/${data.id}`, 'pdf');
+    const relativePath = await storeUpload(Buffer.from(pdfBuffer), `pdf/${data.id}`, FileTypes.PDF);
 
     const file = await prisma.files.create({
       data: {
         name: `заявка-${data.id}.pdf`,
-        file_type: 'pdf',
+        file_type: FileTypes.PDF,
         path: relativePath,
       },
     });
     await prisma.pdf_export_jobs.update({
       where: { id: jobId },
-      data: { status: 'done', file_id: file.id, error: null },
+      data: { status: PdfExportStatus.done, file_id: file.id, error: null },
     });
     log.audit('pdf-export.done', { jobId, applicationId: data.id, fileId: file.id, bytes: pdfBuffer.byteLength });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await prisma.pdf_export_jobs.update({
       where: { id: jobId },
-      data: { status: 'error', error: message },
+      data: { status: PdfExportStatus.error, error: message },
     });
     log.error('pdf-export.failed', { jobId, error: message });
   } finally {

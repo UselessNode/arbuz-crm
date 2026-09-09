@@ -7,24 +7,39 @@
 import path from 'node:path';
 import { httpError } from '../../lib/http';
 
-export const ALLOWED_TYPES = ['pdf', 'docx', 'jpg', 'png', 'mp4'] as const;
-export type FileType = (typeof ALLOWED_TYPES)[number];
+export const FileTypes = {
+  PDF: 'pdf',
+  DOCX: 'docx',
+  JPG: 'jpg',
+  PNG: 'png',
+  MP4: 'mp4',
+} as const;
+
+export type FileType = (typeof FileTypes)[keyof typeof FileTypes];
+
+export const ALLOWED_TYPES: readonly FileType[] = [
+  FileTypes.PDF,
+  FileTypes.DOCX,
+  FileTypes.JPG,
+  FileTypes.PNG,
+  FileTypes.MP4,
+];
 
 const MIME_BY_TYPE: Record<FileType, string> = {
-  pdf: 'application/pdf',
-  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  jpg: 'image/jpeg',
-  png: 'image/png',
-  mp4: 'video/mp4',
+  [FileTypes.PDF]: 'application/pdf',
+  [FileTypes.DOCX]: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  [FileTypes.JPG]: 'image/jpeg',
+  [FileTypes.PNG]: 'image/png',
+  [FileTypes.MP4]: 'video/mp4',
 };
 
 const EXTENSION_TO_TYPE: Record<string, FileType> = {
-  pdf: 'pdf',
-  docx: 'docx',
-  jpg: 'jpg',
-  jpeg: 'jpg',
-  png: 'png',
-  mp4: 'mp4',
+  pdf: FileTypes.PDF,
+  docx: FileTypes.DOCX,
+  jpg: FileTypes.JPG,
+  jpeg: FileTypes.JPG,
+  png: FileTypes.PNG,
+  mp4: FileTypes.MP4,
 };
 
 /** MIME по сохранённому токену типа (для заголовка Content-Type). */
@@ -35,7 +50,7 @@ export function fileMime(fileType: string | null | undefined): string {
 
 /** PDF и картинки можно показывать в браузере (inline), остальное — скачивать. */
 export function isPreviewableFile(fileType: string | null | undefined): boolean {
-  return fileType === 'pdf' || fileType === 'jpg' || fileType === 'png';
+  return fileType === FileTypes.PDF || fileType === FileTypes.JPG || fileType === FileTypes.PNG;
 }
 
 function ascii(buf: Buffer, start: number, len: number): string {
@@ -52,17 +67,17 @@ const DOCX_MARKER = '[Content_Types].xml'; // обязательная част�
 
 /** Определяет тип по первым байтам (окно до 256 КБ достаточно для всех разрешённых форматов). */
 function sniff(buffer: Buffer): FileType | undefined {
-  if (hasBytes(buffer, 0, [0x25, 0x50, 0x44, 0x46]) && ascii(buffer, 1, 3) === 'PDF') return 'pdf';
-  if (hasBytes(buffer, 0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'png';
-  if (hasBytes(buffer, 0, [0xff, 0xd8, 0xff])) return 'jpg';
+  if (hasBytes(buffer, 0, [0x25, 0x50, 0x44, 0x46]) && ascii(buffer, 1, 3) === 'PDF') return FileTypes.PDF;
+  if (hasBytes(buffer, 0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return FileTypes.PNG;
+  if (hasBytes(buffer, 0, [0xff, 0xd8, 0xff])) return FileTypes.JPG;
   // MP4: box 'ftyp' на смещении 4.
-  if (buffer.length >= 12 && ascii(buffer, 4, 4) === 'ftyp') return 'mp4';
+  if (buffer.length >= 12 && ascii(buffer, 4, 4) === 'ftyp') return FileTypes.MP4;
   // DOCX — ZIP-архив с маркером OOXML в первых 256 КБ.
   if (
     hasBytes(buffer, 0, ZIP_SIGNATURE) &&
     buffer.subarray(0, 256 * 1024).includes(Buffer.from(DOCX_MARKER, 'latin1'))
   ) {
-    return 'docx';
+    return FileTypes.DOCX;
   }
   return undefined;
 }

@@ -7,7 +7,7 @@ import { filesRouter } from './modules/files/files.routes';
 import { postsRouter } from './modules/posts/posts.routes';
 import { pdfExportRouter } from './modules/pdf-export/pdf-export.routes';
 
-export const API_VERSION = '1.1.0';
+export const API_VERSION = '1.1.1';
 
 export function createApp(): express.Express {
   const app = express();

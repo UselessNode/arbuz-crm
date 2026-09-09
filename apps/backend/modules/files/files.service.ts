@@ -1,5 +1,5 @@
 // Бизнес-логика файлов заявки: права доступа, папки приложений, квоты.
-import type { RoleType } from '@arbuz/shared';
+import { RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 
@@ -86,7 +86,7 @@ export async function requireManageableApplication(
   if (!application || application.deleted_at) {
     throw httpError(404, 'Заявка не найдена', 'APPLICATION_NOT_FOUND');
   }
-  if (user.role !== 'admin' && application.owner_id !== user.id) {
+  if (user.role !== RoleType.admin && application.owner_id !== user.id) {
     throw httpError(403, 'Нет доступа к файлам этой заявки', 'FORBIDDEN');
   }
   return application;

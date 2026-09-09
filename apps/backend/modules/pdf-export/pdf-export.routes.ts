@@ -1,6 +1,7 @@
 // HTTP API модуля pdf-export: создание задания и получение статуса/файла.
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { PdfExportStatus } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler, httpError } from '../../lib/http';
 import { log } from '../../lib/logger';
@@ -47,7 +48,7 @@ pdfExportRouter.get(
     const actor = req.user as CurrentUser;
     const jobId = parseId(req.params.jobId);
     const job = await getJobForUser(actor, jobId);
-    if (job.status !== 'done' || !job.fileId) {
+    if (job.status !== PdfExportStatus.done || !job.fileId) {
       throw httpError(409, 'PDF ещё не готов', 'PDF_NOT_READY');
     }
 
