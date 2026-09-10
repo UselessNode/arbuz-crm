@@ -3,6 +3,7 @@ import { RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 import { hashPassword } from '../auth/auth.service';
+import { parseEmail, parsePassword } from '../auth/credentials';
 
 export interface PublicUser {
   id: number;
@@ -27,29 +28,12 @@ export interface UserInput {
 export const PASSWORD_MIN_LENGTH = 8;
 
 const ROLE_VALUES: readonly RoleType[] = [RoleType.admin, RoleType.expert, RoleType.applicant];
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function parseRole(value: unknown): RoleType {
   if (typeof value !== 'string' || !(ROLE_VALUES as readonly string[]).includes(value)) {
     throw httpError(400, 'Недопустимая роль', 'INVALID_ROLE');
   }
   return value as RoleType;
-}
-
-function parseEmail(value: unknown): string {
-  const email = String(value ?? '').trim().toLowerCase();
-  if (!email || !EMAIL_RE.test(email)) {
-    throw httpError(400, 'Некорректный email', 'INVALID_EMAIL');
-  }
-  return email;
-}
-
-function parsePassword(value: unknown): string {
-  const password = String(value ?? '');
-  if (password.length < PASSWORD_MIN_LENGTH) {
-    throw httpError(400, `Пароль должен быть не короче ${PASSWORD_MIN_LENGTH} символов`, 'PASSWORD_TOO_SHORT');
-  }
-  return password;
 }
 
 function optionalText(value: unknown): string | null {

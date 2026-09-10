@@ -17,6 +17,12 @@ Session 4 — функционал администратора (версия о
 - Компоненты дизайн-системы: `Select`, `StateMessage` (loading/empty/error), `Modal`, `ConfirmDialog`, `Pagination`.
 - Контракт API зафиксирован в [`docs/api-contract.md`](docs/api-contract.md).
 
+### Added (Session 4 — регистрация заявителей)
+
+- Публичная саморегистрация: `POST /api/auth/register` (роль жёстко `applicant`, авто-вход после регистрации).
+- Фронтенд: страница регистрации `/register`, личный кабинет `/account` с профилем, редирект по роли (admin → `/admin`, остальные → `/account`).
+- Валидация учётных данных вынесена в общий модуль `auth/credentials`.
+
 ### Changed
 
 - Лимиты пагинации `/api/users` и `/api/applications`: по умолчанию 20, максимум 100.

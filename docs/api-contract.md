@@ -9,6 +9,7 @@
 | Метод | Путь | Доступ | Запрос | Ответ |
 |---|---|---|---|---|
 | POST | `/api/auth/login` | все | `{ email, password }` | `200 { user }` + cookie |
+| POST | `/api/auth/register` | все (публично) | `{ email, password, surname?, name?, patronymic? }` | `201 { user }` + cookie (роль всегда `applicant`) |
 | POST | `/api/auth/logout` | все | — | `{ ok: true }` |
 | GET | `/api/auth/me` | авторизованные | — | `{ user }` |
 

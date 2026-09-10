@@ -25,3 +25,18 @@
   margin: 0;
   color: var(--color-muted);
 }
+
+.profileRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+}
+
+.profileRow strong {
+  color: var(--color-text);
+}

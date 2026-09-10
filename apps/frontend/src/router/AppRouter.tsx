@@ -2,18 +2,31 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { LoginPage } from '../features/auth/LoginPage';
+import { RegisterPage } from '../features/auth/RegisterPage';
 import { UsersPage } from '../features/users/UsersPage';
 import { DesignSystemPage } from '../pages/DesignSystemPage/DesignSystemPage';
+import { AccountPage } from '../pages/AccountPage';
 import { ForbiddenPage } from '../pages/ForbiddenPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { Roles } from '../lib/roles';
 import { ProtectedRoute } from './ProtectedRoute';
+import { HomeRedirect } from './HomeRedirect';
 
 export function AppRouter() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
       <Route path="/forbidden" element={<ForbiddenPage />} />
+
+      <Route
+        path="/account"
+        element={
+          <ProtectedRoute>
+            <AccountPage />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         path="/admin"
@@ -28,7 +41,7 @@ export function AppRouter() {
         <Route path="design-system" element={<DesignSystemPage />} />
       </Route>
 
-      <Route path="/" element={<Navigate to="/admin" replace />} />
+      <Route path="/" element={<HomeRedirect />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

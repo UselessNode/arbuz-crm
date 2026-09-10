@@ -5,7 +5,7 @@ import { config } from '../../lib/config';
 import { httpError, asyncHandler } from '../../lib/http';
 import { log } from '../../lib/logger';
 import type { PublicUser } from './auth.service';
-import { signSession, verifyPassword } from './auth.service';
+import { signSession, verifyPassword, registerApplicant } from './auth.service';
 import { requireAuth } from './auth.middleware';
 
 export const authRouter = Router();
@@ -59,6 +59,23 @@ authRouter.post(
     setSessionCookie(res, token);
     log.audit('auth.login', { userId: user.id, email: user.email, role: user.role });
     res.json({ user: toPublicUser(user) });
+  }),
+);
+
+authRouter.post(
+  '/register',
+  asyncHandler(async (req, res) => {
+    const user = await registerApplicant({
+      email: req.body?.email,
+      password: req.body?.password,
+      surname: req.body?.surname,
+      name: req.body?.name,
+      patronymic: req.body?.patronymic,
+    });
+    const token = await signSession({ id: user.id, role: user.role });
+    setSessionCookie(res, token);
+    log.audit('auth.register', { userId: user.id, email: user.email });
+    res.status(201).json({ user: toPublicUser(user) });
   }),
 );
 

@@ -2,8 +2,11 @@
 // Токен не зависит от конкретного провайдера входа — в будущем «Госуслуги/ВК»
 // будут выпускать тот же самый токен, поэтому архитектура не меняется.
 import { SignJWT, jwtVerify } from 'jose';
-import type { RoleType } from '@arbuz/shared';
+import { RoleType } from '@arbuz/shared';
 import { config } from '../../lib/config';
+import { prisma } from '../../lib/prisma';
+import { httpError } from '../../lib/http';
+import { parseEmail, parsePassword } from './credentials';
 
 export interface SessionUser {
   id: number;
@@ -46,4 +49,38 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
   } catch {
     return null;
   }
+}
+
+function optionalName(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  return text.length ? text.slice(0, 100) : null;
+}
+
+export interface RegisterInput {
+  email: unknown;
+  password: unknown;
+  surname?: unknown;
+  name?: unknown;
+  patronymic?: unknown;
+}
+
+/** Саморегистрация заявителя (роль всегда applicant). */
+export async function registerApplicant(input: RegisterInput) {
+  const email = parseEmail(input.email);
+  const password = parsePassword(input.password);
+
+  const existing = await prisma.users.findUnique({ where: { email }, select: { id: true } });
+  if (existing) throw httpError(409, 'Пользователь с таким email уже существует', 'EMAIL_TAKEN');
+
+  return prisma.users.create({
+    data: {
+      email,
+      password_hash: await hashPassword(password),
+      role: RoleType.applicant,
+      surname: optionalName(input.surname),
+      name: optionalName(input.name),
+      patronymic: optionalName(input.patronymic),
+    },
+  });
 }

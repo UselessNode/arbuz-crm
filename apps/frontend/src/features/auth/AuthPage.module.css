@@ -8,7 +8,7 @@
 
 .card {
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
 }
 
 .brand {
@@ -39,7 +39,30 @@
   gap: var(--space-4);
 }
 
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
 .error {
   color: var(--color-danger);
   font-size: 13px;
+}
+
+.footer {
+  margin-top: var(--space-4);
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-muted);
+}
+
+.footer a {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
 }
