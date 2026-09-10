@@ -67,13 +67,14 @@
 | GET | `/api/posts` | авторизованные | admin видит все, остальные — опубликованные |
 | GET | `/api/posts/:id` | по видимости | — |
 | POST | `/api/posts` | admin | `{ title, content, is_published? }` (content — Markdown) |
+| POST | `/api/posts/preview` | авторизованные | `{ content }` → `{ html }` (рендер + санитизация на сервере) |
 | PATCH | `/api/posts/:id` | admin | частично |
 | DELETE | `/api/posts/:id` | admin | — |
 | POST/GET | `/api/posts/:id/files` | admin / по видимости | multipart `file` |
 | GET | `/api/posts/:id/files/:fileId/download` | по видимости | — |
 | DELETE | `/api/posts/:id/files/:fileId` | admin | — |
 
-**Отложено на часть 2/3 (бэкенд):** отдавать в ответах постов санитизированный HTML (`contentHtml`), собранный из Markdown на сервере (`marked` + `sanitize-html`). Произвольный HTML от клиента не принимаем.
+**Готово в части 2/3:** ответы постов содержат санитизированный HTML (`contentHtml`, собирается из Markdown на сервере `marked` + `sanitize-html`); есть `/api/posts/preview`. Произвольный HTML от клиента не принимается.
 
 ## Reviews
 
@@ -88,6 +89,6 @@
 
 ## Изменения бэкенда в рамках Session 4
 
-- Часть 2/3: санитизация Markdown → HTML для постов.
+- Часть 2/3: санитизация Markdown → HTML для постов. ✅
 - Часть 3/3: эндпоинт списка экспертов для селекта.
-- Часть 1/3: ограничение `limit` (default 20, max 100) для `/api/users` и `/api/applications`.
+- Часть 1/3: ограничение `limit` (default 20, max 100) для `/api/users` и `/api/applications`. ✅

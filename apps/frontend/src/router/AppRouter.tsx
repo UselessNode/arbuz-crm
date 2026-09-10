@@ -4,6 +4,10 @@ import { AdminLayout } from '../layouts/AdminLayout';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { UsersPage } from '../features/users/UsersPage';
+import { PostsPage } from '../features/posts/PostsPage';
+import { TendersPage } from '../features/references/TendersPage';
+import { DirectionsPage } from '../features/references/DirectionsPage';
+import { StatusesPage } from '../features/references/StatusesPage';
 import { DesignSystemPage } from '../pages/DesignSystemPage/DesignSystemPage';
 import { AccountPage } from '../pages/AccountPage';
 import { ForbiddenPage } from '../pages/ForbiddenPage';
@@ -38,6 +42,10 @@ export function AppRouter() {
       >
         <Route index element={<Navigate to="users" replace />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="posts" element={<PostsPage />} />
+        <Route path="tenders" element={<TendersPage />} />
+        <Route path="directions" element={<DirectionsPage />} />
+        <Route path="statuses" element={<StatusesPage />} />
         <Route path="design-system" element={<DesignSystemPage />} />
       </Route>
 

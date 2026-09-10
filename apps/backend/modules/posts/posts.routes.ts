@@ -20,9 +20,19 @@ import {
   listPostAttachments,
   uploadPostAttachment,
 } from './posts.attachments';
+import { renderMarkdown } from './markdown';
 
 export const postsRouter = Router();
 postsRouter.use(requireAuth);
+
+// Предпросмотр Markdown: рендер и санитизация на сервере (без сохранения).
+postsRouter.post(
+  '/preview',
+  asyncHandler(async (req: Request, res: Response) => {
+    const content = typeof req.body?.content === 'string' ? req.body.content : '';
+    res.json({ html: renderMarkdown(content) });
+  }),
+);
 
 postsRouter.get(
   '/',

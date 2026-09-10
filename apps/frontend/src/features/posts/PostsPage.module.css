@@ -1,0 +1,96 @@
+.actions {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: 13px;
+  margin-top: var(--space-2);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.formHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.editor {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.previewColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sectionLabel {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.preview {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  min-height: 180px;
+  max-height: 420px;
+  overflow-y: auto;
+  background-color: var(--color-surface);
+  font-size: 14px;
+}
+
+.preview h1,
+.preview h2,
+.preview h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.preview p {
+  margin: 0 0 var(--space-2);
+}
+
+.preview img {
+  max-width: 100%;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.attachments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fileList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.fileItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+@media (max-width: 720px) {
+  .editor {
+    grid-template-columns: 1fr;
+  }
+}

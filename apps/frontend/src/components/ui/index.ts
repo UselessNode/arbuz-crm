@@ -28,6 +28,10 @@ export { DatePicker } from './Form';
 export type { DatePickerProps } from './Form';
 export { Select } from './Form';
 export type { SelectProps, SelectOption } from './Form';
+export { Textarea } from './Form';
+export type { TextareaProps } from './Form';
+export { Checkbox } from './Form';
+export type { CheckboxProps } from './Form';
 
 export { Table } from './Table';
 export type { TableColumn, TableProps } from './Table';

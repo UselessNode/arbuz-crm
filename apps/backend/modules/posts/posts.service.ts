@@ -3,6 +3,7 @@ import { RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 import type { CurrentUser } from '../files/files.service';
+import { renderMarkdown } from './markdown';
 
 export const POST_TITLE_MAX = 255;
 export const POST_CONTENT_MAX = 1_000_000;
@@ -52,6 +53,7 @@ export interface PostData {
   id: number;
   title: string;
   content: string;
+  contentHtml: string;
   is_published: boolean;
   createdBy: number | null;
   authorName: string | null;
@@ -79,6 +81,7 @@ function serialize(post: PostWithAuthor): PostData {
     id: post.id,
     title: post.title,
     content: post.content,
+    contentHtml: renderMarkdown(post.content),
     is_published: post.is_published,
     createdBy: post.created_by,
     authorName,

@@ -49,4 +49,33 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
   delete: <T>(path: string) => request<T>('DELETE', path),
+  /** Отправка multipart (FormData) — Content-Type ставит браузер. */
+  upload: <T>(path: string, formData: FormData) => requestForm<T>(path, formData),
 };
+
+async function requestForm<T>(path: string, formData: FormData): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`/api${path}`, { method: 'POST', credentials: 'same-origin', body: formData });
+  } catch {
+    throw new ApiError(0, 'NETWORK_ERROR', 'Нет связи с сервером');
+  }
+
+  const text = await response.text();
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
+
+  if (!response.ok) {
+    const error = (data as { error?: { code?: string; message?: string } } | null)?.error;
+    if (response.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
+    throw new ApiError(response.status, error?.code ?? 'HTTP_ERROR', error?.message ?? `Ошибка запроса (${response.status})`);
+  }
+
+  return data as T;
+}
