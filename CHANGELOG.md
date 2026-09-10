@@ -4,6 +4,17 @@
 
 **Правило версионирования:** каждое изменение (фикс, фича, рефакторинг) поднимает версию пакетов воркспейсов — `apps/backend`, `apps/frontend`, `packages/shared` (все синхронно, семантическое версионирование). Версия фиксируется в git-коммитах и вносится в этот файл.
 
+## [1.4.0] - 2026-09-09
+
+Фаза C закрытия пробелов бэкенда — справочники (админ).
+
+### Added
+
+- Тендеры: `GET/POST /api/tenders`, `GET/PATCH/DELETE /api/tenders/:id`.
+- Критерии тендера: `GET/POST /api/tenders/:id/criteria`, `PATCH/DELETE /api/tenders/:id/criteria/:criterionId`.
+- Направления: `GET/POST /api/directions`, `GET/PATCH/DELETE /api/directions/:id` (фильтр `?tenderId=`).
+- Статусы заявок: `GET/POST /api/application-statuses`, `GET/PATCH/DELETE /api/application-statuses/:id`.
+
 ## [1.3.0] - 2026-09-09
 
 Фаза B закрытия пробелов бэкенда — заявки и их состав.
