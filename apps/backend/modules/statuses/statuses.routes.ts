@@ -1,4 +1,4 @@
-// HTTP API статусов заявок. Только администратор.
+// HTTP API статусов заявок. Чтение — всем авторизованным, изменения — администратору.
 import { RoleType } from '@arbuz/shared';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
@@ -9,7 +9,7 @@ import type { CurrentUser } from '../files/files.service';
 import { createStatus, deleteStatus, getStatusOrThrow, listStatuses, parseId, updateStatus } from './statuses.service';
 
 export const statusesRouter = Router();
-statusesRouter.use(requireAuth, requireRole(RoleType.admin));
+statusesRouter.use(requireAuth);
 
 statusesRouter.get(
   '/',
@@ -21,6 +21,7 @@ statusesRouter.get(
 
 statusesRouter.post(
   '/',
+  requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const status = await createStatus({
       name: req.body?.name,
@@ -43,6 +44,7 @@ statusesRouter.get(
 
 statusesRouter.patch(
   '/:statusId',
+  requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const status = await updateStatus(parseId(req.params.statusId), {
       name: req.body?.name,
@@ -56,6 +58,7 @@ statusesRouter.patch(
 
 statusesRouter.delete(
   '/:statusId',
+  requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const statusId = parseId(req.params.statusId);
     await deleteStatus(statusId);

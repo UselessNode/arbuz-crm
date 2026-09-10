@@ -2,6 +2,7 @@
 import { RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
+import { getApplicationForAccess } from '../applications/applications.service';
 
 export interface CurrentUser {
   id: number;
@@ -113,6 +114,18 @@ export async function requireViewableApplication(
     if (assigned) return application;
   }
   throw httpError(403, 'Нет доступа к файлам этой заявки', 'FORBIDDEN');
+}
+
+/**
+ * Проверяет право менять файлы заявки: владелец в редактируемом статусе (до отправки)
+ * либо администратор. После отправки заявку владелец менять не может.
+ */
+export async function requireEditableApplication(
+  user: CurrentUser,
+  applicationId: number,
+): Promise<ApplicationBrief> {
+  const application = await getApplicationForAccess(user, applicationId, 'edit');
+  return { id: application.id, owner_id: application.owner_id, title: application.title };
 }
 
 /** Проверяет принадлежность участника команды заявке. */

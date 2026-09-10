@@ -2,7 +2,7 @@
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
-import { Roles } from '../lib/roles';
+import { homePathForRole } from '../lib/roles';
 import melonLogo from '../assets/images/Melon.png';
 import { Footer } from './Footer';
 import styles from './PublicLayout.module.css';
@@ -10,7 +10,7 @@ import styles from './PublicLayout.module.css';
 export function PublicLayout() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const cabinetPath = user?.role === Roles.admin ? '/admin' : '/account';
+  const cabinetPath = user ? homePathForRole(user.role) : '/login';
 
   return (
     <div className={styles.layout}>

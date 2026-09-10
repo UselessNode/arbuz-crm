@@ -1,4 +1,4 @@
-// HTTP API направлений заявок. Только администратор.
+// HTTP API направлений заявок. Чтение — всем авторизованным, изменения — администратору.
 import { RoleType } from '@arbuz/shared';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
@@ -16,7 +16,7 @@ import {
 } from './directions.service';
 
 export const directionsRouter = Router();
-directionsRouter.use(requireAuth, requireRole(RoleType.admin));
+directionsRouter.use(requireAuth);
 
 directionsRouter.get(
   '/',
@@ -29,6 +29,7 @@ directionsRouter.get(
 
 directionsRouter.post(
   '/',
+  requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const direction = await createDirection({
       name: req.body?.name,
@@ -50,6 +51,7 @@ directionsRouter.get(
 
 directionsRouter.patch(
   '/:directionId',
+  requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const direction = await updateDirection(parseId(req.params.directionId), {
       name: req.body?.name,
@@ -62,6 +64,7 @@ directionsRouter.patch(
 
 directionsRouter.delete(
   '/:directionId',
+  requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const directionId = parseId(req.params.directionId);
     await deleteDirection(directionId);

@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Button, Container, Input } from '../../components/ui';
 import { useAuth } from '../../auth/AuthContext';
 import { ApiError } from '../../api/client';
-import { Roles } from '../../lib/roles';
+import { homePathForRole } from '../../lib/roles';
 import melonLogo from '../../assets/images/Melon.png';
 import styles from './AuthPage.module.css';
 
@@ -17,7 +17,7 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (!loading && user) {
-    return <Navigate to={user.role === Roles.admin ? '/admin' : '/account'} replace />;
+    return <Navigate to={homePathForRole(user.role)} replace />;
   }
 
   const handleSubmit = async (event: FormEvent) => {
@@ -26,7 +26,7 @@ export function LoginPage() {
     setSubmitting(true);
     try {
       const logged = await login(email.trim(), password);
-      navigate(logged.role === Roles.admin ? '/admin' : '/account', { replace: true });
+      navigate(homePathForRole(logged.role), { replace: true });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось войти');
     } finally {

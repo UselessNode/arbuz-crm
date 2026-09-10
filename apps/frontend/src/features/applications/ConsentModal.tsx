@@ -9,11 +9,12 @@ import styles from './Applications.module.css';
 interface Props {
   applicationId: number;
   member: TeamMember;
+  readOnly?: boolean;
   onClose: () => void;
   onChanged: () => Promise<void>;
 }
 
-export function ConsentModal({ applicationId, member, onClose, onChanged }: Props) {
+export function ConsentModal({ applicationId, member, readOnly = false, onClose, onChanged }: Props) {
   const toast = useToast();
   const [consents, setConsents] = useState<ConsentFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,11 +76,13 @@ export function ConsentModal({ applicationId, member, onClose, onChanged }: Prop
   return (
     <>
       <Modal open title={`Согласия — ${formatUserName(member)}`} onClose={onClose} width={560}>
-        <DragDrop
-          onFiles={(selected) => void handleFiles(selected)}
-          disabled={busy}
-          hint="Скан согласия (PDF, DOCX, JPEG, PNG, MP4; до 10 МБ)"
-        />
+        {!readOnly ? (
+          <DragDrop
+            onFiles={(selected) => void handleFiles(selected)}
+            disabled={busy}
+            hint="Скан согласия (PDF, DOCX, JPEG, PNG, MP4; до 10 МБ)"
+          />
+        ) : null}
         {error ? <div className={`${styles.error} ${styles.materialsTop}`}>{error}</div> : null}
         {loading ? (
           <StateMessage state="loading" />
@@ -103,7 +106,9 @@ export function ConsentModal({ applicationId, member, onClose, onChanged }: Prop
                     aria-label="Скачать"
                     onClick={() => window.open(applicationsApi.consents.downloadUrl(applicationId, consent.id), '_blank', 'noopener')}
                   />
-                  <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => setRemoving(consent)} />
+                  {!readOnly ? (
+                    <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => setRemoving(consent)} />
+                  ) : null}
                 </span>
               </div>
             ))}

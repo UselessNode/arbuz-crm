@@ -9,10 +9,11 @@ import styles from './Applications.module.css';
 interface Props {
   applicationId: number;
   materials: Material[];
+  readOnly?: boolean;
   onChanged: () => Promise<void>;
 }
 
-export function MaterialsSection({ applicationId, materials, onChanged }: Props) {
+export function MaterialsSection({ applicationId, materials, readOnly = false, onChanged }: Props) {
   const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -46,7 +47,13 @@ export function MaterialsSection({ applicationId, materials, onChanged }: Props)
 
   return (
     <div>
-      <DragDrop onFiles={(selected) => void handleFiles(selected)} disabled={busy} hint="Перетащите файл (PDF, DOCX, JPEG, PNG, MP4; до 10 МБ)" />
+      {!readOnly ? (
+        <DragDrop
+          onFiles={(selected) => void handleFiles(selected)}
+          disabled={busy}
+          hint="Перетащите файл (PDF, DOCX, JPEG, PNG, MP4; до 10 МБ)"
+        />
+      ) : null}
       {error ? <div className={`${styles.error} ${styles.materialsTop}`}>{error}</div> : null}
       {materials.length === 0 ? (
         <StateMessage state="empty" message="Материалы не загружены" />
@@ -71,7 +78,9 @@ export function MaterialsSection({ applicationId, materials, onChanged }: Props)
                   aria-label="Скачать"
                   onClick={() => window.open(applicationsApi.materials.downloadUrl(applicationId, material.id), '_blank', 'noopener')}
                 />
-                <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => void handleRemove(material.id)} />
+                {!readOnly ? (
+                  <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => void handleRemove(material.id)} />
+                ) : null}
               </span>
             </div>
           ))}

@@ -6,6 +6,7 @@ import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { UsersPage } from '../features/users/UsersPage';
 import { ApplicationsPage } from '../features/applications/ApplicationsPage';
+import { ApplicantApplicationsPage } from '../features/applications/ApplicantApplicationsPage';
 import { ApplicationDetailPage } from '../features/applications/ApplicationDetailPage';
 import { ReviewsPage } from '../features/reviews/ReviewsPage';
 import { PostsPage } from '../features/posts/PostsPage';
@@ -36,14 +37,15 @@ export function AppRouter() {
       </Route>
 
       <Route
-        path="/account"
         element={
           <ProtectedRoute>
             <AppLayout />
           </ProtectedRoute>
         }
       >
-        <Route index element={<AccountPage />} />
+        <Route path="/account" element={<AccountPage />} />
+        <Route path="/applications" element={<ApplicantApplicationsPage />} />
+        <Route path="/applications/:applicationId" element={<ApplicationDetailPage area="applicant" />} />
       </Route>
 
       <Route
@@ -57,7 +59,7 @@ export function AppRouter() {
         <Route index element={<Navigate to="users" replace />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="applications" element={<ApplicationsPage />} />
-        <Route path="applications/:applicationId" element={<ApplicationDetailPage />} />
+        <Route path="applications/:applicationId" element={<ApplicationDetailPage area="admin" />} />
         <Route path="reviews" element={<ReviewsPage />} />
         <Route path="posts" element={<PostsPage />} />
         <Route path="tenders" element={<TendersPage />} />

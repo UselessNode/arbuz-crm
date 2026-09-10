@@ -23,9 +23,16 @@ const ADMIN_NAV: NavItem[] = [
 
 const ACCOUNT_NAV: NavItem[] = [{ to: '/account', label: 'Профиль', icon: 'user' }];
 
-// TODO(MVP-2/3): заявителю — «Мои заявки», эксперту — «Экспертизы».
+const APPLICANT_NAV: NavItem[] = [
+  { to: '/applications', label: 'Мои заявки', icon: 'document' },
+  { to: '/account', label: 'Профиль', icon: 'user' },
+];
+
+// TODO(MVP-3): эксперту — «Экспертизы».
 export function navItemsForRole(role: RoleType): NavItem[] {
-  return role === Roles.admin ? ADMIN_NAV : ACCOUNT_NAV;
+  if (role === Roles.admin) return ADMIN_NAV;
+  if (role === Roles.applicant) return APPLICANT_NAV;
+  return ACCOUNT_NAV;
 }
 
 export function headerClassForRole(role: RoleType): string {

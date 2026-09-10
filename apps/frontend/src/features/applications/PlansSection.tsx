@@ -10,12 +10,13 @@ import styles from './Applications.module.css';
 interface Props {
   applicationId: number;
   plans: ProjectPlan[];
+  readOnly?: boolean;
   onChanged: () => Promise<void>;
 }
 
 const emptyForm = (): PlanPayload => ({ task: '', event_name: '', event_description: '', start_date: '', end_date: '' });
 
-export function PlansSection({ applicationId, plans, onChanged }: Props) {
+export function PlansSection({ applicationId, plans, readOnly = false, onChanged }: Props) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ProjectPlan | null>(null);
   const [form, setForm] = useState<PlanPayload>(emptyForm());
@@ -84,7 +85,9 @@ export function PlansSection({ applicationId, plans, onChanged }: Props) {
     { key: 'task', header: 'Задача', field: 'task' },
     { key: 'start', header: 'Начало', render: (p) => formatDateTime(p.startDate) },
     { key: 'end', header: 'Окончание', render: (p) => formatDateTime(p.endDate) },
-    {
+  ];
+  if (!readOnly) {
+    columns.push({
       key: 'actions',
       header: '',
       width: '100px',
@@ -94,16 +97,18 @@ export function PlansSection({ applicationId, plans, onChanged }: Props) {
           <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => setDeleting(p)} />
         </div>
       ),
-    },
-  ];
+    });
+  }
 
   return (
     <>
-      <div className={styles.sectionToolbar}>
-        <Button size="sm" icon="add" onClick={startCreate}>
-          Добавить мероприятие
-        </Button>
-      </div>
+      {!readOnly ? (
+        <div className={styles.sectionToolbar}>
+          <Button size="sm" icon="add" onClick={startCreate}>
+            Добавить мероприятие
+          </Button>
+        </div>
+      ) : null}
       {plans.length === 0 ? (
         <StateMessage state="empty" message="План не заполнен" />
       ) : (

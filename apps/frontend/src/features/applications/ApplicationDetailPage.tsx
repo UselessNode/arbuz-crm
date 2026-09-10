@@ -1,4 +1,5 @@
-// Карточка заявки (админ): основные данные, состав, статус, рецензии.
+// Карточка заявки: основные данные, состав, статус, рецензии.
+// Общая для администратора (`area="admin"`) и заявителя (`area="applicant"`).
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -25,11 +26,19 @@ import { MaterialsSection } from './MaterialsSection';
 import { ReviewsSection } from './ReviewsSection';
 import styles from './Applications.module.css';
 
-export function ApplicationDetailPage() {
+export type ApplicationArea = 'admin' | 'applicant';
+
+interface Props {
+  area?: ApplicationArea;
+}
+
+export function ApplicationDetailPage({ area = 'admin' }: Props) {
   const { applicationId } = useParams<{ applicationId: string }>();
   const navigate = useNavigate();
   const id = Number(applicationId);
   const toast = useToast();
+  const isAdmin = area === 'admin';
+  const listPath = isAdmin ? '/admin/applications' : '/applications';
 
   const [application, setApplication] = useState<ApplicationDetail | null>(null);
   const [statusOptions, setStatusOptions] = useState<readonly StatusOption<string>[]>([]);
@@ -66,7 +75,7 @@ export function ApplicationDetailPage() {
   }, [load]);
 
   const changeStatus = async (value: string) => {
-    if (!application) return;
+    if (!application || !isAdmin) return;
     setActionError(null);
     const targetId = application.id;
     const previousStatusId = application.status?.id;
@@ -104,7 +113,7 @@ export function ApplicationDetailPage() {
     try {
       await applicationsApi.remove(application.id);
       toast.showToast({ message: 'Заявка удалена', tone: 'success' });
-      navigate('/admin/applications', { replace: true });
+      navigate(listPath, { replace: true });
     } catch (caught) {
       setActionError(caught instanceof ApiError ? caught.message : 'Не удалось удалить заявку');
       setDeleteSaving(false);
@@ -173,7 +182,7 @@ export function ApplicationDetailPage() {
     if (!application) return [];
     return [
       { label: 'Заявитель', value: application.owner ? formatUserName(application.owner) : '—' },
-      { label: 'Тендер', value: application.tender?.name ?? '—' },
+      { label: 'Конкурс', value: application.tender?.name ?? '—' },
       { label: 'Направление', value: application.direction?.name ?? '—' },
       { label: 'Создана', value: formatDateTime(application.createdAt) },
       { label: 'Отправлена', value: formatDateTime(application.submittedAt) },
@@ -183,23 +192,32 @@ export function ApplicationDetailPage() {
   if (loading) return <StateMessage state="loading" />;
   if (error || !application) return <StateMessage state="error" message={error ?? 'Заявка не найдена'} onRetry={() => void load()} />;
 
+  // Администратор редактирует всегда; владелец — пока заявка не отправлена и статус редактируемый.
+  const canEdit = isAdmin || (Boolean(application.status?.isEditable) && !application.submittedAt);
+  const canDelete = isAdmin || (Boolean(application.status?.isDeletable) && !application.submittedAt);
+  const canSubmit = !application.submittedAt && (isAdmin || canEdit);
+
   return (
     <>
       <Container
         title={application.title}
         actions={
           <>
-            {!application.submittedAt ? (
+            {canSubmit ? (
               <Button icon="check" loading={submitting} onClick={() => void handleStartSubmit()}>
                 Отправить на проверку
               </Button>
             ) : null}
-            <Button variant="secondary" icon="edit" onClick={() => setEditing(true)}>
-              Редактировать
-            </Button>
-            <Button variant="danger" icon="delete" onClick={() => setDeleting(true)}>
-              Удалить
-            </Button>
+            {canEdit ? (
+              <Button variant="secondary" icon="edit" onClick={() => setEditing(true)}>
+                Редактировать
+              </Button>
+            ) : null}
+            {canDelete ? (
+              <Button variant="danger" icon="delete" onClick={() => setDeleting(true)}>
+                Удалить
+              </Button>
+            ) : null}
           </>
         }
       >
@@ -210,7 +228,7 @@ export function ApplicationDetailPage() {
               <StatusBadge
                 value={application.status ? String(application.status.id) : ''}
                 options={statusOptions}
-                onChange={application.status ? (value) => void changeStatus(value) : undefined}
+                onChange={isAdmin && application.status ? (value) => void changeStatus(value) : undefined}
               />
             </div>
           </div>
@@ -242,28 +260,34 @@ export function ApplicationDetailPage() {
           </AccordionItem>
 
           <AccordionItem itemKey="team" title={`Команда (${application.teamMembers.length})`}>
-            <TeamMembersSection applicationId={application.id} members={application.teamMembers} onChanged={load} />
+            <TeamMembersSection applicationId={application.id} members={application.teamMembers} readOnly={!canEdit} onChanged={load} />
           </AccordionItem>
 
           <AccordionItem itemKey="plans" title={`План мероприятий (${application.projectPlans.length})`}>
-            <PlansSection applicationId={application.id} plans={application.projectPlans} onChanged={load} />
+            <PlansSection applicationId={application.id} plans={application.projectPlans} readOnly={!canEdit} onChanged={load} />
           </AccordionItem>
 
           <AccordionItem itemKey="budget" title={`Бюджет (${application.projectBudget.length})`}>
-            <BudgetSection applicationId={application.id} items={application.projectBudget} onChanged={load} />
+            <BudgetSection applicationId={application.id} items={application.projectBudget} readOnly={!canEdit} onChanged={load} />
           </AccordionItem>
 
           <AccordionItem itemKey="materials" title={`Материалы (${application.materials.length})`}>
-            <MaterialsSection applicationId={application.id} materials={application.materials} onChanged={load} />
+            <MaterialsSection applicationId={application.id} materials={application.materials} readOnly={!canEdit} onChanged={load} />
           </AccordionItem>
 
           <AccordionItem itemKey="reviews" title={`Рецензии (${application.reviews.length})`}>
-            <ReviewsSection applicationId={application.id} reviews={application.reviews} onChanged={load} />
+            <ReviewsSection applicationId={application.id} reviews={application.reviews} canManage={isAdmin} onChanged={load} />
           </AccordionItem>
         </Accordion>
       </Container>
 
-      <ApplicationFormModal open={editing} application={application} onClose={() => setEditing(false)} onSaved={load} />
+      <ApplicationFormModal
+        open={editing}
+        mode="edit"
+        application={application}
+        onClose={() => setEditing(false)}
+        onSaved={() => void load()}
+      />
       <ApplicationValidationDialog
         result={validation}
         saving={submitting}

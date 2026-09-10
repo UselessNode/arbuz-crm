@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Button, Checkbox, Container, Input } from '../../components/ui';
 import { useAuth } from '../../auth/AuthContext';
 import { ApiError } from '../../api/client';
-import { Roles } from '../../lib/roles';
+import { homePathForRole } from '../../lib/roles';
 import { AgreementModal } from './AgreementModal';
 import melonLogo from '../../assets/images/Melon.png';
 import styles from './AuthPage.module.css';
@@ -63,7 +63,7 @@ export function RegisterPage() {
   useEffect(() => clearHold, [clearHold]);
 
   if (!loading && user) {
-    return <Navigate to={user.role === Roles.admin ? '/admin' : '/account'} replace />;
+    return <Navigate to={homePathForRole(user.role)} replace />;
   }
 
   const handleAcceptAgreement = () => {
@@ -83,7 +83,7 @@ export function RegisterPage() {
         name: name.trim() || null,
         patronymic: patronymic.trim() || null,
       });
-      navigate(registered.role === Roles.admin ? '/admin' : '/account', { replace: true });
+      navigate(homePathForRole(registered.role), { replace: true });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось зарегистрироваться');
     } finally {

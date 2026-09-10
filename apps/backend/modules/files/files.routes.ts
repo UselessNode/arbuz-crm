@@ -11,7 +11,7 @@ import { requireAuth } from '../auth/auth.middleware';
 import type { CurrentUser } from './files.service';
 import {
   applicationUsedBytes,
-  requireManageableApplication,
+  requireEditableApplication,
   requireTeamMemberOfApplication,
   requireViewableApplication,
   resolveApplicationFolder,
@@ -93,7 +93,7 @@ filesRouter.post(
   asyncHandler(async (req: Request, res: Response) => {
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
-    const application = await requireManageableApplication(actor, applicationId);
+    const application = await requireEditableApplication(actor, applicationId);
     const { buffer, originalName, comment } = await readMultipartFile(req);
 
     const type = validateUpload(buffer, originalName);
@@ -166,7 +166,7 @@ filesRouter.delete(
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     const fileId = parseId(req.params.fileId);
-    await requireManageableApplication(actor, applicationId);
+    await requireEditableApplication(actor, applicationId);
 
     const record = await prisma.additional_materials.findFirst({
       where: { id: fileId, application_id: applicationId, deleted_at: null },
@@ -205,7 +205,7 @@ filesRouter.post(
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     const memberId = parseId(req.params.memberId);
-    const application = await requireManageableApplication(actor, applicationId);
+    const application = await requireEditableApplication(actor, applicationId);
     await requireTeamMemberOfApplication(applicationId, memberId);
 
     const { buffer, originalName } = await readMultipartFile(req);
@@ -265,7 +265,7 @@ filesRouter.delete(
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     const consentId = parseId(req.params.consentId);
-    await requireManageableApplication(actor, applicationId);
+    await requireEditableApplication(actor, applicationId);
 
     const record = await prisma.consent_files.findFirst({
       where: { id: consentId, deleted_at: null, team_members: { application_id: applicationId } },

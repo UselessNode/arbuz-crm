@@ -9,6 +9,7 @@ import styles from './Applications.module.css';
 interface Props {
   applicationId: number;
   items: BudgetItem[];
+  readOnly?: boolean;
   onChanged: () => Promise<void>;
 }
 
@@ -25,7 +26,7 @@ const emptyForm = (): FormState => ({ resourceType: '', quantity: 0, unitCost: 0
 
 const money = (value: number | null): string => (value === null ? '—' : value.toLocaleString('ru-RU'));
 
-export function BudgetSection({ applicationId, items, onChanged }: Props) {
+export function BudgetSection({ applicationId, items, readOnly = false, onChanged }: Props) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<BudgetItem | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm());
@@ -99,7 +100,9 @@ export function BudgetSection({ applicationId, items, onChanged }: Props) {
     { key: 'unit', header: 'Цена за ед., ₽', render: (i) => money(i.unitCost) },
     { key: 'own', header: 'Свои, ₽', render: (i) => money(i.ownFunds) },
     { key: 'grant', header: 'Запрашиваемые, ₽', render: (i) => money(i.grantFunds) },
-    {
+  ];
+  if (!readOnly) {
+    columns.push({
       key: 'actions',
       header: '',
       width: '100px',
@@ -109,16 +112,18 @@ export function BudgetSection({ applicationId, items, onChanged }: Props) {
           <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => setDeleting(i)} />
         </div>
       ),
-    },
-  ];
+    });
+  }
 
   return (
     <>
-      <div className={styles.sectionToolbar}>
-        <Button size="sm" icon="add" onClick={startCreate}>
-          Добавить статью
-        </Button>
-      </div>
+      {!readOnly ? (
+        <div className={styles.sectionToolbar}>
+          <Button size="sm" icon="add" onClick={startCreate}>
+            Добавить статью
+          </Button>
+        </div>
+      ) : null}
       {items.length === 0 ? (
         <StateMessage state="empty" message="Бюджет не заполнен" />
       ) : (

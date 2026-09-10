@@ -11,12 +11,13 @@ import styles from './Applications.module.css';
 interface Props {
   applicationId: number;
   members: TeamMember[];
+  readOnly?: boolean;
   onChanged: () => Promise<void>;
 }
 
 const emptyForm = (): TeamMemberPayload => ({ surname: '', name: '', patronymic: '', tasks_in_project: '' });
 
-export function TeamMembersSection({ applicationId, members, onChanged }: Props) {
+export function TeamMembersSection({ applicationId, members, readOnly = false, onChanged }: Props) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TeamMember | null>(null);
@@ -118,12 +119,16 @@ export function TeamMembersSection({ applicationId, members, onChanged }: Props)
     {
       key: 'actions',
       header: '',
-      width: '140px',
+      width: readOnly ? '60px' : '140px',
       render: (m) => (
         <div className={styles.actions}>
           <Button size="sm" variant="ghost" icon="document" aria-label="Согласия" onClick={() => setConsentMember(m)} />
-          <Button size="sm" variant="ghost" icon="edit" aria-label="Изменить" onClick={() => startEdit(m)} />
-          <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => setDeleting(m)} />
+          {!readOnly ? (
+            <>
+              <Button size="sm" variant="ghost" icon="edit" aria-label="Изменить" onClick={() => startEdit(m)} />
+              <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => setDeleting(m)} />
+            </>
+          ) : null}
         </div>
       ),
     },
@@ -131,11 +136,13 @@ export function TeamMembersSection({ applicationId, members, onChanged }: Props)
 
   return (
     <>
-      <div className={styles.sectionToolbar}>
-        <Button size="sm" icon="add" onClick={startCreate}>
-          Добавить участника
-        </Button>
-      </div>
+      {!readOnly ? (
+        <div className={styles.sectionToolbar}>
+          <Button size="sm" icon="add" onClick={startCreate}>
+            Добавить участника
+          </Button>
+        </div>
+      ) : null}
       {members.length === 0 ? (
         <StateMessage state="empty" message="Участники не добавлены" />
       ) : (
@@ -184,6 +191,7 @@ export function TeamMembersSection({ applicationId, members, onChanged }: Props)
         <ConsentModal
           applicationId={applicationId}
           member={consentMember}
+          readOnly={readOnly}
           onClose={() => setConsentMember(null)}
           onChanged={onChanged}
         />

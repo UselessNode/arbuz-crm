@@ -1,4 +1,4 @@
-// HTTP API тендеров (конкурсов). Только администратор.
+// HTTP API тендеров (конкурсов). Чтение — всем авторизованным, изменения — администратору.
 import { RoleType } from '@arbuz/shared';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
@@ -9,7 +9,7 @@ import type { CurrentUser } from '../files/files.service';
 import { createTender, deleteTender, getTenderOrThrow, listTenders, parseId, updateTender } from './tenders.service';
 
 export const tendersRouter = Router();
-tendersRouter.use(requireAuth, requireRole(RoleType.admin));
+tendersRouter.use(requireAuth);
 
 tendersRouter.get(
   '/',
@@ -21,6 +21,7 @@ tendersRouter.get(
 
 tendersRouter.post(
   '/',
+  requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const tender = await createTender({ name: req.body?.name, description: req.body?.description });
     log.audit('tenders.create', { userId: (req.user as CurrentUser).id, tenderId: tender.id });
@@ -38,6 +39,7 @@ tendersRouter.get(
 
 tendersRouter.patch(
   '/:tenderId',
+  requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const tender = await updateTender(parseId(req.params.tenderId), {
       name: req.body?.name,
@@ -49,6 +51,7 @@ tendersRouter.patch(
 
 tendersRouter.delete(
   '/:tenderId',
+  requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const tenderId = parseId(req.params.tenderId);
     await deleteTender(tenderId);

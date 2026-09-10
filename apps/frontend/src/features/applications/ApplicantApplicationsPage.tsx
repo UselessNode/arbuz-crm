@@ -1,4 +1,4 @@
-// Список заявок (админ).
+// Раздел заявителя: список «Мои заявки» и создание новой заявки.
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge, Button, Container, Pagination, StateMessage, StatusBadge, Table } from '../../components/ui';
@@ -8,11 +8,10 @@ import { statusesApi } from '../../api/references';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
 import { ApplicationFormModal } from './ApplicationFormModal';
-import styles from './Applications.module.css';
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 
-export function ApplicationsPage() {
+export function ApplicantApplicationsPage() {
   const navigate = useNavigate();
   const [applications, setApplications] = useState<ApplicationSummary[]>([]);
   const [statusOptions, setStatusOptions] = useState<readonly StatusOption<string>[]>([]);
@@ -33,7 +32,6 @@ export function ApplicationsPage() {
       ]);
       setApplications(response.applications);
       setTotal(response.total);
-      // Статусы заявок — редактируемый справочник; метки и идентификаторы берём с сервера.
       setStatusOptions(statuses.statuses.map((status) => ({ value: String(status.id), label: status.name, tone: 'blue' })));
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить заявки');
@@ -48,21 +46,20 @@ export function ApplicationsPage() {
 
   const columns: TableColumn<ApplicationSummary>[] = [
     { key: 'title', header: 'Заявка', field: 'title' },
-    { key: 'owner', header: 'Заявитель', render: (a) => a.ownerName },
     {
       key: 'status',
       header: 'Статус',
       render: (a) =>
         a.status ? <StatusBadge value={String(a.status.id)} options={statusOptions} /> : <Badge tone="neutral">—</Badge>,
     },
-    { key: 'tender', header: 'Тендер', render: (a) => a.tender ?? '—' },
+    { key: 'tender', header: 'Конкурс', render: (a) => a.tender ?? '—' },
     { key: 'updated', header: 'Обновлена', render: (a) => formatDateTime(a.updatedAt) },
     {
       key: 'actions',
       header: '',
-      width: '80px',
+      width: '90px',
       render: (a) => (
-        <Button size="sm" variant="secondary" icon="eye" onClick={() => navigate(`/admin/applications/${a.id}`)}>
+        <Button size="sm" variant="secondary" icon="eye" onClick={() => navigate(`/applications/${a.id}`)}>
           Открыть
         </Button>
       ),
@@ -71,7 +68,7 @@ export function ApplicationsPage() {
 
   return (
     <Container
-      title="Заявки"
+      title="Мои заявки"
       actions={
         <Button icon="add" onClick={() => setCreating(true)}>
           Создать заявку
@@ -83,10 +80,10 @@ export function ApplicationsPage() {
       ) : error ? (
         <StateMessage state="error" message={error} onRetry={() => void load()} />
       ) : applications.length === 0 ? (
-        <StateMessage state="empty" message="Заявок не найдено" />
+        <StateMessage state="empty" message="Заявок пока нет — создайте первую" />
       ) : (
         <>
-          <Table columns={columns} data={applications} rowKey={(a) => a.id} onRowClick={(a) => navigate(`/admin/applications/${a.id}`)} />
+          <Table columns={columns} data={applications} rowKey={(a) => a.id} onRowClick={(a) => navigate(`/applications/${a.id}`)} />
           <Pagination
             page={page}
             pageSize={pageSize}
@@ -97,17 +94,13 @@ export function ApplicationsPage() {
           />
         </>
       )}
-      <div className={styles.pageHint}>
-        Заявитель подаёт заявки самостоятельно; администратор может создать заявку за пользователя и модерировать существующие.
-      </div>
 
       <ApplicationFormModal
         open={creating}
         mode="create"
-        canAssignOwner
         onClose={() => setCreating(false)}
         onSaved={(created) => {
-          if (created) navigate(`/admin/applications/${created.id}`);
+          if (created) navigate(`/applications/${created.id}`);
         }}
       />
     </Container>

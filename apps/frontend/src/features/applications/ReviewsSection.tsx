@@ -12,10 +12,12 @@ import styles from './Applications.module.css';
 interface Props {
   applicationId: number;
   reviews: ApplicationReview[];
+  /** Управление экспертами доступно только администратору. */
+  canManage?: boolean;
   onChanged: () => Promise<void>;
 }
 
-export function ReviewsSection({ applicationId, reviews, onChanged }: Props) {
+export function ReviewsSection({ applicationId, reviews, canManage = true, onChanged }: Props) {
   const [experts, setExperts] = useState<ExpertItem[]>([]);
   const [selectedExpert, setSelectedExpert] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -73,19 +75,21 @@ export function ReviewsSection({ applicationId, reviews, onChanged }: Props) {
 
   return (
     <div>
-      <div className={styles.sectionToolbar}>
-        <Select
-          placeholder="Добавить эксперта…"
-          value={selectedExpert}
-          onChange={(value) => void handleAssign(value)}
-          options={expertOptions}
-          disabled={busy}
-        />
-      </div>
+      {canManage ? (
+        <div className={styles.sectionToolbar}>
+          <Select
+            placeholder="Добавить эксперта…"
+            value={selectedExpert}
+            onChange={(value) => void handleAssign(value)}
+            options={expertOptions}
+            disabled={busy}
+          />
+        </div>
+      ) : null}
       {error ? <div className={styles.error}>{error}</div> : null}
 
       {reviews.length === 0 ? (
-        <StateMessage state="empty" message="Эксперты не назначены" />
+        <StateMessage state="empty" message={canManage ? 'Эксперты не назначены' : 'Рецензий пока нет'} />
       ) : (
         <div className={styles.assignedExperts}>
           {reviews.map((review) => {
@@ -100,7 +104,9 @@ export function ReviewsSection({ applicationId, reviews, onChanged }: Props) {
                       {verdict.label}
                     </Badge>
                     <Badge tone="neutral">Балл: {review.totalScore ?? '—'}</Badge>
-                    <Button size="sm" variant="ghost" icon="close" aria-label="Снять эксперта" onClick={() => setRemoving(review)} />
+                    {canManage ? (
+                      <Button size="sm" variant="ghost" icon="close" aria-label="Снять эксперта" onClick={() => setRemoving(review)} />
+                    ) : null}
                   </span>
                 </div>
                 {review.text ? <p className={styles.reviewText}>{review.text}</p> : null}

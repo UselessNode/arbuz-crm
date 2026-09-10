@@ -129,6 +129,8 @@ export interface ApplicationPayload {
   results_description?: string | null;
   tender_id?: number | null;
   direction_id?: number | null;
+  /** Только для создания администратором: владелец заявки. */
+  owner_id?: number | null;
 }
 
 export interface TeamMemberPayload {
