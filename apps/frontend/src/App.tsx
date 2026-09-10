@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { StatusBadge } from './components/ui';
 import type { StatusOption } from './components/ui';
 import { DesignSystemPage } from './pages/DesignSystemPage/DesignSystemPage';
+import melonLogo from './assets/images/Melon.png';
 import styles from './App.module.css';
 
 type Health = { status: string; database: string };
@@ -28,7 +29,7 @@ export function App() {
     <div>
       <header className={styles.header}>
         <div className={styles.brand}>
-          <span className={styles.logo}>🍉</span>
+          <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
           <span className={styles.title}>Arbuz CRM</span>
           <span className={styles.subtitle}>Дизайн-система — тестовая страница</span>
         </div>
