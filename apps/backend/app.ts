@@ -7,8 +7,12 @@ import { filesRouter } from './modules/files/files.routes';
 import { postsRouter } from './modules/posts/posts.routes';
 import { pdfExportRouter } from './modules/pdf-export/pdf-export.routes';
 import { usersRouter } from './modules/users/users.routes';
+import { applicationsRouter } from './modules/applications/applications.routes';
+import { teamMembersRouter } from './modules/applications/team-members.routes';
+import { projectPlansRouter } from './modules/applications/project-plans.routes';
+import { projectBudgetRouter } from './modules/applications/project-budget.routes';
 
-export const API_VERSION = '1.2.0';
+export const API_VERSION = '1.3.0';
 
 export function createApp(): express.Express {
   const app = express();
@@ -31,6 +35,10 @@ export function createApp(): express.Express {
   app.use('/api/auth', authRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/applications', filesRouter);
+  app.use('/api/applications', applicationsRouter);
+  app.use('/api/applications', teamMembersRouter);
+  app.use('/api/applications', projectPlansRouter);
+  app.use('/api/applications', projectBudgetRouter);
   app.use('/api/posts', postsRouter);
   // pdf-export использует свои пути внутри /api/applications/:id/pdf-export и /api/pdf-export-jobs
   app.use('/api', pdfExportRouter);
