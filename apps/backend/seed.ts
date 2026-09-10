@@ -6,19 +6,31 @@ import { RoleType } from '@arbuz/shared';
 import { prisma } from './lib/prisma';
 import { hashPassword } from './modules/auth/auth.service';
 import { log } from './lib/logger';
+import { APPLICATION_STATUS_NAMES } from './lib/app-status';
 
-async function ensureStatuses(): Promise<void> {
+/** Создаёт базовые статусы (если их нет) и возвращает id статуса «черновик». */
+async function ensureStatuses(): Promise<number> {
   const count = await prisma.application_statuses.count();
-  if (count > 0) return;
-  await prisma.application_statuses.createMany({
-    data: [
-      { name: 'Черновик', is_editable: true, is_deletable: true, description: 'Заявка создаётся, ещё не отправлена' },
-      { name: 'На проверке', is_editable: false, is_deletable: false, description: 'Заявка отправлена экспертам' },
-      { name: 'Принята', is_editable: false, is_deletable: false, description: 'Заявка одобрена' },
-      { name: 'Отклонена', is_editable: false, is_deletable: false, description: 'Заявка отклонена' },
-    ],
+  if (count === 0) {
+    await prisma.application_statuses.createMany({
+      data: [
+        { name: APPLICATION_STATUS_NAMES.draft, is_editable: true, is_deletable: true, description: 'Заявка создаётся, ещё не отправлена' },
+        { name: APPLICATION_STATUS_NAMES.submitted, is_editable: false, is_deletable: false, description: 'Заявка отправлена экспертам' },
+        { name: 'Принята', is_editable: false, is_deletable: false, description: 'Заявка одобрена' },
+        { name: 'Отклонена', is_editable: false, is_deletable: false, description: 'Заявка отклонена' },
+      ],
+    });
+    log.info('seed: созданы статусы заявок');
+  }
+
+  const draft = await prisma.application_statuses.findFirst({
+    where: { name: APPLICATION_STATUS_NAMES.draft, deleted_at: null },
+    select: { id: true },
   });
-  log.info('seed: созданы статусы заявок');
+  if (!draft) {
+    throw new Error(`[seed] Статус «${APPLICATION_STATUS_NAMES.draft}» не найден в справочнике статусов`);
+  }
+  return draft.id;
 }
 
 async function ensureUser(email: string, password: string, role: RoleType) {
@@ -40,7 +52,7 @@ async function main(): Promise<void> {
     throw new Error('[seed] Укажите ADMIN_EMAIL и ADMIN_PASSWORD в .env (см. .env.example)');
   }
 
-  await ensureStatuses();
+  const draftStatusId = await ensureStatuses();
   const admin = await ensureUser(adminEmail, adminPassword, RoleType.admin);
 
   if (process.env.SEED_DEMO !== 'true') {
@@ -65,7 +77,7 @@ async function main(): Promise<void> {
       data: {
         owner_id: applicant.id,
         title: 'Демо-заявка',
-        status_id: 1,
+        status_id: draftStatusId,
         idea_description: 'Описание идеи (демо).',
         importance_to_team: 'Значимость для команды (демо).',
         project_goal: 'Цель проекта (демо).',

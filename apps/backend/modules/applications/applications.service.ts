@@ -2,12 +2,10 @@
 import { RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
+import { APPLICATION_STATUS_NAMES } from '../../lib/app-status';
 import type { CurrentUser } from '../files/files.service';
 
 export type AccessMode = 'view' | 'edit' | 'submit' | 'delete';
-
-// Имя статуса, в который заявка переводится при отправке (создаётся seed'ом).
-const SUBMIT_STATUS_NAME = 'На проверке';
 
 export interface ApplicationStatus {
   id: number;
@@ -148,7 +146,7 @@ export async function listApplications(
       tenderId: row.tender_id,
       directionId: row.direction_id,
       statusId: row.status_id,
-      status: row.application_statuses?.name ?? null,
+      status: row.application_statuses ? { id: row.application_statuses.id, name: row.application_statuses.name } : null,
       tender: row.tenders?.name ?? null,
       direction: row.directions?.name ?? null,
       submittedAt: row.submitted_at,
@@ -202,6 +200,36 @@ function optionalId(value: unknown): number | null {
   const id = Number(value);
   if (!Number.isInteger(id) || id <= 0) throw httpError(400, 'Некорректный идентификатор', 'INVALID_ID');
   return id;
+}
+
+/** Возвращает id системного статуса по имени; ошибка, если статус не заведён. */
+async function requireStatusIdByName(name: string): Promise<number> {
+  const status = await prisma.application_statuses.findFirst({
+    where: { name, deleted_at: null },
+    select: { id: true },
+  });
+  if (!status) {
+    throw httpError(500, `Статус "${name}" не найден — проверьте справочник статусов (seed)`, 'STATUS_NOT_FOUND');
+  }
+  return status.id;
+}
+
+/** Проверяет существование конкурса/направления и их согласованность. */
+async function assertLinkTargets(tenderId: number | null, directionId: number | null): Promise<void> {
+  if (tenderId !== null) {
+    const tender = await prisma.tenders.findFirst({ where: { id: tenderId, deleted_at: null }, select: { id: true } });
+    if (!tender) throw httpError(400, 'Конкурс не найден', 'TENDER_NOT_FOUND');
+  }
+  if (directionId !== null) {
+    const direction = await prisma.directions.findFirst({
+      where: { id: directionId, deleted_at: null },
+      select: { id: true, tender_id: true },
+    });
+    if (!direction) throw httpError(400, 'Направление не найдено', 'DIRECTION_NOT_FOUND');
+    if (tenderId !== null && direction.tender_id !== null && direction.tender_id !== tenderId) {
+      throw httpError(400, 'Направление не относится к выбранному конкурсу', 'DIRECTION_TENDER_MISMATCH');
+    }
+  }
 }
 
 export async function getApplicationDetail(user: CurrentUser, applicationId: number) {
@@ -327,6 +355,10 @@ export async function createApplication(user: CurrentUser, input: ApplicationInp
   const data = validateInput(input);
   const isAdmin = user.role === RoleType.admin;
   const ownerId = isAdmin ? optionalId(input.owner_id) ?? user.id : user.id;
+  const tenderId = optionalId(input.tender_id);
+  const directionId = optionalId(input.direction_id);
+  await assertLinkTargets(tenderId, directionId);
+  const statusId = await requireStatusIdByName(APPLICATION_STATUS_NAMES.draft);
 
   const application = await prisma.applications.create({
     data: {
@@ -338,9 +370,9 @@ export async function createApplication(user: CurrentUser, input: ApplicationInp
       project_tasks: data.project_tasks,
       implementation_experience: data.implementation_experience,
       results_description: data.results_description,
-      tender_id: optionalId(input.tender_id),
-      direction_id: optionalId(input.direction_id),
-      status_id: 1,
+      tender_id: tenderId,
+      direction_id: directionId,
+      status_id: statusId,
     },
   });
   return getApplicationDetail(user, application.id);
@@ -370,6 +402,10 @@ export async function updateApplication(
   };
   const validated = validateInput(merged);
 
+  const tenderId = optionalId(merged.tender_id);
+  const directionId = optionalId(merged.direction_id);
+  await assertLinkTargets(tenderId, directionId);
+
   const data: Record<string, unknown> = {
     title: validated.title,
     idea_description: validated.idea_description,
@@ -378,11 +414,18 @@ export async function updateApplication(
     project_tasks: validated.project_tasks,
     implementation_experience: validated.implementation_experience,
     results_description: validated.results_description,
-    tender_id: optionalId(merged.tender_id),
-    direction_id: optionalId(merged.direction_id),
+    tender_id: tenderId,
+    direction_id: directionId,
   };
   if (patch.status_id !== undefined && user.role === RoleType.admin) {
-    data.status_id = optionalId(patch.status_id);
+    const statusId = optionalId(patch.status_id);
+    if (statusId === null) throw httpError(400, 'Статус обязателен', 'STATUS_REQUIRED');
+    const status = await prisma.application_statuses.findFirst({
+      where: { id: statusId, deleted_at: null },
+      select: { id: true },
+    });
+    if (!status) throw httpError(400, 'Статус не найден', 'STATUS_NOT_FOUND');
+    data.status_id = statusId;
   }
 
   await prisma.applications.update({ where: { id: applicationId }, data });
@@ -397,17 +440,11 @@ export async function deleteApplication(user: CurrentUser, applicationId: number
 export async function submitApplication(user: CurrentUser, applicationId: number) {
   await getApplicationForAccess(user, applicationId, 'submit');
 
-  const reviewStatus = await prisma.application_statuses.findFirst({
-    where: { name: SUBMIT_STATUS_NAME, deleted_at: null },
-    select: { id: true },
-  });
-  if (!reviewStatus) {
-    throw httpError(500, `Статус "${SUBMIT_STATUS_NAME}" не найден — проверьте seed справочника статусов`, 'STATUS_NOT_FOUND');
-  }
+  const reviewStatusId = await requireStatusIdByName(APPLICATION_STATUS_NAMES.submitted);
 
   await prisma.applications.update({
     where: { id: applicationId },
-    data: { submitted_at: new Date(), status_id: reviewStatus.id },
+    data: { submitted_at: new Date(), status_id: reviewStatusId },
   });
   return getApplicationDetail(user, applicationId);
 }

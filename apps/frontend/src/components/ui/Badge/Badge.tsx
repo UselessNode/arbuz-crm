@@ -26,6 +26,8 @@ export interface StatusOption<V extends string> {
   value: V;
   label: string;
   tone: BadgeTone;
+  /** Опциональная иконка для статичного бейджа. */
+  icon?: IconName;
 }
 
 export interface StatusBadgeProps<V extends string> extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange' | 'value'> {
@@ -35,7 +37,14 @@ export interface StatusBadgeProps<V extends string> extends Omit<SelectHTMLAttri
   onChange?: (value: V) => void;
 }
 
-export function StatusBadge<V extends string>({ value, options, onChange, className, ...rest }: StatusBadgeProps<V>) {
+export function StatusBadge<V extends string>({
+  value,
+  options,
+  onChange,
+  className,
+  'aria-label': ariaLabel,
+  ...rest
+}: StatusBadgeProps<V>) {
   const current = options.find((option) => option.value === value) ?? {
     value,
     label: value,
@@ -44,7 +53,7 @@ export function StatusBadge<V extends string>({ value, options, onChange, classN
 
   if (!onChange) {
     return (
-      <Badge tone={current.tone} icon={value === 'draft' ? 'edit' : value === 'approved' ? 'check' : undefined}>
+      <Badge tone={current.tone} icon={current.icon}>
         {current.label}
       </Badge>
     );
@@ -55,7 +64,7 @@ export function StatusBadge<V extends string>({ value, options, onChange, classN
       className={`${styles.select} ${styles[current.tone]} ${className ?? ''}`}
       value={value}
       onChange={(event) => onChange(event.target.value as V)}
-      aria-label="Сменить статус"
+      aria-label={ariaLabel ?? 'Сменить значение'}
       {...rest}
     >
       {options.map((option) => (
@@ -76,14 +85,10 @@ export const ROLE_OPTIONS: readonly StatusOption<RoleType>[] = [
 ];
 
 export const VERDICT_OPTIONS: readonly StatusOption<ReviewStatus>[] = [
-  { value: 'draft', label: 'Черновик', tone: 'gray' },
-  { value: 'approved', label: 'Одобрено', tone: 'green' },
-  { value: 'rejected', label: 'Отклонено', tone: 'red' },
+  { value: 'draft', label: 'Черновик', tone: 'gray', icon: 'edit' },
+  { value: 'approved', label: 'Одобрено', tone: 'green', icon: 'check' },
+  { value: 'rejected', label: 'Отклонено', tone: 'red', icon: 'close' },
 ];
 
-export const APPLICATION_STATUS_OPTIONS: readonly StatusOption<string>[] = [
-  { value: 'draft', label: 'Черновик', tone: 'gray' },
-  { value: 'under_review', label: 'На проверке', tone: 'yellow' },
-  { value: 'accepted', label: 'Принята', tone: 'green' },
-  { value: 'rejected', label: 'Отклонена', tone: 'red' },
-];
+// Статусы заявок — редактируемый справочник, поэтому они приходят с сервера
+// (`GET /api/application-statuses`), а не задаются здесь (см. ApplicationsPage / ApplicationDetailPage).

@@ -1,6 +1,7 @@
 // Конфигурация приложения: читается из окружения (корневой .env подгружает dotenv-cli).
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
+import { BACKEND_ROOT } from './paths';
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 const isProduction = nodeEnv === 'production';
@@ -34,11 +35,13 @@ export const config = {
   jwt: {
     secret: resolveJwtSecret(),
     expiresIn: '12h',
+    cookieMaxAgeMs: 12 * 60 * 60 * 1000,
     cookieName: 'arbuz_session',
   },
   uploads: {
-    // Физический каталог с файлами; по умолчанию ./uploads относительно каталога запуска.
-    dir: path.resolve(process.cwd(), process.env.UPLOAD_DIR ?? './uploads'),
+    // Физический каталог с файлами; по умолчанию ./uploads относительно пакета backend
+    // (не зависит от рабочего каталога запуска).
+    dir: path.resolve(BACKEND_ROOT, process.env.UPLOAD_DIR ?? './uploads'),
   },
   limits: {
     // Один файл до 10 МБ, суммарно на заявку до 25 МБ.

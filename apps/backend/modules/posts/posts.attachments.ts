@@ -4,10 +4,12 @@ import { httpError } from '../../lib/http';
 import { log } from '../../lib/logger';
 import { readMultipartFile } from '../../lib/multipart';
 import type { CurrentUser } from '../files/files.service';
-import { fileMime, isPreviewableFile, safeOriginalName, validateUpload } from '../files/file-validation';
+import { safeOriginalName, validateUpload } from '../files/file-validation';
 import { openStored, removeStored, storeUpload } from '../files/file-storage';
 import { isAdmin } from './posts.service';
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
+
+export { applyDownloadHeaders } from '../files/download';
 
 function requireAdmin(user: CurrentUser): void {
   if (!isAdmin(user)) throw httpError(403, 'Действие доступно только администратору', 'FORBIDDEN');
@@ -101,14 +103,6 @@ export async function downloadPostAttachment(
   if (!file || !file.path) throw httpError(404, 'Файл не найден', 'FILE_NOT_FOUND');
   const { stream, size } = await openStored(file.path);
   return { stream, size, file };
-}
-
-export function applyDownloadHeaders(res: Response, file: { name: string; file_type: string | null }, size: number): void {
-  const disposition = isPreviewableFile(file.file_type) ? 'inline' : 'attachment';
-  res.setHeader('Content-Type', fileMime(file.file_type));
-  res.setHeader('Content-Length', String(size));
-  res.setHeader('Content-Disposition', `${disposition}; filename*=UTF-8''${encodeURIComponent(file.name)}`);
-  res.setHeader('X-Content-Type-Options', 'nosniff');
 }
 
 export async function deletePostAttachment(user: CurrentUser, rawPostId: string | undefined, rawFileId: string | undefined) {

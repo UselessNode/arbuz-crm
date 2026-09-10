@@ -2,13 +2,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Container, StateMessage, StatusBadge, Table, VERDICT_OPTIONS } from '../../components/ui';
-import type { StatusOption, TableColumn } from '../../components/ui';
+import type { TableColumn } from '../../components/ui';
 import { reviewsApi, type ReviewListItem } from '../../api/reviews';
 import { ApiError } from '../../api/client';
 import { formatDateTime, formatUserName } from '../../lib/format';
 import styles from './ReviewsPage.module.css';
-
-const STATUS_FALLBACK: readonly StatusOption<string>[] = [{ value: 'draft', label: 'Черновик', tone: 'gray' }];
 
 export function ReviewsPage() {
   const navigate = useNavigate();
@@ -39,12 +37,7 @@ export function ReviewsPage() {
     {
       key: 'status',
       header: 'Вердикт',
-      render: (r) => {
-        const options: readonly StatusOption<string>[] = r.status
-          ? VERDICT_OPTIONS.filter((option) => option.value === r.status)
-          : STATUS_FALLBACK;
-        return <StatusBadge value={r.status ?? 'draft'} options={options.length ? options : STATUS_FALLBACK} />;
-      },
+      render: (r) => <StatusBadge value={r.status ?? 'draft'} options={VERDICT_OPTIONS} />,
     },
     { key: 'score', header: 'Балл', render: (r) => r.totalScore ?? '—' },
     { key: 'updated', header: 'Обновлена', render: (r) => formatDateTime(r.updatedAt) },

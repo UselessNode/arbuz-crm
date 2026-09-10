@@ -41,20 +41,49 @@ function serializeJob(job: {
   };
 }
 
+// Максимальное время генерации; по истечении воркер принудительно завершается.
+const WORKER_TIMEOUT_MS = 5 * 60 * 1000;
+
+/**
+ * Переводит незавершённое задание в статус ошибки.
+ * `updateMany` с фильтром по статусу не перезатрёт уже готовое задание.
+ */
+function failPendingJob(jobId: number, message: string): void {
+  prisma.pdf_export_jobs
+    .updateMany({
+      where: { id: jobId, status: { in: [PdfExportStatus.pending, PdfExportStatus.processing] } },
+      data: { status: PdfExportStatus.error, error: message },
+    })
+    .catch(() => undefined);
+}
+
 function runWorker(jobId: number): void {
   const child = spawn(process.execPath, [workerPath, WORKER_JOB_ARG, String(jobId)], {
     env: process.env as Record<string, string>,
     stdio: 'ignore',
     windowsHide: true,
   });
+
+  // Страховка: если воркер завис или умер, не успев обновить статус, — фиксируем ошибку.
+  const watchdog = setTimeout(() => {
+    log.error('pdf-export: воркер не завершился вовремя', { jobId });
+    child.kill();
+    failPendingJob(jobId, 'Превышено время генерации PDF');
+  }, WORKER_TIMEOUT_MS);
+  (watchdog as { unref?: () => void }).unref?.();
+
   child.on('error', (error) => {
+    clearTimeout(watchdog);
     log.error('pdf-export: не удалось запустить воркер', { jobId, error: String(error) });
-    prisma.pdf_export_jobs
-      .update({
-        where: { id: jobId },
-        data: { status: PdfExportStatus.error, error: `Не удалось запустить воркер: ${String(error)}` },
-      })
-      .catch(() => undefined);
+    failPendingJob(jobId, `Не удалось запустить воркер: ${String(error)}`);
+  });
+
+  child.on('exit', (code) => {
+    clearTimeout(watchdog);
+    if (code !== 0) {
+      log.error('pdf-export: воркер завершился с ошибкой', { jobId, code });
+      failPendingJob(jobId, `Воркер завершился с кодом ${code}`);
+    }
   });
 }
 

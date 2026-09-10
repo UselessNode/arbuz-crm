@@ -45,10 +45,17 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
   try {
     const { payload } = await jwtVerify(token, secret);
     if (!payload.sub) return null;
-    return { id: Number(payload.sub), role: payload.role as RoleType };
+    const role = parseRoleClaim(payload.role);
+    if (!role) return null;
+    return { id: Number(payload.sub), role };
   } catch {
     return null;
   }
+}
+
+/** Проверяет значение роли из JWT (не доверяем утверждению вслепую). */
+function parseRoleClaim(value: unknown): RoleType | null {
+  return value === RoleType.admin || value === RoleType.expert || value === RoleType.applicant ? value : null;
 }
 
 function optionalName(value: unknown): string | null {

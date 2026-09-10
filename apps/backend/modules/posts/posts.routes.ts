@@ -116,7 +116,7 @@ postsRouter.get(
   asyncHandler(async (req: Request, res: Response) => {
     const actor = req.user as CurrentUser;
     const { stream, size, file } = await downloadPostAttachment(actor, req.params.postId, req.params.fileId);
-    applyDownloadHeaders(res, file, size);
+    applyDownloadHeaders(res, file.name, file.file_type, size);
     stream.on('error', () => res.destroy());
     res.on('close', () => stream.destroy());
     stream.pipe(res);

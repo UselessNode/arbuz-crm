@@ -30,17 +30,24 @@ export function ApplicationFormModal({ open, application, onClose, onSaved }: Pr
   const [directionId, setDirectionId] = useState('');
   const [tenderOptions, setTenderOptions] = useState<readonly SelectOption<string>[]>([]);
   const [directionOptions, setDirectionOptions] = useState<readonly SelectOption<string>[]>([]);
+  const [optionsLoading, setOptionsLoading] = useState(false);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setOptionsError(null);
+    setOptionsLoading(true);
     Promise.all([tendersApi.list(), directionsApi.list()])
       .then(([tenders, directions]) => {
         setTenderOptions(tenders.tenders.map((t) => ({ value: String(t.id), label: t.name })));
         setDirectionOptions(directions.directions.map((d) => ({ value: String(d.id), label: d.name })));
       })
-      .catch(() => undefined);
+      .catch((caught) => {
+        setOptionsError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить конкурсы и направления');
+      })
+      .finally(() => setOptionsLoading(false));
 
     if (application) {
       setForm({
@@ -85,9 +92,10 @@ export function ApplicationFormModal({ open, application, onClose, onSaved }: Pr
       <form className={styles.form} onSubmit={handleSubmit}>
         <Input label="Название" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
         <div className={styles.grid2}>
-          <Select label="Тендер" placeholder="Не выбрано" value={tenderId} onChange={setTenderId} options={tenderOptions} />
-          <Select label="Направление" placeholder="Не выбрано" value={directionId} onChange={setDirectionId} options={directionOptions} />
+          <Select label="Тендер" placeholder="Не выбрано" value={tenderId} onChange={setTenderId} options={tenderOptions} disabled={optionsLoading} />
+          <Select label="Направление" placeholder="Не выбрано" value={directionId} onChange={setDirectionId} options={directionOptions} disabled={optionsLoading} />
         </div>
+        {optionsError ? <div className={styles.error}>{optionsError}</div> : null}
         <Textarea label="Идея проекта" value={form.idea_description} onChange={(e) => setForm({ ...form, idea_description: e.target.value })} required />
         <Textarea
           label="Значимость для команды"

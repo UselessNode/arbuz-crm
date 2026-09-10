@@ -118,3 +118,13 @@
   white-space: pre-wrap;
   margin: 0;
 }
+
+.pageHint {
+  color: var(--color-muted);
+  font-size: 13px;
+  margin-top: var(--space-3);
+}
+
+.materialsTop {
+  margin-top: var(--space-3);
+}

@@ -33,7 +33,7 @@ function setSessionCookie(res: import('express').Response, token: string): void 
     httpOnly: true,
     sameSite: 'lax',
     secure: config.isProduction,
-    maxAge: 12 * 60 * 60 * 1000, // 12 часов, как и срок JWT
+    maxAge: config.jwt.cookieMaxAgeMs, // совпадает со сроком жизни JWT (config.jwt.expiresIn)
     path: '/',
   });
 }

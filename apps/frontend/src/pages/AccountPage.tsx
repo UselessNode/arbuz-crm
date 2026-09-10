@@ -1,6 +1,6 @@
 // Личный кабинет (для заявителя/эксперта): профиль и выход.
 import { useNavigate } from 'react-router-dom';
-import { Button, Container, ROLE_OPTIONS, StatusBadge } from '../components/ui';
+import { Button, Container, ROLE_OPTIONS, StateMessage, StatusBadge } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { formatUserName } from '../lib/format';
 import styles from './SimplePage.module.css';
@@ -9,7 +9,15 @@ export function AccountPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className={styles.page}>
+        <Container title="Личный кабинет" className={styles.card}>
+          <StateMessage state="error" message="Пользователь не найден. Войдите заново." />
+        </Container>
+      </div>
+    );
+  }
 
   const handleLogout = async () => {
     await logout();

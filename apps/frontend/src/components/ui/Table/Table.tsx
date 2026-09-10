@@ -50,6 +50,21 @@ export function Table<T>({ columns, data, rowKey, onRowClick, emptyText = 'Не�
                 key={keyOf(row, index)}
                 className={onRowClick ? styles.clickable : undefined}
                 onClick={onRowClick ? () => onRowClick(row, index) : undefined}
+                role={onRowClick ? 'button' : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (event) => {
+                        if (event.key === 'Enter') {
+                          onRowClick(row, index);
+                        } else if (event.key === ' ' || event.key === 'Space') {
+                          // Space не должен прокручивать страницу.
+                          event.preventDefault();
+                          onRowClick(row, index);
+                        }
+                      }
+                    : undefined
+                }
               >
                 {columns.map((column) => (
                   <td key={column.key}>

@@ -56,6 +56,9 @@ const FALLBACK: Record<string, ReactNode> = {
 
 export type IconName = string;
 
+/** Имена, о которых уже предупреждали (чтобы не спамить в консоль). */
+const warnedNames = new Set<string>();
+
 /** Все доступные имена иконок (кастомные + синонимы + фолбэк). */
 export const ICON_NAMES: string[] = [...Object.keys(CUSTOM_SVG), ...Object.keys(ALIASES), ...Object.keys(FALLBACK)];
 
@@ -95,5 +98,9 @@ export function Icon({ name, size = 16, className }: IconProps) {
     );
   }
 
+  if (import.meta.env.DEV && !warnedNames.has(name)) {
+    warnedNames.add(name);
+    console.warn(`[Icon] Неизвестное имя иконки: "${name}"`);
+  }
   return null;
 }

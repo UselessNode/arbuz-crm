@@ -1,6 +1,7 @@
 // Контекст аутентификации: восстановление сессии, вход, выход.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { authApi, type RegisterPayload } from '../api/auth';
+import { AUTH_UNAUTHORIZED_EVENT } from '../api/client';
 import type { AuthUser } from '../api/types';
 
 interface AuthContextValue {
@@ -37,8 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onUnauthorized = () => setUser(null);
-    window.addEventListener('auth:unauthorized', onUnauthorized);
-    return () => window.removeEventListener('auth:unauthorized', onUnauthorized);
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, onUnauthorized);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

@@ -20,22 +20,28 @@ import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
 import styles from './PostsPage.module.css';
 
+const POST_STATUS = { draft: 'draft', published: 'published' } as const;
+
 const POST_STATUS_OPTIONS: readonly StatusOption<string>[] = [
-  { value: 'draft', label: 'Черновик', tone: 'gray' },
-  { value: 'published', label: 'Опубликован', tone: 'green' },
+  { value: POST_STATUS.draft, label: 'Черновик', tone: 'gray' },
+  { value: POST_STATUS.published, label: 'Опубликован', tone: 'green' },
 ];
 
 function AttachmentsSection({ postId }: { postId: number }) {
   const [files, setFiles] = useState<PostFile[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       const response = await postsApi.files.list(postId);
       setFiles(response.files);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить вложения');
+    } finally {
+      setLoading(false);
     }
   }, [postId]);
 
@@ -73,7 +79,9 @@ function AttachmentsSection({ postId }: { postId: number }) {
       <span className={styles.sectionLabel}>Вложения</span>
       <DragDrop onFiles={(selected) => void handleFiles(selected)} disabled={busy} hint="Перетащите файлы (PDF, DOCX, изображения, MP4)" />
       {error ? <div className={styles.error}>{error}</div> : null}
-      {files.length > 0 ? (
+      {loading ? (
+        <StateMessage state="loading" />
+      ) : files.length > 0 ? (
         <div className={styles.fileList}>
           {files.map((file) => (
             <span key={file.id} className={styles.fileItem}>
@@ -104,6 +112,7 @@ function PostFormModal({
   const [content, setContent] = useState('');
   const [isPublished, setIsPublished] = useState(false);
   const [preview, setPreview] = useState('');
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedPostId, setSavedPostId] = useState<number | null>(null);
@@ -114,6 +123,7 @@ function PostFormModal({
     setContent(initial?.content ?? '');
     setIsPublished(initial?.is_published ?? false);
     setPreview(initial?.contentHtml ?? '');
+    setPreviewError(null);
     setError(null);
     setSavedPostId(initial?.id ?? null);
   }, [open, initial]);
@@ -124,8 +134,13 @@ function PostFormModal({
     const timer = setTimeout(() => {
       postsApi
         .preview(content)
-        .then((response) => setPreview(response.html))
-        .catch(() => undefined);
+        .then((response) => {
+          setPreview(response.html);
+          setPreviewError(null);
+        })
+        .catch((caught) => {
+          setPreviewError(caught instanceof ApiError ? caught.message : 'Не удалось построить предпросмотр');
+        });
     }, 400);
     return () => clearTimeout(timer);
   }, [content, open]);
@@ -169,6 +184,7 @@ function PostFormModal({
           <div className={styles.previewColumn}>
             <span className={styles.sectionLabel}>Предпросмотр</span>
             <div className={styles.preview} dangerouslySetInnerHTML={{ __html: preview }} />
+            {previewError ? <div className={styles.error}>{previewError}</div> : null}
           </div>
         </div>
 
@@ -250,9 +266,9 @@ export function PostsPage() {
       header: 'Статус',
       render: (post) => (
         <StatusBadge
-          value={post.is_published ? 'published' : 'draft'}
+          value={post.is_published ? POST_STATUS.published : POST_STATUS.draft}
           options={POST_STATUS_OPTIONS}
-          onChange={(value) => void togglePublished(post, value === 'published')}
+          onChange={(value) => void togglePublished(post, value === POST_STATUS.published)}
         />
       ),
     },

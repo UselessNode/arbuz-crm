@@ -39,7 +39,9 @@ export function Button({
     .join(' ');
 
   const iconNode = loading ? (
-    <Icon name="info" size={size === 'sm' ? 14 : 16} />
+    <span className={styles.spinner}>
+      <Icon name="loading" size={size === 'sm' ? 14 : 16} />
+    </span>
   ) : icon ? (
     <Icon name={icon} size={size === 'sm' ? 14 : 16} />
   ) : null;

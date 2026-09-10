@@ -1,8 +1,10 @@
-// Хранилище файлов на диске. В БД хранится относительный путь вида
-// uploads/<owner_id>-<application_id>-<время>/<uuid>.<ext>
+// Хранилище файлов на диске. В БД хранится относительный путь с логическим
+// namespace `uploads/`: uploads/<owner_id>-<application_id>-<время>/<uuid>.<ext>
 // (согласия — uploads/<...>/consents/<uuid>.<ext>).
+// Физический корень — config.uploads.dir (UPLOAD_DIR), поэтому namespace-префикс
+// при вычислении физического пути отбрасывается.
 import { createReadStream } from 'node:fs';
-import { mkdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { ReadStream } from 'node:fs';
@@ -11,10 +13,19 @@ import { httpError } from '../../lib/http';
 
 export const UPLOADS_PREFIX = 'uploads';
 
+/**
+ * Путь из БД -> путь относительно каталога загрузок (без namespace-префикса `uploads/`).
+ * Используется и хранилищем, и обслуживанием (cleanup) — единая конвенция путей.
+ */
+export function toRelativePath(relativePath: string): string {
+  const segments = relativePath.split('/').filter(Boolean);
+  if (segments[0] === UPLOADS_PREFIX) segments.shift();
+  return segments.join(path.sep);
+}
+
 /** Относительный путь из БД -> физический путь внутри каталога загрузок (с защитой от выхода). */
 export function toPhysical(relativePath: string): string {
-  const normalized = relativePath.split('/').filter(Boolean).join(path.sep);
-  const physical = path.resolve(config.uploads.dir, normalized);
+  const physical = path.resolve(config.uploads.dir, toRelativePath(relativePath));
   const root = path.resolve(config.uploads.dir);
   if (physical !== root && !physical.startsWith(root + path.sep)) {
     throw httpError(400, 'Некорректный путь файла', 'INVALID_FILE_PATH');

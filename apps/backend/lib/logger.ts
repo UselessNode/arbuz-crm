@@ -1,8 +1,9 @@
 // Логирование: структурированные строки JSON в stdout + журнал аудита (logs/audit.log).
 import { appendFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { BACKEND_ROOT } from './paths';
 
-const auditFile = path.resolve(process.cwd(), 'logs', 'audit.log');
+const auditFile = path.resolve(BACKEND_ROOT, 'logs', 'audit.log');
 mkdirSync(path.dirname(auditFile), { recursive: true });
 
 function writeLine(payload: Record<string, unknown>): void {

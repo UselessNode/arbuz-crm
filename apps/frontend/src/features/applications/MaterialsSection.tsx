@@ -44,11 +44,11 @@ export function MaterialsSection({ applicationId, materials, onChanged }: Props)
   return (
     <div>
       <DragDrop onFiles={(selected) => void handleFiles(selected)} disabled={busy} hint="Перетащите файл (PDF, DOCX, JPEG, PNG, MP4; до 10 МБ)" />
-      {error ? <div className={styles.error} style={{ marginTop: '12px' }}>{error}</div> : null}
+      {error ? <div className={`${styles.error} ${styles.materialsTop}`}>{error}</div> : null}
       {materials.length === 0 ? (
         <StateMessage state="empty" message="Материалы не загружены" />
       ) : (
-        <div className={styles.materialsList} style={{ marginTop: '12px' }}>
+        <div className={`${styles.materialsList} ${styles.materialsTop}`}>
           {materials.map((material) => (
             <div key={material.id} className={styles.materialRow}>
               <span>
@@ -61,9 +61,13 @@ export function MaterialsSection({ applicationId, materials, onChanged }: Props)
                 </span>
               </span>
               <span className={styles.actions}>
-                <a href={applicationsApi.materials.downloadUrl(applicationId, material.id)} target="_blank" rel="noreferrer">
-                  <Button size="sm" variant="ghost" icon="download" aria-label="Скачать" />
-                </a>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  icon="download"
+                  aria-label="Скачать"
+                  onClick={() => window.open(applicationsApi.materials.downloadUrl(applicationId, material.id), '_blank', 'noopener')}
+                />
                 <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => void handleRemove(material.id)} />
               </span>
             </div>

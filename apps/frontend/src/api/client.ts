@@ -10,21 +10,21 @@ export class ApiError extends Error {
   }
 }
 
+/** Событие, на которое подписан AuthContext для сброса сессии при 401. */
+export const AUTH_UNAUTHORIZED_EVENT = 'auth:unauthorized';
+
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
-async function request<T>(method: Method, path: string, body?: unknown): Promise<T> {
-  let response: Response;
+async function fetchOrNetworkError(path: string, init: RequestInit): Promise<Response> {
   try {
-    response = await fetch(`/api${path}`, {
-      method,
-      credentials: 'same-origin',
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+    return await fetch(`/api${path}`, init);
   } catch {
     throw new ApiError(0, 'NETWORK_ERROR', 'Нет связи с сервером');
   }
+}
 
+/** Разбирает ответ, превращая не-2xx в типизированную ошибку (и сигнализируя о 401). */
+async function parseResponse<T>(response: Response): Promise<T> {
   const text = await response.text();
   let data: unknown = null;
   if (text) {
@@ -37,11 +37,27 @@ async function request<T>(method: Method, path: string, body?: unknown): Promise
 
   if (!response.ok) {
     const error = (data as { error?: { code?: string; message?: string } } | null)?.error;
-    if (response.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
+    if (response.status === 401) window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT));
     throw new ApiError(response.status, error?.code ?? 'HTTP_ERROR', error?.message ?? `Ошибка запроса (${response.status})`);
   }
 
   return data as T;
+}
+
+async function request<T>(method: Method, path: string, body?: unknown): Promise<T> {
+  const response = await fetchOrNetworkError(path, {
+    method,
+    credentials: 'same-origin',
+    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  return parseResponse<T>(response);
+}
+
+/** Отправка multipart (FormData) — Content-Type ставит браузер. */
+async function requestForm<T>(path: string, formData: FormData): Promise<T> {
+  const response = await fetchOrNetworkError(path, { method: 'POST', credentials: 'same-origin', body: formData });
+  return parseResponse<T>(response);
 }
 
 export const api = {
@@ -49,33 +65,5 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
   delete: <T>(path: string) => request<T>('DELETE', path),
-  /** Отправка multipart (FormData) — Content-Type ставит браузер. */
   upload: <T>(path: string, formData: FormData) => requestForm<T>(path, formData),
 };
-
-async function requestForm<T>(path: string, formData: FormData): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(`/api${path}`, { method: 'POST', credentials: 'same-origin', body: formData });
-  } catch {
-    throw new ApiError(0, 'NETWORK_ERROR', 'Нет связи с сервером');
-  }
-
-  const text = await response.text();
-  let data: unknown = null;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = null;
-    }
-  }
-
-  if (!response.ok) {
-    const error = (data as { error?: { code?: string; message?: string } } | null)?.error;
-    if (response.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
-    throw new ApiError(response.status, error?.code ?? 'HTTP_ERROR', error?.message ?? `Ошибка запроса (${response.status})`);
-  }
-
-  return data as T;
-}

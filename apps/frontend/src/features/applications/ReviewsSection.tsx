@@ -1,12 +1,11 @@
 // Секция «Рецензии»: назначение экспертов, просмотр, снятие.
 import { useCallback, useEffect, useState } from 'react';
-import { Badge, Button, ConfirmDialog, Select, StateMessage } from '../../components/ui';
+import { Badge, Button, ConfirmDialog, Select, StateMessage, VERDICT_OPTIONS } from '../../components/ui';
 import type { SelectOption } from '../../components/ui';
 import { reviewsApi } from '../../api/reviews';
 import { usersApi, type ExpertItem } from '../../api/users';
 import type { ApplicationReview } from '../../api/applications';
 import { ApiError } from '../../api/client';
-import { VERDICT_OPTIONS } from '../../components/ui';
 import { formatUserName } from '../../lib/format';
 import styles from './Applications.module.css';
 
@@ -90,13 +89,16 @@ export function ReviewsSection({ applicationId, reviews, onChanged }: Props) {
       ) : (
         <div className={styles.assignedExperts}>
           {reviews.map((review) => {
-            const verdict = VERDICT_OPTIONS.find((option) => option.value === review.status);
+            const verdict =
+              VERDICT_OPTIONS.find((option) => option.value === (review.status ?? 'draft')) ?? VERDICT_OPTIONS[0];
             return (
               <div key={review.id} className={styles.reviewCard}>
                 <div className={styles.reviewHeader}>
                   <strong>{review.expert ? formatUserName(review.expert) : 'Эксперт удалён'}</strong>
                   <span className={styles.actions}>
-                    <Badge tone={verdict?.tone ?? 'gray'}>{verdict?.label ?? 'Черновик'}</Badge>
+                    <Badge tone={verdict.tone} icon={verdict.icon}>
+                      {verdict.label}
+                    </Badge>
                     <Badge tone="neutral">Балл: {review.totalScore ?? '—'}</Badge>
                     <Button size="sm" variant="ghost" icon="close" aria-label="Снять эксперта" onClick={() => setRemoving(review)} />
                   </span>

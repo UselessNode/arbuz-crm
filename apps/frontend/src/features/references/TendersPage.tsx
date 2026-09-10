@@ -179,7 +179,7 @@ function CriteriaModal({ tender, onClose }: { tender: Tender | null; onClose: ()
         />
       )}
 
-      <form className={styles.form} onSubmit={handleSubmit} style={{ marginTop: '16px' }}>
+      <form className={`${styles.form} ${styles.sectionGap}`} onSubmit={handleSubmit}>
         <div className={styles.grid2}>
           <Input label="Название критерия" value={name} onChange={(e) => setName(e.target.value)} required />
           <NumberInput label="Вес" value={weight} onChange={setWeight} min={0} step={0.5} />

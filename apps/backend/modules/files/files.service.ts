@@ -92,6 +92,29 @@ export async function requireManageableApplication(
   return application;
 }
 
+/**
+ * Проверяет право просмотра файлов заявки: владелец, администратор
+ * или назначенный на заявку эксперт (управление остаётся за requireManageableApplication).
+ */
+export async function requireViewableApplication(
+  user: CurrentUser,
+  applicationId: number,
+): Promise<ApplicationBrief> {
+  const application = await prisma.applications.findUnique({ where: { id: applicationId } });
+  if (!application || application.deleted_at) {
+    throw httpError(404, 'Заявка не найдена', 'APPLICATION_NOT_FOUND');
+  }
+  if (user.role === RoleType.admin || application.owner_id === user.id) return application;
+  if (user.role === RoleType.expert) {
+    const assigned = await prisma.application_reviews.findFirst({
+      where: { application_id: applicationId, expert_id: user.id, deleted_at: null },
+      select: { id: true },
+    });
+    if (assigned) return application;
+  }
+  throw httpError(403, 'Нет доступа к файлам этой заявки', 'FORBIDDEN');
+}
+
 /** Проверяет принадлежность участника команды заявке. */
 export async function requireTeamMemberOfApplication(applicationId: number, memberId: number): Promise<void> {
   const member = await prisma.team_members.findFirst({

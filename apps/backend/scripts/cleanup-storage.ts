@@ -8,16 +8,18 @@ import path from 'node:path';
 import { config } from '../lib/config';
 import { prisma } from '../lib/prisma';
 import { log } from '../lib/logger';
+import { toPhysical, toRelativePath } from '../modules/files/file-storage';
 
 const deletedAfterDays = Number(process.env.CLEANUP_AFTER_DAYS ?? 7);
 const orphanAfterHours = Number(process.env.CLEANUP_ORPHAN_AFTER_HOURS ?? 24);
 
 async function removePhysical(relativePath: string): Promise<void> {
-  const physical = path.resolve(config.uploads.dir, relativePath.split('/').filter(Boolean).join(path.sep));
-  const root = path.resolve(config.uploads.dir);
-  if (!physical.startsWith(root + path.sep)) return;
-  await unlink(physical).catch(() => undefined);
-  log.info('storage:cleanup: удалён файл', { path: relativePath });
+  try {
+    await unlink(toPhysical(relativePath));
+    log.info('storage:cleanup: удалён файл', { path: relativePath });
+  } catch {
+    // Отсутствующий или некорректный путь не считаем ошибкой.
+  }
 }
 
 async function cleanupDeletedRows(): Promise<void> {
@@ -37,13 +39,12 @@ async function collectKnownPaths(): Promise<Set<string>> {
     prisma.consent_files.findMany({ select: { file_path: true } }),
     prisma.files.findMany({ select: { path: true } }),
   ]);
-  // В БД пути вида uploads/<...>; на диске корень — сам каталог uploads, поэтому префикс убираем.
+  // Физические файлы лежат непосредственно в config.uploads.dir, а пути в БД
+  // содержат namespace-префикс `uploads/`; приводим их к единому виду (toRelativePath).
   const known = new Set<string>();
   const add = (relativePath: string | null): void => {
     if (!relativePath) return;
-    const segments = relativePath.split('/');
-    if (segments[0] === 'uploads') segments.shift();
-    known.add(segments.join(path.sep));
+    known.add(toRelativePath(relativePath));
   };
   for (const row of materials) add(row.file_path);
   for (const row of consents) add(row.file_path);

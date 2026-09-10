@@ -1,3 +1,4 @@
+import type { ReviewStatus } from '@arbuz/shared';
 import { api } from './client';
 
 export interface ApplicationSummary {
@@ -6,7 +7,7 @@ export interface ApplicationSummary {
   ownerId: number | null;
   ownerName: string;
   statusId: number;
-  status: string | null;
+  status: { id: number; name: string } | null;
   tender: string | null;
   direction: string | null;
   submittedAt: string | null;
@@ -63,7 +64,7 @@ export interface Material {
 export interface ApplicationReview {
   id: number;
   expert: { id: number; email: string; name: string | null; surname: string | null; patronymic: string | null } | null;
-  status: string | null;
+  status: ReviewStatus | null;
   text: string | null;
   rating: unknown;
   totalScore: number | null;

@@ -2,7 +2,6 @@
 import { useState, type ReactNode } from 'react';
 import type { ReviewStatus, RoleType } from '@arbuz/shared';
 import {
-  APPLICATION_STATUS_OPTIONS,
   Accordion,
   AccordionItem,
   Badge,
@@ -21,8 +20,16 @@ import {
   Table,
   VERDICT_OPTIONS,
 } from '../../components/ui';
-import type { TableColumn } from '../../components/ui';
+import type { StatusOption, TableColumn } from '../../components/ui';
 import styles from './DesignSystemPage.module.css';
+
+// Демонстрационные статусы заявок (на проде приходят из GET /api/application-statuses).
+const DEMO_STATUS_OPTIONS: readonly StatusOption<string>[] = [
+  { value: 'draft', label: 'Черновик', tone: 'gray' },
+  { value: 'under_review', label: 'На проверке', tone: 'yellow' },
+  { value: 'accepted', label: 'Принята', tone: 'green' },
+  { value: 'rejected', label: 'Отклонена', tone: 'red' },
+];
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -60,7 +67,7 @@ export function DesignSystemPage() {
     {
       key: 'status',
       header: 'Статус',
-      render: (row) => <StatusBadge value={row.status} options={APPLICATION_STATUS_OPTIONS} />,
+      render: (row) => <StatusBadge value={row.status} options={DEMO_STATUS_OPTIONS} />,
     },
     { key: 'role', header: 'Роль', render: (row) => <StatusBadge value={row.role} options={ROLE_OPTIONS} /> },
     { key: 'score', header: 'Балл', render: (row) => (row.score > 0 ? String(row.score) : '—') },
@@ -116,13 +123,13 @@ export function DesignSystemPage() {
       <Section title="Бейджики-статусы (статические и сменные)">
         <div className={styles.row}>
           <span className={styles.caption}>Статичные:</span>
-          <StatusBadge value="under_review" options={APPLICATION_STATUS_OPTIONS} />
+          <StatusBadge value="under_review" options={DEMO_STATUS_OPTIONS} />
           <StatusBadge value="approved" options={VERDICT_OPTIONS} />
           <StatusBadge value="expert" options={ROLE_OPTIONS} />
         </div>
         <div className={styles.row}>
           <span className={styles.caption}>С выпадающим списком:</span>
-          <StatusBadge value={appStatus} options={APPLICATION_STATUS_OPTIONS} onChange={setAppStatus} />
+          <StatusBadge value={appStatus} options={DEMO_STATUS_OPTIONS} onChange={setAppStatus} />
           <StatusBadge value={role} options={ROLE_OPTIONS} onChange={setRole} />
           <StatusBadge value={verdict} options={VERDICT_OPTIONS} onChange={setVerdict} />
         </div>
@@ -193,7 +200,7 @@ export function DesignSystemPage() {
       </Section>
 
       <Section title="Таблица (с бейджами-статусами)">
-        <Table columns={columns} data={DEMO_ROWS} rowKey={(row) => row.id} onRowClick={(row) => console.info('row click', row)} />
+        <Table columns={columns} data={DEMO_ROWS} rowKey={(row) => row.id} />
       </Section>
     </main>
   );

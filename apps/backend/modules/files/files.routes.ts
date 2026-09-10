@@ -13,11 +13,13 @@ import {
   applicationUsedBytes,
   requireManageableApplication,
   requireTeamMemberOfApplication,
+  requireViewableApplication,
   resolveApplicationFolder,
   syncMemberConsentPath,
 } from './files.service';
-import { fileMime, isPreviewableFile, safeOriginalName, validateUpload } from './file-validation';
+import { safeOriginalName, validateUpload } from './file-validation';
 import { openStored, removeStored, storeUpload } from './file-storage';
+import { applyDownloadHeaders } from './download';
 
 export const filesRouter = Router();
 filesRouter.use(requireAuth);
@@ -84,15 +86,6 @@ function serializeConsent(row: ConsentRow) {
   };
 }
 
-function setDownloadHeaders(res: Response, fileName: string | null, fileType: string | null, size: number): void {
-  const disposition = isPreviewableFile(fileType) ? 'inline' : 'attachment';
-  const encoded = encodeURIComponent(fileName ?? 'file');
-  res.setHeader('Content-Type', fileMime(fileType));
-  res.setHeader('Content-Length', String(size));
-  res.setHeader('Content-Disposition', `${disposition}; filename*=UTF-8''${encoded}`);
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-}
-
 // --- Прикреплённые файлы (additional_materials) ---
 
 filesRouter.post(
@@ -136,7 +129,7 @@ filesRouter.get(
   asyncHandler(async (req: Request, res: Response) => {
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
-    await requireManageableApplication(actor, applicationId);
+    await requireViewableApplication(actor, applicationId);
     const materials = await prisma.additional_materials.findMany({
       where: { application_id: applicationId, deleted_at: null },
       orderBy: { id: 'desc' },
@@ -151,7 +144,7 @@ filesRouter.get(
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     const fileId = parseId(req.params.fileId);
-    await requireManageableApplication(actor, applicationId);
+    await requireViewableApplication(actor, applicationId);
 
     const record = await prisma.additional_materials.findFirst({
       where: { id: fileId, application_id: applicationId, deleted_at: null },
@@ -159,7 +152,7 @@ filesRouter.get(
     if (!record) throw httpError(404, 'Файл не найден', 'FILE_NOT_FOUND');
 
     const { stream, size } = await openStored(record.file_path);
-    setDownloadHeaders(res, record.file_name, record.file_type, size);
+    applyDownloadHeaders(res, record.file_name, record.file_type, size);
     log.audit('files.material.download', { userId: actor.id, applicationId, fileId, fileName: record.file_name });
     stream.on('error', () => res.destroy());
     res.on('close', () => stream.destroy());
@@ -195,7 +188,7 @@ filesRouter.get(
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     const memberId = parseId(req.params.memberId);
-    await requireManageableApplication(actor, applicationId);
+    await requireViewableApplication(actor, applicationId);
     await requireTeamMemberOfApplication(applicationId, memberId);
 
     const consents = await prisma.consent_files.findMany({
@@ -250,7 +243,7 @@ filesRouter.get(
     const actor = req.user as CurrentUser;
     const applicationId = parseId(req.params.applicationId);
     const consentId = parseId(req.params.consentId);
-    await requireManageableApplication(actor, applicationId);
+    await requireViewableApplication(actor, applicationId);
 
     const record = await prisma.consent_files.findFirst({
       where: { id: consentId, deleted_at: null, team_members: { application_id: applicationId } },
@@ -258,7 +251,7 @@ filesRouter.get(
     if (!record) throw httpError(404, 'Файл согласия не найден', 'CONSENT_NOT_FOUND');
 
     const { stream, size } = await openStored(record.file_path);
-    setDownloadHeaders(res, record.file_name, record.file_type, size);
+    applyDownloadHeaders(res, record.file_name, record.file_type, size);
     log.audit('files.consent.download', { userId: actor.id, applicationId, consentId });
     stream.on('error', () => res.destroy());
     res.on('close', () => stream.destroy());

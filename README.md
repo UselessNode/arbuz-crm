@@ -1,61 +1,89 @@
 # 🍉 Arbuz CRM
 
-Монорепозиторий CRM-системы для управления заявками (направления, тендеры, конкурсы): приём заявок, экспертные оценки, бюджеты и планы проектов, командный состав, файлы и согласия, публикации.
+Монорепозиторий CRM-системы для некоммерческой организации: цифровизация приёма и
+рассмотрения грантовых заявок. Основной объект системы — **заявка** (`applications`):
+направления и конкурсы, состав команды, план работ и бюджет, материалы и файлы
+согласий, экспертные рецензии, статусы и публикации.
 
 ## Технологический стек
 
-| Слой       | Технология                                                        |
-| ---------- | ----------------------------------------------------------------- |
+| Слой              | Технология                                                        |
+| ----------------- | ----------------------------------------------------------------- |
 | Пакетный менеджер | [Bun](https://bun.sh) `1.4.2` (workspaces + рантайм для бэкенда)  |
-| Язык       | TypeScript                                                        |
-| Backend    | Express (`apps/backend`), Bun как рантайм                         |
-| Frontend   | React 18 + Vite (`apps/frontend`)                                 |
-| Общий пакет| `@arbuz/shared` — «шлюз» Prisma Client и типов для всех воркспейсов |
-| БД / ORM   | PostgreSQL + [Prisma](https://www.prisma.io) `7` + driver adapter `@prisma/adapter-pg` |
+| Язык              | TypeScript                                                        |
+| Backend           | Express (`apps/backend`), Bun как рантайм                         |
+| Frontend          | React 18 + Vite (`apps/frontend`)                                 |
+| Общий пакет       | `@arbuz/shared` — Prisma Client и общие типы/перечисления для воркспейсов |
+| БД / ORM          | PostgreSQL + [Prisma](https://www.prisma.io) `7` + driver adapter `@prisma/adapter-pg` |
+| Хранилище файлов  | Локальный диск (`./uploads`), без облачных/коммерческих сервисов  |
 
 ## Структура монорепозитория
 
 ```
 arbuz-crm/
 ├── apps/
-│   ├── backend/                  # API-сервер @arbuz/backend (Express + Prisma)
-│   │   ├── index.ts              # Точка входа: / и /health
-│   │   ├── package.json
-│   │   └── tsconfig.json
-│   └── frontend/                 # Веб-клиент @arbuz/frontend (React + Vite)
-│       ├── index.html
-│       ├── vite.config.ts        # Прокси на backend (порт 3000)
-│       ├── src/
-│       │   ├── main.tsx
-│       │   ├── App.tsx           # Проверка связи с backend (/health)
-│       │   └── index.css
-│       ├── package.json
-│       └── tsconfig.json
+│   ├── backend/                      # @arbuz/backend — API-сервер (Express + Prisma)
+│   │   ├── app.ts                    # Сборка Express-приложения (без запуска)
+│   │   ├── index.ts                  # Точка входа: слушает порт, graceful shutdown
+│   │   ├── seed.ts                   # Начальное наполнение (админ, статусы, демо)
+│   │   ├── lib/                      # config, prisma, http, logger, multipart
+│   │   ├── modules/                  # Доменные модули (*.routes.ts + *.service.ts)
+│   │   │   ├── auth/                 # Вход/выход, сессия (JWT-cookie), регистрация
+│   │   │   ├── users/                # Пользователи и роли (admin)
+│   │   │   ├── applications/         # Заявки + состав (team-members/plans/budget)
+│   │   │   ├── files/                # Хранилище, валидация, материалы и согласия
+│   │   │   ├── tenders/              # Конкурсы и критерии оценки
+│   │   │   ├── directions/           # Направления конкурсов
+│   │   │   ├── statuses/             # Статусы заявок
+│   │   │   ├── reviews/              # Экспертные рецензии
+│   │   │   ├── posts/                # Публикации (Markdown) + вложения
+│   │   │   └── pdf-export/           # Асинхронная PDF-выгрузка заявки
+│   │   ├── scripts/                  # pdf-worker, cleanup-storage
+│   │   └── uploads/                  # Файлы (не коммитится)
+│   └── frontend/                     # @arbuz/frontend — веб-клиент (React + Vite)
+│       ├── public/                   # favicon и статика
+│       └── src/
+│           ├── api/                  # Типизированный клиент и вызовы эндпоинтов
+│           ├── auth/                 # Контекст аутентификации (восстановление сессии)
+│           ├── components/ui/        # Дизайн-система (единый импорт из './ui')
+│           ├── features/             # Разделы: auth, users, applications, reviews, posts, references
+│           ├── layouts/              # AdminLayout (сайдбар + шапка)
+│           ├── pages/                # AccountPage, ForbiddenPage, NotFoundPage, DesignSystemPage
+│           ├── router/               # AppRouter, ProtectedRoute, HomeRedirect
+│           ├── styles/               # Дизайн-токены (tokens.css)
+│           └── assets/               # Иконки (SVG), изображения
 ├── packages/
-│   └── shared/                   # @arbuz/shared
+│   └── shared/                       # @arbuz/shared
 │       ├── prisma/
-│       │   ├── schema.prisma     # Схема БД
-│       │   └── migrations/       # Миграции Prisma
-│       ├── src/generated/prisma/ # Сгенерированный Prisma Client (не коммитится)
-│       └── index.ts              # Реэкспорт клиента наружу
-├── prisma.config.ts              # Конфигурация Prisma 7 (путь к схеме, миграции)
-├── .env.example                  # Шаблон переменных окружения
-├── bun.lock
-└── package.json                  # Скрипты корня монорепозитория
+│       │   ├── schema.prisma         # SSOT схемы БД
+│       │   └── migrations/           # Миграции Prisma
+│       ├── src/generated/prisma/     # Сгенерированный Prisma Client (не коммитится)
+│       └── index.ts                  # Реэкспорт клиента и перечислений
+├── docs/
+│   ├── api-contract.md               # Контракт API текущей сессии
+│   ├── api-testing-postman.md        # Гайд по проверке API через Postman
+│   └── technical-debt.md             # Осознанные «хвосты» и отложенные решения
+├── postman/                          # Коллекция запросов
+├── prisma.config.ts                  # Конфигурация Prisma 7 (schema/migrations)
+├── AGENTS.md                         # Рабочий контекст для агента
+├── PLANS.md                          # Дорожная карта и заметки по сессиям
+├── CHANGELOG.md                      # История версий
+└── package.json                      # Скрипты корня монорепозитория
 ```
 
-Воркспейсы: `apps/*` и `packages/*`. Внутренняя зависимость — `@arbuz/shared` (`workspace:*`), в `tsconfig` подключается через paths.
+Воркспейсы: `apps/*` и `packages/*`. Внутренняя зависимость — `@arbuz/shared`
+(`workspace:*`), в `tsconfig` подключается через paths.
 
 ## Требования
 
 - [Bun](https://bun.sh) `1.4.2` — установить и добавить в `PATH`.
 - PostgreSQL и `DATABASE_URL` в `.env` в корне репозитория (см. `.env.example`).
 
-## Установка
+## Установка и запуск
 
 ```sh
 # 0. Клонировать репозиторий
-git clone # <...>
+git clone <...>
 cd ./arbuz-crm/
 
 # 1. Установить зависимости
@@ -72,7 +100,8 @@ bun db:generate
 bun db:push
 
 # 4.1. Опционально: тестовые данные
-bun seed                    # или SEED_DEMO=true bun seed
+bun seed                    # админ + статусы
+SEED_DEMO=true bun seed     # + демо-заявитель, демо-заявка, участник команды
 
 # 5. Запустить frontend и backend одновременно
 bun dev
@@ -99,72 +128,132 @@ bun dev:frontend   # http://127.0.0.1:5173
 | `bun db:generate`      | Сгенерировать Prisma Client                            |
 | `bun db:update`        | `db:push` + `db:generate`                              |
 | `bun db:migrate`       | Создать/применить миграции (`prisma migrate dev`)      |
-| `bun seed`             | Начальное наполнение: администратор (+демо при `SEED_DEMO=true`) |
-| `bun storage:cleanup`  | Очистка удалённых/осиротевших файлов (для cron)       |
+| `bun seed`             | Начальное наполнение: администратор + статусы (+демо при `SEED_DEMO=true`) |
+| `bun storage:cleanup`  | Очистка удалённых/осиротевших файлов (для cron)        |
 
 ## База данных
 
-- Схема: `packages/shared/prisma/schema.prisma` (PostgreSQL).
+- Схема: `packages/shared/prisma/schema.prisma` (PostgreSQL) — **единственный источник истины**.
 - Конфигурация Prisma 7 — в `prisma.config.ts` в корне (пути к схеме и миграциям, URL из `process.env.DATABASE_URL`).
 - Генератор выводит клиент в `packages/shared/src/generated/prisma`; оттуда его реэкспортирует `packages/shared/index.ts` под именем `@arbuz/shared`.
 - Сгенерированный клиент не хранится в git (см. `.gitignore`): после клонирования обязателен `bun db:generate`.
 - Основные домены схемы:
   - **Пользователи и роли** — `users` (роли `admin`, `expert`, `applicant`).
-  - **Тендеры и направления** — `tenders`, `directions`, критерии оценки `evaluation_criteria`.
+  - **Конкурсы и направления** — `tenders`, `directions`, критерии оценки `evaluation_criteria`.
   - **Заявки** — `applications`, статусы `application_statuses`, рецензии `application_reviews`.
   - **Содержимое заявки** — `project_plans`, `project_budget`, `team_members` + `consent_files`, материалы `additional_materials`.
-  - **Прочее** — `files`/`file_categories`, `posts`, журнал `change_logs`.
+  - **Прочее** — `files`/`file_categories`, `posts`/`posts_files`, `pdf_export_jobs`, журнал `change_logs`.
 - Конвенции: `snake_case`, мягкое удаление через `deleted_at`, частичные индексы `(deleted_at IS NULL)`.
 
-## Файлы и аутентификация (API)
+## Роли и модель доступа
+
+| Роль      | Возможности                                                                                   |
+| --------- | --------------------------------------------------------------------------------------------- |
+| `admin`   | Полный доступ: пользователи и роли, заявки, справочники, посты, назначение экспертов, модерация |
+| `expert`  | Только назначенные ему заявки и собственные рецензии (оценивание)                             |
+| `applicant` | Свои заявки (создание/отправка), опубликованные посты, свой вердикт/статус                  |
+
+Все проверки доступа выполняются **на бэкенде** (`requireAuth`/`requireRole` и проверки
+владения в сервисах); фронтенд лишь скрывает недоступные действия. Роли и статусы
+сравниваются через перечисления из `@arbuz/shared` (`RoleType`, `ReviewStatus`,
+`PdfExportStatus`) — без строковых литералов.
+
+## API
+
+Контракт по сессиям зафиксирован в [`docs/api-contract.md`](docs/api-contract.md).
 
 ### Аутентификация
 
 - `POST /api/auth/login` — вход по email/паролю, выдаёт JWT в httpOnly-cookie `arbuz_session`.
+- `POST /api/auth/register` — публичная саморегистрация (роль жёстко `applicant`).
 - `POST /api/auth/logout`, `GET /api/auth/me` — выход и текущий пользователь.
 - Пароли: argon2id (`Bun.password`). В будущем возможны внешние провайдеры (Госуслуги/ВК) без изменения схемы.
 
+### Пользователи (только admin)
+
+`GET/POST /api/users`, `GET/PATCH/DELETE /api/users/:id`,
+`POST /api/users/:id/reset-password`, `GET /api/users/experts`.
+
+### Заявки (по ролям)
+
+`GET/POST /api/applications`, `GET/PATCH/DELETE /api/applications/:id`,
+`POST /api/applications/:id/submit`.
+Состав: `GET/POST/PATCH/DELETE /api/applications/:id/team-members|project-plans|project-budget`.
+
+### Справочники (только admin)
+
+Тендеры `/api/tenders`, критерии `/api/tenders/:id/criteria`, направления `/api/directions`,
+статусы `/api/application-statuses`.
+
+### Рецензии
+
+Назначение эксперта `POST /api/applications/:id/reviews` (admin), список
+`GET /api/reviews` (по ролям), оценка `PATCH /api/reviews/:id`, снятие `DELETE /api/reviews/:id`.
+Итоговый балл (`total_score`) считается на сервере по критериям конкурса.
+
+### Посты (лента новостей)
+
+`GET/POST/PATCH/DELETE /api/posts[/:id]` (создание/правка/публикация — admin; чтение
+опубликованного — все). Содержимое — Markdown; HTML рендерится и санитизируется на
+сервере (`contentHtml`, `POST /api/posts/preview`). Вложения —
+`POST/GET/DELETE /api/posts/:id/files[/:fileId][/download]`.
+
+### PDF-экспорт заявки
+
+Асинхронная генерация, статус хранится в `pdf_export_jobs`:
+`POST /api/applications/:id/pdf-export`, `GET /api/pdf-export-jobs/:jobId`, `GET .../download`.
+
 ### Файлы заявок
 
-- Хранение: диск `./uploads/` (env `UPLOAD_DIR`). Папка заявки — `<owner_id>-<application_id>-<время>`; согласия — в подпапке `consents/`.
+- Хранение: диск (`UPLOAD_DIR`, по умолчанию `./uploads` относительно корня пакета `apps/backend`, не зависит от рабочего каталога запуска).
+  Папка заявки — `<owner_id>-<application_id>-<время>`; согласия — в подпапке `consents/`.
 - В БД хранятся относительные пути; разрешены PDF, DOCX, JPEG, PNG, MP4 (проверка содержимого + расширения). Имена на диске — UUID.
 - Лимиты: 10 МБ на файл, 25 МБ на все файлы заявки.
 - Доступ: владелец заявки или администратор; файлы отдаются только через API.
 - Материалы заявки (`additional_materials`): `POST/GET /api/applications/:id/files`, `GET .../files/:fileId/download`, `DELETE .../files/:fileId`.
 - Согласия участников (`consent_files`): `GET/POST /api/applications/:id/team-members/:memberId/consents`, `GET .../consents/:consentId/download`, `DELETE .../consents/:consentId`.
-- Посты (лента новостей): `GET/POST/PATCH/DELETE /api/posts[/:id]` (создание/правка/публикация — администратор; чтение опубликованного — все), вложения `POST/GET/DELETE /api/posts/:id/files[/:fileId][/download]`.
-- Пользователи (только администратор): `GET/POST /api/users`, `GET/PATCH/DELETE /api/users/:id`, `POST /api/users/:id/reset-password`.
-- Заявки (по ролям): `GET/POST /api/applications`, `GET/PATCH/DELETE /api/applications/:id`, `POST /api/applications/:id/submit`; состав — `GET/POST/PATCH/DELETE /api/applications/:id/team-members|project-plans|project-budget`.
-- Справочники (только администратор): тендеры `/api/tenders`, критерии `/api/tenders/:id/criteria`, направления `/api/directions`, статусы `/api/application-statuses`.
-- Рецензии: назначение эксперта `POST /api/applications/:id/reviews` (админ), список `GET /api/reviews` (по ролям), оценка `PATCH /api/reviews/:id`, снятие `DELETE /api/reviews/:id`.
-- PDF-экспорт заявки (асинхронно, статус в `pdf_export_jobs`): `POST /api/applications/:id/pdf-export`, `GET /api/pdf-export-jobs/:jobId`, `GET .../download`.
-- Известные «хвосты» и отложенные решения: `docs/technical-debt.md`.
 - Аудит действий (вход, загрузка/скачивание/удаление) пишется в `logs/audit.log`.
 - Очистка: `bun storage:cleanup` (например, в cron).
-- Проверка API без опыта: готовая коллекция `postman/arbuz-crm.postman_collection.json`, инструкция — `docs/api-testing-postman.md`.
-- Автотесты (unit + интеграционные, Postman Runner/Newman) — запланированы в график.
 
-### Заметки для деплоя
+## Frontend
+
+- **Дизайн-система** — `src/components/ui` с единым barrel-импортом:
+  `Icon`, `Button`, `Badge`/`StatusBadge` (+ `ROLE_OPTIONS`, `VERDICT_OPTIONS`, `APPLICATION_STATUS_OPTIONS`),
+  `Container`/`Accordion`/`Carousel`, `DragDrop`, `Input`/`NumberInput`/`Slider`/`DatePicker`/`Select`/`Textarea`/`Checkbox`,
+  `Table`, `StateMessage`/`Modal`/`ConfirmDialog`, `Pagination`.
+- Иконки — кастомные SVG из `src/assets/icons/*.svg`, подхватываются через `import.meta.glob`; цвет наследуется через `currentColor`.
+- Демонстрация всех компонентов — страница `/admin/design-system`.
+- **Разделы админки** (`/admin`): Пользователи, Заявки, Рецензии, Посты, Тендеры, Направления, Статусы заявок.
+- **Публичные страницы**: вход `/login`, регистрация `/register`, личный кабинет `/account`.
+
+## Тестирование (запланировано)
+
+- Коллекция Postman: `postman/arbuz-crm.postman_collection.json`, инструкция — [`docs/api-testing-postman.md`](docs/api-testing-postman.md).
+- Автотесты: unit (валидация файлов, квоты, папки) и интеграционные через `bun test`
+  (поднять сервер → login → upload/download/delete → согласия).
+- Прогон коллекции через Postman Runner / Newman (возможно в CI).
+
+## Заметки для деплоя
 
 - Каталог `uploads/` держать вне статики веб-сервера (файлы раздаёт только API): nginx не должен обслуживать его.
 - Права на сервере: файлы `640`, каталоги `750`; запрет исполнения в `uploads/`.
 - `JWT_SECRET` — длинная случайная строка; в production без него сервер не стартует.
 - Резервное копирование: БД + `uploads/` (+ `logs/` при необходимости).
 
-## Текущее состояние (2026-09-08)
+## Известные особенности
 
-- ✅ `bun install`, `bun typecheck` (shared, backend, frontend) и `bun run build` проходят.
-- ✅ Backend: Express-сервер, `GET /` и `GET /health` (проверка БД), корректное завершение по SIGINT/SIGTERM.
-- ✅ Frontend: дизайн-система (`src/components/ui`); админ-панель — вход, роутинг по ролям, раздел «Пользователи» (Session 4, часть 1/3).
-- ✅ Prisma Client генерируется (`bun db:generate`) и работает с PostgreSQL через `@prisma/adapter-pg`.
-- ✅ Vite слушает `127.0.0.1:5173` (IPv4) — страница открывается в браузере.
-- ✅ Сессия 1: аутентификация (email/пароль, JWT-cookie) и модуль файлов заявок (загрузка/скачивание/удаление, согласия, лимиты, права, аудит).
-- ⚠️ `bun --watch` из `apps/backend` следит только за файлами пакета; правки в `packages/shared` требуют ручного перезапуска dev-сервера.
-- ✅ Миграция `20260907120417_init` содержит полный SQL схемы; для создания таблиц — `bun db:push` или `bun db:migrate`.
+- `bun --watch` из `apps/backend` следит только за файлами пакета; правки в `packages/shared`
+  требуют ручного перезапуска dev-сервера.
+- `.env` читается только через `bun run`-скрипты (dotenv-cli); при прямом запуске из
+  `apps/backend` переменные не подхватываются.
+- Каталог `uploads/` создаётся автоматически при первой загрузке.
 
 ## Версионирование
 
-- Каждое изменение поднимает версию пакетов-воркспейсов (`apps/backend`, `apps/frontend`, `packages/shared`) — синхронно по semver.
-- Текущая версия указывается в сообщении git-коммита.
+- Семантика версий: **X.0.0** — мажорный апдейт, **1.X.0** — обычный апдейт (фича),
+  **1.4.X** — минорный апдейт (патч/фикс).
+- Значимые изменения поднимают версию всех воркспейсов синхронно (`apps/backend`,
+  `apps/frontend`, `packages/shared`); версия указывается в сообщении git-коммита.
 - Все изменения фиксируются в [`CHANGELOG.md`](CHANGELOG.md).
-- Детальный план сессий и заметки — в [`PLANS.md`](PLANS.md), технический долг — в [`docs/technical-debt.md`](docs/technical-debt.md).
+- Дорожная карта и заметки — в [`PLANS.md`](PLANS.md); технический долг — в
+  [`docs/technical-debt.md`](docs/technical-debt.md); рабочий контекст агента — в [`AGENTS.md`](AGENTS.md).

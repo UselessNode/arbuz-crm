@@ -226,17 +226,20 @@ export function UsersPage() {
   const [deleting, setDeleting] = useState<UserListItem | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
 
-  const handleRoleChange = async (target: UserListItem, role: RoleType) => {
-    if (currentUser?.id === target.id) return;
-    setActionError(null);
-    try {
-      const response = await usersApi.update(target.id, { role });
-      setUsers((prev) => prev.map((item) => (item.id === target.id ? response.user : item)));
-    } catch (caught) {
-      setActionError(caught instanceof ApiError ? caught.message : 'Не удалось изменить роль');
-      await load();
-    }
-  };
+  const handleRoleChange = useCallback(
+    async (target: UserListItem, role: RoleType) => {
+      if (currentUser?.id === target.id) return;
+      setActionError(null);
+      try {
+        const response = await usersApi.update(target.id, { role });
+        setUsers((prev) => prev.map((item) => (item.id === target.id ? response.user : item)));
+      } catch (caught) {
+        setActionError(caught instanceof ApiError ? caught.message : 'Не удалось изменить роль');
+        await load();
+      }
+    },
+    [currentUser?.id, load],
+  );
 
   const handleDelete = async () => {
     if (!deleting) return;
@@ -288,9 +291,7 @@ export function UsersPage() {
         ),
       },
     ],
-    // handleRoleChange стабилен относительно load/currentUser
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentUser?.id],
+    [currentUser?.id, handleRoleChange],
   );
 
   return (

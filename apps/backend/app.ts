@@ -16,8 +16,9 @@ import { criteriaRouter } from './modules/tenders/criteria.routes';
 import { directionsRouter } from './modules/directions/directions.routes';
 import { statusesRouter } from './modules/statuses/statuses.routes';
 import { reviewsRouter } from './modules/reviews/reviews.routes';
+import packageJson from './package.json';
 
-export const API_VERSION = '1.8.0';
+export const API_VERSION = packageJson.version;
 
 export function createApp(): express.Express {
   const app = express();
