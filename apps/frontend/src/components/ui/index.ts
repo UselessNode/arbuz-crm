@@ -1,0 +1,31 @@
+// Единая точка входа библиотеки компонентов (design system).
+export { Icon, ICON_NAMES } from './Icon';
+export type { IconName, IconProps } from './Icon';
+
+export { Button } from './Button';
+export type { ButtonProps, ButtonSize, ButtonVariant } from './Button';
+
+export { Badge, StatusBadge, ROLE_OPTIONS, VERDICT_OPTIONS, APPLICATION_STATUS_OPTIONS } from './Badge';
+export type { BadgeProps, BadgeTone, StatusBadgeProps, StatusOption } from './Badge';
+
+export { Container } from './Container';
+export type { ContainerProps } from './Container';
+export { Accordion, AccordionItem } from './Container';
+export type { AccordionProps, AccordionItemProps } from './Container';
+export { Carousel } from './Container';
+export type { CarouselProps } from './Container';
+
+export { DragDrop } from './DragDrop';
+export type { DragDropProps } from './DragDrop';
+
+export { Input } from './Form';
+export type { InputProps } from './Form';
+export { NumberInput } from './Form';
+export type { NumberInputProps } from './Form';
+export { Slider } from './Form';
+export type { SliderProps } from './Form';
+export { DatePicker } from './Form';
+export type { DatePickerProps } from './Form';
+
+export { Table } from './Table';
+export type { TableColumn, TableProps } from './Table';

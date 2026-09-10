@@ -1,0 +1,39 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.select {
+  appearance: none;
+  padding: 4px 26px 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  border: 1px solid transparent;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* Тона */
+.neutral { background: var(--tone-neutral-bg); color: var(--tone-neutral-text); }
+.blue { background: var(--tone-blue-bg); color: var(--tone-blue-text); }
+.green { background: var(--tone-green-bg); color: var(--tone-green-text); }
+.yellow { background: var(--tone-yellow-bg); color: var(--tone-yellow-text); }
+.red { background: var(--tone-red-bg); color: var(--tone-red-text); }
+.purple { background: var(--tone-purple-bg); color: var(--tone-purple-text); }
+.gray { background: var(--tone-gray-bg); color: var(--tone-gray-text); }

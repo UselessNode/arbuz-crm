@@ -155,7 +155,7 @@ bun dev:frontend   # http://127.0.0.1:5173
 
 - ✅ `bun install`, `bun typecheck` (shared, backend, frontend) и `bun run build` проходят.
 - ✅ Backend: Express-сервер, `GET /` и `GET /health` (проверка БД), корректное завершение по SIGINT/SIGTERM.
-- ✅ Frontend: минимальное React-приложение на Vite с прокси на backend.
+- ✅ Frontend: дизайн-система (`src/components/ui`) и тестовая страница со всеми компонентами (главный экран).
 - ✅ Prisma Client генерируется (`bun db:generate`) и работает с PostgreSQL через `@prisma/adapter-pg`.
 - ✅ Vite слушает `127.0.0.1:5173` (IPv4) — страница открывается в браузере.
 - ✅ Сессия 1: аутентификация (email/пароль, JWT-cookie) и модуль файлов заявок (загрузка/скачивание/удаление, согласия, лимиты, права, аудит).

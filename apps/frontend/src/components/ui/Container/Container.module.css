@@ -1,0 +1,152 @@
+.container {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.muted {
+  background-color: var(--tone-neutral-bg);
+}
+
+.accent {
+  border-color: var(--color-primary);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.title {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.actions {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.body {
+  padding: var(--space-4);
+}
+
+/* --- Аккордеон --- */
+.accordion {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--color-surface);
+}
+
+.accordionItem + .accordionItem {
+  border-top: 1px solid var(--color-border);
+}
+
+.accordionTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text);
+  text-align: left;
+}
+
+.accordionTrigger:hover {
+  background-color: var(--tone-neutral-bg);
+}
+
+.accordionTitle {
+  font-weight: 600;
+}
+
+.accordionContent {
+  padding: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+/* --- Карусель --- */
+.carousel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.carouselTrack {
+  display: flex;
+  transition: transform 0.3s ease;
+}
+
+.carouselSlide {
+  flex: 0 0 100%;
+  min-width: 100%;
+  padding: var(--space-5);
+}
+
+.carouselArrowLeft,
+.carouselArrowRight {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.carouselArrowLeft:hover,
+.carouselArrowRight:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.carouselArrowLeft {
+  left: var(--space-3);
+}
+
+.carouselArrowRight {
+  right: var(--space-3);
+}
+
+.carouselDots {
+  position: absolute;
+  bottom: var(--space-2);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.carouselDot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--color-border);
+  cursor: pointer;
+}
+
+.carouselDotActive {
+  background-color: var(--color-primary);
+}

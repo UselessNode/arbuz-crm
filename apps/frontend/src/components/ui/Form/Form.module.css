@@ -1,0 +1,126 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 14px;
+}
+
+.label {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.inputWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+  border-color: var(--color-primary);
+}
+
+.inputWithIcon {
+  padding-left: 34px;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 10px;
+  color: var(--color-muted);
+  pointer-events: none;
+}
+
+.inputError {
+  border-color: var(--color-danger);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: 12px;
+}
+
+.hint {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+/* Числовой ввод */
+.numberWrap {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  overflow: hidden;
+  width: max-content;
+}
+
+.numberInput {
+  width: 76px;
+  border: none;
+  padding: 8px 6px;
+  text-align: center;
+  color: var(--color-text);
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.numberInput:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+}
+
+.stepButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  border: none;
+  background-color: var(--tone-neutral-bg);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.stepButton:hover:not(:disabled) {
+  background-color: var(--tone-blue-bg);
+  color: var(--color-primary);
+}
+
+.stepButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Слайдер */
+.sliderHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sliderValue {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--color-primary);
+}
+
+/* Дата */
+.dateInput {
+  padding-right: 12px;
+}

@@ -1,0 +1,49 @@
+/* Дизайн-токены Arbuz CRM. Меняются только здесь. */
+:root {
+  /* Цвета */
+  --color-bg: #f7fafc;
+  --color-surface: #ffffff;
+  --color-border: #d9e2ec;
+  --color-text: #1f2933;
+  --color-muted: #7b8794;
+
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+
+  /* Тона бейджей (фон/текст) */
+  --tone-blue-bg: #dbeafe;
+  --tone-blue-text: #1e40af;
+  --tone-green-bg: #dcfce7;
+  --tone-green-text: #166534;
+  --tone-yellow-bg: #fef3c7;
+  --tone-yellow-text: #92400e;
+  --tone-red-bg: #fee2e2;
+  --tone-red-text: #991b1b;
+  --tone-purple-bg: #ede9fe;
+  --tone-purple-text: #5b21b6;
+  --tone-gray-bg: #e2e8f0;
+  --tone-gray-text: #334155;
+  --tone-neutral-bg: #f1f5f9;
+  --tone-neutral-text: #475569;
+
+  /* Отступы */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Радиусы и тени */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgba(31, 41, 51, 0.08);
+  --shadow-md: 0 4px 12px rgba(31, 41, 51, 0.1);
+
+  --font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
