@@ -6,3 +6,5 @@ export { Slider } from './Slider';
 export type { SliderProps } from './Slider';
 export { DatePicker } from './DatePicker';
 export type { DatePickerProps } from './DatePicker';
+export { Select } from './Select';
+export type { SelectProps, SelectOption } from './Select';

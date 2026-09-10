@@ -27,10 +27,10 @@ function parseId(raw: string | undefined): number {
 }
 
 function parseLimitOffset(query: Request['query']): { limit: number; offset: number } {
-  const limit = Number(query.limit ?? 50);
+  const limit = Number(query.limit ?? 20);
   const offset = Number(query.offset ?? 0);
   return {
-    limit: Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 200) : 50,
+    limit: Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 20,
     offset: Number.isFinite(offset) ? Math.max(Math.trunc(offset), 0) : 0,
   };
 }

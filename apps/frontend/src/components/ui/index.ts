@@ -26,6 +26,18 @@ export { Slider } from './Form';
 export type { SliderProps } from './Form';
 export { DatePicker } from './Form';
 export type { DatePickerProps } from './Form';
+export { Select } from './Form';
+export type { SelectProps, SelectOption } from './Form';
 
 export { Table } from './Table';
 export type { TableColumn, TableProps } from './Table';
+
+export { StateMessage } from './Feedback';
+export type { StateMessageProps } from './Feedback';
+export { Modal } from './Feedback';
+export type { ModalProps } from './Feedback';
+export { ConfirmDialog } from './Feedback';
+export type { ConfirmDialogProps } from './Feedback';
+
+export { Pagination } from './Pagination';
+export type { PaginationProps } from './Pagination';

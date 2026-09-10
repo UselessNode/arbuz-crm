@@ -17,7 +17,7 @@ import { directionsRouter } from './modules/directions/directions.routes';
 import { statusesRouter } from './modules/statuses/statuses.routes';
 import { reviewsRouter } from './modules/reviews/reviews.routes';
 
-export const API_VERSION = '1.7.0';
+export const API_VERSION = '1.8.0';
 
 export function createApp(): express.Express {
   const app = express();

@@ -1,0 +1,33 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) 0;
+}
+
+.range {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pageLabel {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+  font-size: 13px;
+  min-width: 48px;
+  text-align: center;
+}
+
+.pageSize {
+  width: auto;
+  padding: 6px 10px;
+  font-size: 13px;
+}
