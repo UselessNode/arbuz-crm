@@ -22,7 +22,6 @@ import {
   listPostAttachments,
   uploadPostAttachment,
 } from './posts.attachments';
-import { renderMarkdown } from './markdown';
 
 export const postsRouter = Router();
 postsRouter.use(optionalAuth);
@@ -36,15 +35,8 @@ function parseLimitOffset(query: Request['query']): { limit: number; offset: num
   };
 }
 
-// Предпросмотр Markdown: рендер и санитизация на сервере (без сохранения).
-postsRouter.post(
-  '/preview',
-  requireAuth,
-  asyncHandler(async (req: Request, res: Response) => {
-    const content = typeof req.body?.content === 'string' ? req.body.content : '';
-    res.json({ html: renderMarkdown(content) });
-  }),
-);
+// Предпросмотр Markdown больше не нужен: содержание редактируется WYSIWYG-редактором
+// во фронтенде, а HTML для показа рендерит и санитизирует сервис (contentHtml).
 
 // Публичная лента: гость видит только опубликованные посты.
 postsRouter.get(

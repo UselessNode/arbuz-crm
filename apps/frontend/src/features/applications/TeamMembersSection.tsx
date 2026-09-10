@@ -1,6 +1,6 @@
 // Секция «Команда проекта» в карточке заявки.
 import { useState, type FormEvent } from 'react';
-import { Badge, Button, Checkbox, ConfirmDialog, Input, Modal, StateMessage, Table } from '../../components/ui';
+import { Badge, Button, Checkbox, ConfirmDialog, Input, Modal, StateMessage, Table, useToast } from '../../components/ui';
 import type { TableColumn } from '../../components/ui';
 import { applicationsApi, type TeamMember, type TeamMemberPayload } from '../../api/applications';
 import { ApiError } from '../../api/client';
@@ -17,6 +17,7 @@ interface Props {
 const emptyForm = (): TeamMemberPayload => ({ surname: '', name: '', patronymic: '', tasks_in_project: '' });
 
 export function TeamMembersSection({ applicationId, members, onChanged }: Props) {
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TeamMember | null>(null);
   const [form, setForm] = useState<TeamMemberPayload>(emptyForm());
@@ -68,6 +69,7 @@ export function TeamMembersSection({ applicationId, members, onChanged }: Props)
       if (editing) await applicationsApi.teamMembers.update(applicationId, editing.id, payload);
       else await applicationsApi.teamMembers.create(applicationId, payload);
       await onChanged();
+      toast.showToast({ message: 'Участник сохранён', tone: 'success' });
       setOpen(false);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить');
@@ -83,6 +85,7 @@ export function TeamMembersSection({ applicationId, members, onChanged }: Props)
       await applicationsApi.teamMembers.remove(applicationId, deleting.id);
       setDeleting(null);
       await onChanged();
+      toast.showToast({ message: 'Участник удалён', tone: 'success' });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить');
     } finally {

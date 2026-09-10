@@ -1,6 +1,6 @@
 // Модалка «Файлы согласия участника»: загрузка, список, скачивание, удаление.
 import { useCallback, useEffect, useState } from 'react';
-import { Badge, Button, ConfirmDialog, DragDrop, Modal, StateMessage } from '../../components/ui';
+import { Badge, Button, ConfirmDialog, DragDrop, Modal, StateMessage, useToast } from '../../components/ui';
 import { applicationsApi, type ConsentFile, type TeamMember } from '../../api/applications';
 import { ApiError } from '../../api/client';
 import { formatDateTime, formatUserName } from '../../lib/format';
@@ -14,6 +14,7 @@ interface Props {
 }
 
 export function ConsentModal({ applicationId, member, onClose, onChanged }: Props) {
+  const toast = useToast();
   const [consents, setConsents] = useState<ConsentFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +48,7 @@ export function ConsentModal({ applicationId, member, onClose, onChanged }: Prop
       }
       await load();
       await onChanged();
+      toast.showToast({ message: selected.length > 1 ? 'Согласия загружены' : 'Согласие загружено', tone: 'success' });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить файл');
     } finally {
@@ -62,6 +64,7 @@ export function ConsentModal({ applicationId, member, onClose, onChanged }: Prop
       setRemoving(null);
       await load();
       await onChanged();
+      toast.showToast({ message: 'Согласие удалено', tone: 'success' });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить файл');
     } finally {

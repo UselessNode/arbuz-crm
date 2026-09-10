@@ -45,3 +45,6 @@ export type { ConfirmDialogProps } from './Feedback';
 
 export { Pagination } from './Pagination';
 export type { PaginationProps } from './Pagination';
+
+export { ToastProvider, useToast } from './Toast';
+export type { ToastAction, ToastApi, ToastOptions, ToastTone } from './Toast';

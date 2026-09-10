@@ -81,15 +81,14 @@
 |---|---|---|---|
 | GET | `/api/posts?limit=&offset=` | **публично** | admin видит все, остальные — только опубликованные; ответ `{ posts, total }` |
 | GET | `/api/posts/:id` | публично (по видимости) | черновик — только admin |
-| POST | `/api/posts` | admin | `{ title, content, is_published? }` (content — Markdown) |
-| POST | `/api/posts/preview` | авторизованные | `{ content }` → `{ html }` (рендер + санитизация на сервере) |
+| POST | `/api/posts` | admin | `{ title, content, is_published? }` (content — Markdown; WYSIWYG во фронтенде) |
 | PATCH | `/api/posts/:id` | admin | частично |
 | DELETE | `/api/posts/:id` | admin | — |
 | POST/GET | `/api/posts/:id/files` | admin / по видимости | multipart `file` |
 | GET | `/api/posts/:id/files/:fileId/download` | по видимости | — |
 | DELETE | `/api/posts/:id/files/:fileId` | admin | — |
 
-**Готово в части 2/3:** ответы постов содержат санитизированный HTML (`contentHtml`, собирается из Markdown на сервере `marked` + `sanitize-html`); есть `/api/posts/preview`. Произвольный HTML от клиента не принимается.
+**Готово в части 2/3:** ответы постов содержат санитизированный HTML (`contentHtml`, собирается из Markdown на сервере `marked` + `sanitize-html`). Произвольный HTML от клиента не принимается. С 1.10.0 редактирование — через WYSIWYG (`@mdxeditor/editor`), серверный `/preview` не используется.
 
 ## Reviews
 

@@ -1,5 +1,5 @@
-// Раздел «Посты»: CRUD, Markdown с живым предпросмотром, вложения.
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+// Раздел «Посты»: CRUD, WYSIWYG-редактор (Markdown), вложения.
+import { lazy, Suspense, useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   Badge,
   Button,
@@ -13,13 +13,16 @@ import {
   StateMessage,
   StatusBadge,
   Table,
-  Textarea,
+  useToast,
 } from '../../components/ui';
 import type { StatusOption, TableColumn } from '../../components/ui';
 import { postsApi, type Post, type PostFile } from '../../api/posts';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
 import styles from './PostsPage.module.css';
+
+// Тяжёлый WYSIWYG-редактор грузим отдельным чанком только при работе с постом.
+const PostEditor = lazy(() => import('./PostEditor/PostEditor').then((module) => ({ default: module.PostEditor })));
 
 const POST_STATUS = { draft: 'draft', published: 'published' } as const;
 
@@ -31,6 +34,7 @@ const POST_STATUS_OPTIONS: readonly StatusOption<string>[] = [
 ];
 
 function AttachmentsSection({ postId }: { postId: number }) {
+  const toast = useToast();
   const [files, setFiles] = useState<PostFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +64,7 @@ function AttachmentsSection({ postId }: { postId: number }) {
         await postsApi.files.upload(postId, file);
       }
       await load();
+      toast.showToast({ message: selected.length > 1 ? 'Вложения загружены' : 'Вложение загружено', tone: 'success' });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить файл');
     } finally {
@@ -72,6 +77,7 @@ function AttachmentsSection({ postId }: { postId: number }) {
     try {
       await postsApi.files.remove(postId, fileId);
       await load();
+      toast.showToast({ message: 'Вложение удалено', tone: 'success' });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить файл');
     }
@@ -111,11 +117,10 @@ function PostFormModal({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const toast = useToast();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isPublished, setIsPublished] = useState(false);
-  const [preview, setPreview] = useState('');
-  const [previewError, setPreviewError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedPostId, setSavedPostId] = useState<number | null>(null);
@@ -125,28 +130,9 @@ function PostFormModal({
     setTitle(initial?.title ?? '');
     setContent(initial?.content ?? '');
     setIsPublished(initial?.is_published ?? false);
-    setPreview(initial?.contentHtml ?? '');
-    setPreviewError(null);
     setError(null);
     setSavedPostId(initial?.id ?? null);
   }, [open, initial]);
-
-  // Живой предпросмотр: Markdown рендерит и санитизирует сервер (debounce).
-  useEffect(() => {
-    if (!open) return undefined;
-    const timer = setTimeout(() => {
-      postsApi
-        .preview(content)
-        .then((response) => {
-          setPreview(response.html);
-          setPreviewError(null);
-        })
-        .catch((caught) => {
-          setPreviewError(caught instanceof ApiError ? caught.message : 'Не удалось построить предпросмотр');
-        });
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [content, open]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -161,6 +147,7 @@ function PostFormModal({
         setSavedPostId(response.post.id);
       }
       await onSaved();
+      toast.showToast({ message: 'Пост сохранён', tone: 'success' });
       if (initial) onClose();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить пост');
@@ -176,19 +163,11 @@ function PostFormModal({
           <Input label="Заголовок" value={title} onChange={(e) => setTitle(e.target.value)} required />
           <Checkbox label="Опубликован" checked={isPublished} onChange={setIsPublished} />
         </div>
-        <div className={styles.editor}>
-          <Textarea
-            label="Markdown"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            required
-            hint="Поддерживается Markdown; HTML не принимается"
-          />
-          <div className={styles.previewColumn}>
-            <span className={styles.sectionLabel}>Предпросмотр</span>
-            <div className={styles.preview} dangerouslySetInnerHTML={{ __html: preview }} />
-            {previewError ? <div className={styles.error}>{previewError}</div> : null}
-          </div>
+        <div className={styles.editorWrap}>
+          <span className={styles.sectionLabel}>Содержание публикации</span>
+          <Suspense fallback={<StateMessage state="loading" />}>
+            <PostEditor markdown={content} onChange={setContent} />
+          </Suspense>
         </div>
 
         {savedPostId !== null ? <AttachmentsSection postId={savedPostId} /> : null}
@@ -208,6 +187,7 @@ function PostFormModal({
 }
 
 export function PostsPage() {
+  const toast = useToast();
   const [posts, setPosts] = useState<Post[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -239,6 +219,7 @@ export function PostsPage() {
 
   const togglePublished = async (post: Post, published: boolean) => {
     setError(null);
+    const previousPublished = post.is_published;
     try {
       const response = await postsApi.update(post.id, {
         title: post.title,
@@ -246,6 +227,24 @@ export function PostsPage() {
         is_published: published,
       });
       setPosts((prev) => prev.map((item) => (item.id === post.id ? response.post : item)));
+      toast.showToast({
+        message: published ? 'Пост опубликован' : 'Снят с публикации',
+        tone: 'success',
+        action: {
+          label: 'Отменить',
+          onClick: () => {
+            void postsApi
+              .update(post.id, { title: post.title, content: post.content, is_published: previousPublished })
+              .then((reverted) => {
+                setPosts((prev) => prev.map((item) => (item.id === post.id ? reverted.post : item)));
+              })
+              .catch(() => {
+                setError('Не удалось отменить изменение публикации');
+                void load();
+              });
+          },
+        },
+      });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось изменить публикацию');
       await load();
@@ -258,6 +257,7 @@ export function PostsPage() {
     try {
       await postsApi.remove(deleting.id);
       setDeleting(null);
+      toast.showToast({ message: 'Пост удалён', tone: 'success' });
       await load();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить пост');

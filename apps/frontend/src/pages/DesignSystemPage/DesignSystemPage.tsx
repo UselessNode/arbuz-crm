@@ -18,6 +18,7 @@ import {
   Slider,
   StatusBadge,
   Table,
+  useToast,
   VERDICT_OPTIONS,
 } from '../../components/ui';
 import type { StatusOption, TableColumn } from '../../components/ui';
@@ -61,6 +62,7 @@ export function DesignSystemPage() {
   const [numberValue, setNumberValue] = useState(3);
   const [dateValue, setDateValue] = useState('2026-09-09');
   const [files, setFiles] = useState<File[]>([]);
+  const { showToast } = useToast();
 
   const columns: TableColumn<DemoRow>[] = [
     { key: 'title', header: 'Заявка', field: 'title' },
@@ -201,6 +203,45 @@ export function DesignSystemPage() {
 
       <Section title="Таблица (с бейджами-статусами)">
         <Table columns={columns} data={DEMO_ROWS} rowKey={(row) => row.id} />
+      </Section>
+
+      <Section title="Уведомления (toast)">
+        <div className={styles.row}>
+          <Button
+            variant="primary"
+            icon="check"
+            onClick={() => showToast({ message: 'Заявка сохранена', tone: 'success' })}
+          >
+            Успех
+          </Button>
+          <Button
+            variant="danger"
+            icon="warning"
+            onClick={() => showToast({ message: 'Не удалось сохранить заявку', tone: 'error' })}
+          >
+            Ошибка
+          </Button>
+          <Button
+            variant="secondary"
+            icon="info"
+            onClick={() => showToast({ message: 'Черновик сохранён локально', tone: 'info' })}
+          >
+            Инфо
+          </Button>
+          <Button
+            variant="secondary"
+            icon="trash"
+            onClick={() =>
+              showToast({
+                message: 'Заявка удалена',
+                tone: 'info',
+                action: { label: 'Отменить', onClick: () => showToast({ message: 'Действие отменено', tone: 'success' }) },
+              })
+            }
+          >
+            С действием
+          </Button>
+        </div>
       </Section>
     </main>
   );

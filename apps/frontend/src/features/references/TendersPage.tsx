@@ -9,6 +9,7 @@ import {
   NumberInput,
   StateMessage,
   Table,
+  useToast,
 } from '../../components/ui';
 import type { TableColumn } from '../../components/ui';
 import { criteriaApi, tendersApi, type Criterion, type Tender } from '../../api/references';
@@ -26,6 +27,7 @@ function TenderFormModal({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const toast = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +49,7 @@ function TenderFormModal({
       if (initial) await tendersApi.update(initial.id, payload);
       else await tendersApi.create(payload);
       await onSaved();
+      toast.showToast({ message: 'Сохранено', tone: 'success' });
       onClose();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить');
@@ -75,6 +78,7 @@ function TenderFormModal({
 }
 
 function CriteriaModal({ tender, onClose }: { tender: Tender | null; onClose: () => void }) {
+  const toast = useToast();
   const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +126,7 @@ function CriteriaModal({ tender, onClose }: { tender: Tender | null; onClose: ()
       else await criteriaApi.create(tender.id, payload);
       resetForm();
       await load();
+      toast.showToast({ message: 'Сохранено', tone: 'success' });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить критерий');
     } finally {
@@ -134,6 +139,7 @@ function CriteriaModal({ tender, onClose }: { tender: Tender | null; onClose: ()
     try {
       await criteriaApi.remove(tender.id, criterion.id);
       await load();
+      toast.showToast({ message: 'Удалено', tone: 'success' });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить критерий');
     }
@@ -204,6 +210,7 @@ function CriteriaModal({ tender, onClose }: { tender: Tender | null; onClose: ()
 }
 
 export function TendersPage() {
+  const toast = useToast();
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -237,6 +244,7 @@ export function TendersPage() {
       await tendersApi.remove(deleting.id);
       setDeleting(null);
       await load();
+      toast.showToast({ message: 'Удалено', tone: 'success' });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить тендер');
     } finally {

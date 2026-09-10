@@ -1,7 +1,6 @@
 // Публичная домашняя страница: лента публикаций + контакты организации.
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button, Pagination, StateMessage } from '../../components/ui';
+import { Pagination, StateMessage } from '../../components/ui';
 import { postsApi, type Post } from '../../api/posts';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
@@ -10,7 +9,6 @@ import styles from './HomePage.module.css';
 const PAGE_SIZE = 5;
 
 export function HomePage() {
-  const navigate = useNavigate();
   const [posts, setPosts] = useState<Post[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -38,16 +36,21 @@ export function HomePage() {
   return (
     <div className={styles.page}>
       <section className={styles.hero}>
+        <p className={styles.eyebrow}>Грантовые заявки для НКО</p>
         <h1 className={styles.heroTitle}>Arbuz CRM</h1>
-        <p className={styles.heroLead}>Приём и рассмотрение грантовых заявок для НКО.</p>
-        <Button icon="login" onClick={() => navigate('/login')}>
-          Войти в систему
-        </Button>
+        <p className={styles.heroLead}>
+          Приём, экспертиза и рассмотрение заявок в одном месте. Войдите, чтобы подать заявку,
+          либо следите за новостями организации ниже.
+        </p>
       </section>
 
       <div className={styles.grid}>
-        <section className={styles.feed}>
-          <h2 className={styles.sectionTitle}>Публикации и новости</h2>
+        <section className={styles.feed} aria-label="Публикации и новости">
+          <header className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Публикации и новости</h2>
+            {total > 0 ? <span className={styles.count}>{total}</span> : null}
+          </header>
+
           {loading ? (
             <StateMessage state="loading" />
           ) : error ? (
@@ -61,8 +64,8 @@ export function HomePage() {
                   <article key={post.id} className={styles.post}>
                     <h3 className={styles.postTitle}>{post.title}</h3>
                     <div className={styles.postMeta}>
-                      {formatDateTime(post.createdAt)}
-                      {post.authorName ? ` · ${post.authorName}` : ''}
+                      <time>{formatDateTime(post.createdAt)}</time>
+                      {post.authorName ? <span> · {post.authorName}</span> : null}
                     </div>
                     {/* HTML санитизируется на сервере (contentHtml). */}
                     <div className={styles.postContent} dangerouslySetInnerHTML={{ __html: post.contentHtml }} />
@@ -74,7 +77,7 @@ export function HomePage() {
           )}
         </section>
 
-        <aside className={styles.contacts}>
+        <aside className={styles.contacts} aria-label="Контакты организации">
           <h2 className={styles.sectionTitle}>Контакты</h2>
           {/* TODO(contacts): заменить на реальные контактные данные организации
               (адрес, телефон, email, ссылки) и вынести в редактируемые настройки. */}

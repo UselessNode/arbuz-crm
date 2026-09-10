@@ -37,7 +37,6 @@ export const postsApi = {
   create: (payload: PostPayload) => api.post<{ post: Post }>('/posts', payload),
   update: (id: number, payload: PostPayload) => api.patch<{ post: Post }>(`/posts/${id}`, payload),
   remove: (id: number) => api.delete<{ ok: boolean }>(`/posts/${id}`),
-  preview: (content: string) => api.post<{ html: string }>('/posts/preview', { content }),
   files: {
     list: (postId: number) => api.get<{ files: PostFile[] }>(`/posts/${postId}/files`),
     upload: (postId: number, file: File) => {

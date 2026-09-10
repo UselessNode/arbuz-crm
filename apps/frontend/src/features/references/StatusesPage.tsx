@@ -1,6 +1,6 @@
 // Справочник «Статусы заявок».
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Button, Checkbox, ConfirmDialog, Container, Input, Modal, StateMessage, Table } from '../../components/ui';
+import { Button, Checkbox, ConfirmDialog, Container, Input, Modal, StateMessage, Table, useToast } from '../../components/ui';
 import type { TableColumn } from '../../components/ui';
 import { statusesApi, type ApplicationStatus } from '../../api/references';
 import { ApiError } from '../../api/client';
@@ -18,6 +18,7 @@ function StatusFormModal({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const toast = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isEditable, setIsEditable] = useState(true);
@@ -43,6 +44,7 @@ function StatusFormModal({
       if (initial) await statusesApi.update(initial.id, payload);
       else await statusesApi.create(payload);
       await onSaved();
+      toast.showToast({ message: 'Сохранено', tone: 'success' });
       onClose();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить');
@@ -73,6 +75,7 @@ function StatusFormModal({
 }
 
 export function StatusesPage() {
+  const toast = useToast();
   const [statuses, setStatuses] = useState<ApplicationStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +108,7 @@ export function StatusesPage() {
       await statusesApi.remove(deleting.id);
       setDeleting(null);
       await load();
+      toast.showToast({ message: 'Удалено', tone: 'success' });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить статус');
     } finally {

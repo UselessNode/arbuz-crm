@@ -1,6 +1,6 @@
 // Секция «Материалы заявки»: загрузка, скачивание, удаление.
 import { useState } from 'react';
-import { Badge, Button, DragDrop, StateMessage } from '../../components/ui';
+import { Badge, Button, DragDrop, StateMessage, useToast } from '../../components/ui';
 import { applicationsApi, type Material } from '../../api/applications';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
@@ -13,6 +13,7 @@ interface Props {
 }
 
 export function MaterialsSection({ applicationId, materials, onChanged }: Props) {
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -24,6 +25,7 @@ export function MaterialsSection({ applicationId, materials, onChanged }: Props)
         await applicationsApi.materials.upload(applicationId, file);
       }
       await onChanged();
+      toast.showToast({ message: selected.length > 1 ? 'Материалы загружены' : 'Материал загружен', tone: 'success' });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить файл');
     } finally {
@@ -36,6 +38,7 @@ export function MaterialsSection({ applicationId, materials, onChanged }: Props)
     try {
       await applicationsApi.materials.remove(applicationId, fileId);
       await onChanged();
+      toast.showToast({ message: 'Материал удалён', tone: 'success' });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить файл');
     }

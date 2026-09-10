@@ -1,6 +1,6 @@
 {
   "name": "@arbuz/frontend",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,10 +10,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@arbuz/shared": "workspace:*",
+    "@mdxeditor/editor": "^4.2.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.30.0",
-    "@arbuz/shared": "workspace:*"
+    "react-router-dom": "^6.30.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

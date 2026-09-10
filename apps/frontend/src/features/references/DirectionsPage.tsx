@@ -1,6 +1,6 @@
 // Справочник «Направления».
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Button, ConfirmDialog, Container, Input, Modal, Select, StateMessage, Table } from '../../components/ui';
+import { Button, ConfirmDialog, Container, Input, Modal, Select, StateMessage, Table, useToast } from '../../components/ui';
 import type { SelectOption, TableColumn } from '../../components/ui';
 import { directionsApi, tendersApi, type Direction, type Tender } from '../../api/references';
 import { ApiError } from '../../api/client';
@@ -19,6 +19,7 @@ function DirectionFormModal({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const toast = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [tenderId, setTenderId] = useState('');
@@ -51,6 +52,7 @@ function DirectionFormModal({
       if (initial) await directionsApi.update(initial.id, payload);
       else await directionsApi.create(payload);
       await onSaved();
+      toast.showToast({ message: 'Сохранено', tone: 'success' });
       onClose();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить');
@@ -86,6 +88,7 @@ function DirectionFormModal({
 }
 
 export function DirectionsPage() {
+  const toast = useToast();
   const [directions, setDirections] = useState<Direction[]>([]);
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,6 +128,7 @@ export function DirectionsPage() {
       await directionsApi.remove(deleting.id);
       setDeleting(null);
       await load();
+      toast.showToast({ message: 'Удалено', tone: 'success' });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить направление');
     } finally {

@@ -9,6 +9,7 @@ import {
   Container,
   StateMessage,
   StatusBadge,
+  useToast,
 } from '../../components/ui';
 import type { StatusOption } from '../../components/ui';
 import { applicationsApi, type ApplicationDetail, type ApplicationValidationResult } from '../../api/applications';
@@ -28,6 +29,7 @@ export function ApplicationDetailPage() {
   const { applicationId } = useParams<{ applicationId: string }>();
   const navigate = useNavigate();
   const id = Number(applicationId);
+  const toast = useToast();
 
   const [application, setApplication] = useState<ApplicationDetail | null>(null);
   const [statusOptions, setStatusOptions] = useState<readonly StatusOption<string>[]>([]);
@@ -66,9 +68,30 @@ export function ApplicationDetailPage() {
   const changeStatus = async (value: string) => {
     if (!application) return;
     setActionError(null);
+    const targetId = application.id;
+    const previousStatusId = application.status?.id;
     try {
-      await applicationsApi.update(application.id, { status_id: Number(value) });
+      await applicationsApi.update(targetId, { status_id: Number(value) });
       await load();
+      toast.showToast({
+        message: 'Статус изменён',
+        tone: 'success',
+        action:
+          previousStatusId === undefined
+            ? undefined
+            : {
+                label: 'Отменить',
+                onClick: () => {
+                  void applicationsApi
+                    .update(targetId, { status_id: previousStatusId })
+                    .then(() => load())
+                    .catch(() => {
+                      setActionError('Не удалось отменить изменение статуса');
+                      void load();
+                    });
+                },
+              },
+      });
     } catch (caught) {
       setActionError(caught instanceof ApiError ? caught.message : 'Не удалось изменить статус');
       await load();
@@ -80,6 +103,7 @@ export function ApplicationDetailPage() {
     setDeleteSaving(true);
     try {
       await applicationsApi.remove(application.id);
+      toast.showToast({ message: 'Заявка удалена', tone: 'success' });
       navigate('/admin/applications', { replace: true });
     } catch (caught) {
       setActionError(caught instanceof ApiError ? caught.message : 'Не удалось удалить заявку');
@@ -96,6 +120,7 @@ export function ApplicationDetailPage() {
       await applicationsApi.submit(application.id);
       setValidation(null);
       await load();
+      toast.showToast({ message: 'Заявка отправлена на проверку', tone: 'success' });
     } catch (caught) {
       setActionError(caught instanceof ApiError ? caught.message : 'Не удалось отправить заявку');
     } finally {
@@ -131,8 +156,10 @@ export function ApplicationDetailPage() {
         await applicationsApi.submit(application.id);
         setValidation(null);
         await load();
+        toast.showToast({ message: 'Участники без согласия удалены, заявка отправлена', tone: 'success' });
       } else {
         setValidation(recheck);
+        toast.showToast({ message: 'Состав обновлён', tone: 'success' });
       }
     } catch (caught) {
       setActionError(caught instanceof ApiError ? caught.message : 'Не удалось обновить состав заявки');

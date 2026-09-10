@@ -15,28 +15,26 @@ export function PublicLayout() {
   return (
     <div className={styles.layout}>
       <header className={styles.header}>
-        <div className={styles.left}>
-          <Link to="/" className={styles.brand}>
-            <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
-            <span className={styles.brandName}>Arbuz CRM</span>
-          </Link>
-          <nav className={styles.actions}>
-            {!loading && user ? (
-              <Button variant="secondary" size="sm" icon="user" onClick={() => navigate(cabinetPath)}>
-                Личный кабинет
+        <Link to="/" className={styles.brand}>
+          <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
+          <span className={styles.brandName}>Arbuz CRM</span>
+        </Link>
+        <nav className={styles.actions}>
+          {!loading && user ? (
+            <Button variant="secondary" size="sm" icon="user" onClick={() => navigate(cabinetPath)}>
+              Личный кабинет
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" icon="login" onClick={() => navigate('/login')}>
+                Войти
               </Button>
-            ) : (
-              <>
-                <Button variant="ghost" size="sm" icon="login" onClick={() => navigate('/login')}>
-                  Войти
-                </Button>
-                <Button size="sm" icon="register" onClick={() => navigate('/register')}>
-                  Регистрация
-                </Button>
-              </>
-            )}
-          </nav>
-        </div>
+              <Button size="sm" icon="register" onClick={() => navigate('/register')}>
+                Регистрация
+              </Button>
+            </>
+          )}
+        </nav>
       </header>
       <main className={styles.main}>
         <Outlet />

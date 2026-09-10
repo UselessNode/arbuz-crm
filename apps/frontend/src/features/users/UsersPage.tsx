@@ -13,6 +13,7 @@ import {
   StateMessage,
   StatusBadge,
   Table,
+  useToast,
 } from '../../components/ui';
 import type { SelectOption, TableColumn } from '../../components/ui';
 import { usersApi } from '../../api/users';
@@ -42,6 +43,7 @@ function UserFormModal({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const toast = useToast();
   const isEdit = initial !== null;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -81,6 +83,7 @@ function UserFormModal({
         await usersApi.create({ ...payload, password });
       }
       await onSaved();
+      toast.showToast({ message: 'Пользователь сохранён', tone: 'success' });
       onClose();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить');
@@ -137,6 +140,7 @@ function ResetPasswordModal({
   target: UserListItem | null;
   onClose: () => void;
 }) {
+  const toast = useToast();
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -154,6 +158,7 @@ function ResetPasswordModal({
     setSaving(true);
     try {
       await usersApi.resetPassword(target.id, password);
+      toast.showToast({ message: 'Пароль сброшен', tone: 'success' });
       onClose();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось сбросить пароль');
@@ -189,6 +194,7 @@ function ResetPasswordModal({
 
 export function UsersPage() {
   const { user: currentUser } = useAuth();
+  const toast = useToast();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [roleFilter, setRoleFilter] = useState<RoleType | ''>('');
@@ -230,15 +236,34 @@ export function UsersPage() {
     async (target: UserListItem, role: RoleType) => {
       if (currentUser?.id === target.id) return;
       setActionError(null);
+      const previousRole = target.role;
       try {
         const response = await usersApi.update(target.id, { role });
         setUsers((prev) => prev.map((item) => (item.id === target.id ? response.user : item)));
+        toast.showToast({
+          message: 'Роль изменена',
+          tone: 'success',
+          action: {
+            label: 'Отменить',
+            onClick: () => {
+              void usersApi
+                .update(target.id, { role: previousRole })
+                .then((reverted) => {
+                  setUsers((prev) => prev.map((item) => (item.id === target.id ? reverted.user : item)));
+                })
+                .catch(() => {
+                  setActionError('Не удалось отменить изменение роли');
+                  void load();
+                });
+            },
+          },
+        });
       } catch (caught) {
         setActionError(caught instanceof ApiError ? caught.message : 'Не удалось изменить роль');
         await load();
       }
     },
-    [currentUser?.id, load],
+    [currentUser?.id, load, toast],
   );
 
   const handleDelete = async () => {
@@ -247,6 +272,7 @@ export function UsersPage() {
     try {
       await usersApi.remove(deleting.id);
       setDeleting(null);
+      toast.showToast({ message: 'Пользователь удалён', tone: 'success' });
       await load();
     } catch (caught) {
       setActionError(caught instanceof ApiError ? caught.message : 'Не удалось удалить пользователя');
