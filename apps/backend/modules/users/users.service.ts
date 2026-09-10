@@ -95,6 +95,15 @@ export async function getUserOrThrow(userId: number): Promise<PublicUser> {
   return serialize(user);
 }
 
+/** Все эксперты (для селекта назначения), без пагинации. */
+export function listExperts() {
+  return prisma.users.findMany({
+    where: { role: RoleType.expert, deleted_at: null },
+    orderBy: { id: 'asc' },
+    select: { id: true, email: true, name: true, surname: true, patronymic: true },
+  });
+}
+
 export async function createUser(_actorId: number, input: UserInput): Promise<PublicUser> {
   const email = parseEmail(input.email);
   const password = parsePassword(input.password);

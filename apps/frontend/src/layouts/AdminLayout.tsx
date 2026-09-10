@@ -9,6 +9,8 @@ import styles from './AdminLayout.module.css';
 
 const NAV_ITEMS: Array<{ to: string; label: string; icon: IconName }> = [
   { to: 'users', label: 'Пользователи', icon: 'users' },
+  { to: 'applications', label: 'Заявки', icon: 'document' },
+  { to: 'reviews', label: 'Рецензии', icon: 'check' },
   { to: 'posts', label: 'Посты', icon: 'chat' },
   { to: 'tenders', label: 'Тендеры', icon: 'briefcase' },
   { to: 'directions', label: 'Направления', icon: 'folder' },

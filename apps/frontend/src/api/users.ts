@@ -25,6 +25,14 @@ export interface UserPatch {
   patronymic?: string | null;
 }
 
+export interface ExpertItem {
+  id: number;
+  email: string;
+  name: string | null;
+  surname: string | null;
+  patronymic: string | null;
+}
+
 export const usersApi = {
   list(params: UserListParams) {
     const query = new URLSearchParams({ limit: String(params.limit), offset: String(params.offset) });
@@ -42,5 +50,8 @@ export const usersApi = {
   },
   remove(id: number) {
     return api.delete<{ ok: boolean }>(`/users/${id}`);
+  },
+  listExperts() {
+    return api.get<{ experts: ExpertItem[] }>('/users/experts');
   },
 };

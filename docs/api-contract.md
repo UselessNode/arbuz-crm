@@ -25,15 +25,17 @@
 | PATCH | `/api/users/:id` | `{ email?, role?, surname?, name?, patronymic? }` | `{ user }` |
 | POST | `/api/users/:id/reset-password` | `{ password }` | `{ ok: true }` |
 | DELETE | `/api/users/:id` | — | `{ ok: true }` |
+| GET | `/api/users/experts` | admin | — | `{ experts: { id, email, name, surname, patronymic }[] }` (без пагинации) |
 
 - `limit` по умолчанию 20, максимум 100 (ограничение на бэкенде).
+- `GET /api/users/experts` — полный список экспертов для селекта «назначить эксперта» (часть 3/3). ✅
 - Сам себя нельзя понизить в роли и удалить (`SELF_ROLE_CHANGE_FORBIDDEN`, `SELF_DELETE_FORBIDDEN`).
 
 ## Applications
 
 | Метод | Путь | Доступ | Запрос | Ответ |
 |---|---|---|---|---|
-| GET | `/api/applications?limit=&offset=` | роли по правилам | — | `{ applications: Summary[], total }` |
+| GET | `/api/applications?limit=&offset=` | роли по правилам | — | `{ applications: Summary[], total }` (`Summary.ownerName` заполняется) |
 | POST | `/api/applications` | applicant, admin | `{ title, idea_description, importance_to_team, project_goal, project_tasks, implementation_experience?, results_description?, tender_id?, direction_id?, owner_id? (admin) }` | `201 { application }` |
 | GET | `/api/applications/:id` | владелец / назначенный эксперт / admin | — | `{ application }` |
 | PATCH | `/api/applications/:id` | owner (draft) / admin | частично те же поля (+ `status_id` — только admin) | `{ application }` |
@@ -85,10 +87,10 @@
 | PATCH | `/api/reviews/:id` | автор-эксперт / admin | `{ review_status?, review_text?, rating? }` |
 | DELETE | `/api/reviews/:id` | admin (снятие) | — |
 
-**Отложено на часть 3/3 (бэкенд):** `GET /api/users/experts` — полный список экспертов (`{ id, name, surname, email }`) для селекта «назначить эксперта», без пагинации.
+**Готово в части 3/3:** `GET /api/users/experts` — полный список экспертов (`{ id, email, name, surname, patronymic }`) для селекта «назначить эксперта», без пагинации. ✅
 
 ## Изменения бэкенда в рамках Session 4
 
 - Часть 2/3: санитизация Markdown → HTML для постов. ✅
-- Часть 3/3: эндпоинт списка экспертов для селекта.
+- Часть 3/3: эндпоинт списка экспертов для селекта; `ownerName` в списке заявок. ✅
 - Часть 1/3: ограничение `limit` (default 20, max 100) для `/api/users` и `/api/applications`. ✅

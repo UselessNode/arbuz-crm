@@ -4,6 +4,9 @@ import { AdminLayout } from '../layouts/AdminLayout';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { UsersPage } from '../features/users/UsersPage';
+import { ApplicationsPage } from '../features/applications/ApplicationsPage';
+import { ApplicationDetailPage } from '../features/applications/ApplicationDetailPage';
+import { ReviewsPage } from '../features/reviews/ReviewsPage';
 import { PostsPage } from '../features/posts/PostsPage';
 import { TendersPage } from '../features/references/TendersPage';
 import { DirectionsPage } from '../features/references/DirectionsPage';
@@ -42,6 +45,9 @@ export function AppRouter() {
       >
         <Route index element={<Navigate to="users" replace />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="applications" element={<ApplicationsPage />} />
+        <Route path="applications/:applicationId" element={<ApplicationDetailPage />} />
+        <Route path="reviews" element={<ReviewsPage />} />
         <Route path="posts" element={<PostsPage />} />
         <Route path="tenders" element={<TendersPage />} />
         <Route path="directions" element={<DirectionsPage />} />

@@ -10,6 +10,7 @@ import {
   createUser,
   deleteUser,
   getUserOrThrow,
+  listExperts,
   listUsers,
   resetPassword,
   updateUser,
@@ -63,6 +64,14 @@ usersRouter.post(
     });
     log.audit('users.create', { actorId: actor.id, userId: user.id, role: user.role });
     res.status(201).json({ user });
+  }),
+);
+
+usersRouter.get(
+  '/experts',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const experts = await listExperts();
+    res.json({ experts });
   }),
 );
 

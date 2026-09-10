@@ -130,6 +130,7 @@ export async function listApplications(
         application_statuses: { select: { id: true, name: true } },
         tenders: { select: { id: true, name: true } },
         directions: { select: { id: true, name: true } },
+        users: { select: { id: true, name: true, surname: true, patronymic: true } },
       },
     }),
     prisma.applications.count({ where }),
@@ -141,6 +142,9 @@ export async function listApplications(
       id: row.id,
       title: row.title,
       ownerId: row.owner_id,
+      ownerName: row.users
+        ? [row.users.surname, row.users.name, row.users.patronymic].filter(Boolean).join(' ') || '—'
+        : '—',
       tenderId: row.tender_id,
       directionId: row.direction_id,
       statusId: row.status_id,
