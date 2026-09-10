@@ -24,9 +24,10 @@ import { PlansSection } from './PlansSection';
 import { BudgetSection } from './BudgetSection';
 import { MaterialsSection } from './MaterialsSection';
 import { ReviewsSection } from './ReviewsSection';
+import { ExpertEvaluationSection } from './ExpertEvaluationSection';
 import styles from './Applications.module.css';
 
-export type ApplicationArea = 'admin' | 'applicant';
+export type ApplicationArea = 'admin' | 'applicant' | 'expert';
 
 interface Props {
   area?: ApplicationArea;
@@ -38,7 +39,8 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
   const id = Number(applicationId);
   const toast = useToast();
   const isAdmin = area === 'admin';
-  const listPath = isAdmin ? '/admin/applications' : '/applications';
+  const isExpertArea = area === 'expert';
+  const listPath = isAdmin ? '/admin/applications' : isExpertArea ? '/expert' : '/applications';
 
   const [application, setApplication] = useState<ApplicationDetail | null>(null);
   const [statusOptions, setStatusOptions] = useState<readonly StatusOption<string>[]>([]);
@@ -192,10 +194,10 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
   if (loading) return <StateMessage state="loading" />;
   if (error || !application) return <StateMessage state="error" message={error ?? 'Заявка не найдена'} onRetry={() => void load()} />;
 
-  // Администратор редактирует всегда; владелец — пока заявка не отправлена и статус редактируемый.
-  const canEdit = isAdmin || (Boolean(application.status?.isEditable) && !application.submittedAt);
-  const canDelete = isAdmin || (Boolean(application.status?.isDeletable) && !application.submittedAt);
-  const canSubmit = !application.submittedAt && (isAdmin || canEdit);
+  // Владелец (в т.ч. назначенный админом) и админ редактируют; эксперт — только чтение.
+  const canEdit = !isExpertArea;
+  const canDelete = !isExpertArea && (isAdmin || !application.submittedAt);
+  const canSubmit = !isExpertArea && !application.submittedAt;
 
   return (
     <>
@@ -276,6 +278,7 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
           </AccordionItem>
 
           <AccordionItem itemKey="reviews" title={`Рецензии (${application.reviews.length})`}>
+            {isExpertArea ? <ExpertEvaluationSection application={application} onChanged={load} /> : null}
             <ReviewsSection applicationId={application.id} reviews={application.reviews} canManage={isAdmin} onChanged={load} />
           </AccordionItem>
         </Accordion>

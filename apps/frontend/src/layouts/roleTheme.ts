@@ -28,10 +28,15 @@ const APPLICANT_NAV: NavItem[] = [
   { to: '/account', label: 'Профиль', icon: 'user' },
 ];
 
-// TODO(MVP-3): эксперту — «Экспертизы».
+const EXPERT_NAV: NavItem[] = [
+  { to: '/expert', label: 'Назначенные заявки', icon: 'check' },
+  { to: '/account', label: 'Профиль', icon: 'user' },
+];
+
 export function navItemsForRole(role: RoleType): NavItem[] {
   if (role === Roles.admin) return ADMIN_NAV;
   if (role === Roles.applicant) return APPLICANT_NAV;
+  if (role === Roles.expert) return EXPERT_NAV;
   return ACCOUNT_NAV;
 }
 

@@ -1,4 +1,4 @@
-// HTTP API критериев оценивания тендера. Только администратор.
+// HTTP API критериев оценивания тендера. Чтение — авторизованным (эксперт/админ), изменения — админ.
 import { RoleType } from '@arbuz/shared';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
@@ -9,7 +9,7 @@ import type { CurrentUser } from '../files/files.service';
 import { createCriterion, deleteCriterion, listCriteria, parseId, updateCriterion } from './criteria.service';
 
 export const criteriaRouter = Router();
-criteriaRouter.use(requireAuth, requireRole(RoleType.admin));
+criteriaRouter.use(requireAuth);
 
 criteriaRouter.get(
   '/:tenderId/criteria',
@@ -22,6 +22,7 @@ criteriaRouter.get(
 
 criteriaRouter.post(
   '/:tenderId/criteria',
+  requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const tenderId = parseId(req.params.tenderId);
     const criterion = await createCriterion(tenderId, req.body ?? {});
@@ -32,6 +33,7 @@ criteriaRouter.post(
 
 criteriaRouter.patch(
   '/:tenderId/criteria/:criterionId',
+  requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const tenderId = parseId(req.params.tenderId);
     const criterionId = parseId(req.params.criterionId);
@@ -42,6 +44,7 @@ criteriaRouter.patch(
 
 criteriaRouter.delete(
   '/:tenderId/criteria/:criterionId',
+  requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const tenderId = parseId(req.params.tenderId);
     const criterionId = parseId(req.params.criterionId);

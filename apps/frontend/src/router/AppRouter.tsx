@@ -8,6 +8,7 @@ import { UsersPage } from '../features/users/UsersPage';
 import { ApplicationsPage } from '../features/applications/ApplicationsPage';
 import { ApplicantApplicationsPage } from '../features/applications/ApplicantApplicationsPage';
 import { ApplicationDetailPage } from '../features/applications/ApplicationDetailPage';
+import { ExpertApplicationsPage } from '../features/expert/ExpertApplicationsPage';
 import { ReviewsPage } from '../features/reviews/ReviewsPage';
 import { PostsPage } from '../features/posts/PostsPage';
 import { TendersPage } from '../features/references/TendersPage';
@@ -46,6 +47,22 @@ export function AppRouter() {
         <Route path="/account" element={<AccountPage />} />
         <Route path="/applications" element={<ApplicantApplicationsPage />} />
         <Route path="/applications/:applicationId" element={<ApplicationDetailPage area="applicant" />} />
+        <Route
+          path="/expert"
+          element={
+            <ProtectedRoute roles={[Roles.expert]}>
+              <ExpertApplicationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/expert/applications/:applicationId"
+          element={
+            <ProtectedRoute roles={[Roles.expert]}>
+              <ApplicationDetailPage area="expert" />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       <Route

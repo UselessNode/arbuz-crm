@@ -11,5 +11,6 @@ export const Roles = {
 export function homePathForRole(role: RoleType): string {
   if (role === Roles.admin) return '/admin';
   if (role === Roles.applicant) return '/applications';
+  if (role === Roles.expert) return '/expert';
   return '/account';
 }
