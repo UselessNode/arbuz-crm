@@ -15,8 +15,9 @@ import { tendersRouter } from './modules/tenders/tenders.routes';
 import { criteriaRouter } from './modules/tenders/criteria.routes';
 import { directionsRouter } from './modules/directions/directions.routes';
 import { statusesRouter } from './modules/statuses/statuses.routes';
+import { reviewsRouter } from './modules/reviews/reviews.routes';
 
-export const API_VERSION = '1.4.0';
+export const API_VERSION = '1.5.0';
 
 export function createApp(): express.Express {
   const app = express();
@@ -48,6 +49,7 @@ export function createApp(): express.Express {
   app.use('/api/tenders', criteriaRouter);
   app.use('/api/directions', directionsRouter);
   app.use('/api/application-statuses', statusesRouter);
+  app.use('/api', reviewsRouter);
   // pdf-export использует свои пути внутри /api/applications/:id/pdf-export и /api/pdf-export-jobs
   app.use('/api', pdfExportRouter);
 

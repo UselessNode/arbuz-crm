@@ -136,6 +136,7 @@ bun dev:frontend   # http://127.0.0.1:5173
 - Пользователи (только администратор): `GET/POST /api/users`, `GET/PATCH/DELETE /api/users/:id`, `POST /api/users/:id/reset-password`.
 - Заявки (по ролям): `GET/POST /api/applications`, `GET/PATCH/DELETE /api/applications/:id`, `POST /api/applications/:id/submit`; состав — `GET/POST/PATCH/DELETE /api/applications/:id/team-members|project-plans|project-budget`.
 - Справочники (только администратор): тендеры `/api/tenders`, критерии `/api/tenders/:id/criteria`, направления `/api/directions`, статусы `/api/application-statuses`.
+- Рецензии: назначение эксперта `POST /api/applications/:id/reviews` (админ), список `GET /api/reviews` (по ролям), оценка `PATCH /api/reviews/:id`, снятие `DELETE /api/reviews/:id`.
 - PDF-экспорт заявки (асинхронно, статус в `pdf_export_jobs`): `POST /api/applications/:id/pdf-export`, `GET /api/pdf-export-jobs/:jobId`, `GET .../download`.
 - Известные «хвосты» и отложенные решения: `docs/technical-debt.md`.
 - Аудит действий (вход, загрузка/скачивание/удаление) пишется в `logs/audit.log`.
