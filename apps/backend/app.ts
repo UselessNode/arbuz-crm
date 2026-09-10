@@ -6,8 +6,9 @@ import { authRouter } from './modules/auth/auth.routes';
 import { filesRouter } from './modules/files/files.routes';
 import { postsRouter } from './modules/posts/posts.routes';
 import { pdfExportRouter } from './modules/pdf-export/pdf-export.routes';
+import { usersRouter } from './modules/users/users.routes';
 
-export const API_VERSION = '1.1.1';
+export const API_VERSION = '1.2.0';
 
 export function createApp(): express.Express {
   const app = express();
@@ -28,6 +29,7 @@ export function createApp(): express.Express {
   });
 
   app.use('/api/auth', authRouter);
+  app.use('/api/users', usersRouter);
   app.use('/api/applications', filesRouter);
   app.use('/api/posts', postsRouter);
   // pdf-export использует свои пути внутри /api/applications/:id/pdf-export и /api/pdf-export-jobs

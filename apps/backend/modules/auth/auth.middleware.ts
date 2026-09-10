@@ -1,5 +1,7 @@
-// Middleware авторизации. Токен принимается из httpOnly-cookie или заголовка Authorization.
-import type { NextFunction, Request, Response } from 'express';
+// Middleware авторизации: requireAuth (аутентификация) и requireRole (авторизация по ролям).
+// Токен принимается из httpOnly-cookie или заголовка Authorization.
+import { RoleType } from '@arbuz/shared';
+import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { prisma } from '../../lib/prisma';
 import { config } from '../../lib/config';
 import { httpError } from '../../lib/http';
@@ -23,14 +25,36 @@ export function extractToken(req: Request): string | undefined {
   return getCookie(req, config.jwt.cookieName);
 }
 
-export async function requireAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
-  const token = extractToken(req);
-  const session = token ? await verifySession(token) : null;
-  if (!session) throw httpError(401, 'Требуется авторизация', 'UNAUTHORIZED');
+/**
+ * Аутентификация: проверяет токен и подставляет req.user.
+ * Express 4 не ловит rejected promise у async-мидлвара, поэтому ошибки явно
+ * передаём в next(err), чтобы их обработал errorHandler.
+ */
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  (async () => {
+    const token = extractToken(req);
+    const session = token ? await verifySession(token) : null;
+    if (!session) throw httpError(401, 'Требуется авторизация', 'UNAUTHORIZED');
 
-  const user = await prisma.users.findUnique({ where: { id: session.id } });
-  if (!user || user.deleted_at) throw httpError(401, 'Пользователь не найден', 'UNAUTHORIZED');
+    const user = await prisma.users.findUnique({ where: { id: session.id } });
+    if (!user || user.deleted_at) throw httpError(401, 'Пользователь не найден', 'UNAUTHORIZED');
 
-  req.user = { id: user.id, email: user.email, role: user.role };
-  next();
+    req.user = { id: user.id, email: user.email, role: user.role };
+    next();
+  })().catch(next);
+}
+
+/** Авторизация: пускает только перечисленные роли. Использовать после requireAuth. */
+export function requireRole(...roles: RoleType[]): RequestHandler {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.user) {
+      next(httpError(401, 'Требуется авторизация', 'UNAUTHORIZED'));
+      return;
+    }
+    if (!roles.includes(req.user.role)) {
+      next(httpError(403, 'Недостаточно прав для этого действия', 'FORBIDDEN'));
+      return;
+    }
+    next();
+  };
 }
