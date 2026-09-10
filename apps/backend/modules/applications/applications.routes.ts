@@ -9,10 +9,12 @@ import {
   createApplication,
   deleteApplication,
   getApplicationDetail,
+  getApplicationForAccess,
   listApplications,
   parseId,
   submitApplication,
   updateApplication,
+  validateApplication,
 } from './applications.service';
 
 export const applicationsRouter = Router();
@@ -64,6 +66,17 @@ applicationsRouter.get(
     const applicationId = parseId(req.params.applicationId);
     const application = await getApplicationDetail(actor, applicationId);
     res.json({ application });
+  }),
+);
+
+applicationsRouter.get(
+  '/:applicationId/validation',
+  asyncHandler(async (req: Request, res: Response) => {
+    const actor = req.user as CurrentUser;
+    const applicationId = parseId(req.params.applicationId);
+    await getApplicationForAccess(actor, applicationId, 'view');
+    const validation = await validateApplication(applicationId);
+    res.json(validation);
   }),
 );
 

@@ -1,0 +1,44 @@
+/* Оформление модального окна соглашения. */
+.wrap {
+  position: relative;
+}
+
+.progressTrack {
+  height: 4px;
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--tone-neutral-bg);
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--radius-sm);
+  transition: width 0.1s linear;
+}
+
+.scrollArea {
+  height: min(60vh, 520px);
+  overflow-y: auto;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-3);
+  transform: translateX(-50%);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--tone-blue-bg);
+  color: var(--tone-blue-text);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  white-space: nowrap;
+}

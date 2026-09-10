@@ -44,6 +44,23 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   })().catch(next);
 }
 
+/**
+ * Необязательная аутентификация: если токен валиден — подставляет req.user,
+ * иначе пропускает запрос как гостя (для публичных страниц/ленты).
+ */
+export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+  (async () => {
+    const token = extractToken(req);
+    const session = token ? await verifySession(token) : null;
+    if (session) {
+      const user = await prisma.users.findUnique({ where: { id: session.id } });
+      if (user && !user.deleted_at) {
+        req.user = { id: user.id, email: user.email, role: user.role };
+      }
+    }
+  })().then(() => next()).catch(next);
+}
+
 /** Авторизация: пускает только перечисленные роли. Использовать после requireAuth. */
 export function requireRole(...roles: RoleType[]): RequestHandler {
   return (req: Request, _res: Response, next: NextFunction) => {

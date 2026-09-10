@@ -11,11 +11,12 @@ import {
   StatusBadge,
 } from '../../components/ui';
 import type { StatusOption } from '../../components/ui';
-import { applicationsApi, type ApplicationDetail } from '../../api/applications';
+import { applicationsApi, type ApplicationDetail, type ApplicationValidationResult } from '../../api/applications';
 import { statusesApi } from '../../api/references';
 import { ApiError } from '../../api/client';
 import { formatDateTime, formatUserName } from '../../lib/format';
 import { ApplicationFormModal } from './ApplicationFormModal';
+import { ApplicationValidationDialog } from './ApplicationValidationDialog';
 import { TeamMembersSection } from './TeamMembersSection';
 import { PlansSection } from './PlansSection';
 import { BudgetSection } from './BudgetSection';
@@ -36,6 +37,8 @@ export function ApplicationDetailPage() {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteSaving, setDeleteSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [validation, setValidation] = useState<ApplicationValidationResult | null>(null);
 
   const load = useCallback(async () => {
     if (!Number.isInteger(id) || id <= 0) {
@@ -85,6 +88,60 @@ export function ApplicationDetailPage() {
     }
   };
 
+  const runSubmit = async () => {
+    if (!application) return;
+    setSubmitting(true);
+    setActionError(null);
+    try {
+      await applicationsApi.submit(application.id);
+      setValidation(null);
+      await load();
+    } catch (caught) {
+      setActionError(caught instanceof ApiError ? caught.message : 'Не удалось отправить заявку');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleStartSubmit = async () => {
+    if (!application) return;
+    setActionError(null);
+    try {
+      const result = await applicationsApi.validation(application.id);
+      if (result.valid) await runSubmit();
+      else setValidation(result);
+    } catch (caught) {
+      setActionError(caught instanceof ApiError ? caught.message : 'Не удалось проверить заявку');
+    }
+  };
+
+  // Подтверждённое удаление участников без согласия + повторная проверка и отправка.
+  const handleRemoveWithoutConsent = async () => {
+    if (!application || !validation) return;
+    const ids = validation.issues.find((issue) => issue.code === 'MISSING_CONSENT')?.teamMemberIds ?? [];
+    setSubmitting(true);
+    setActionError(null);
+    try {
+      for (const memberId of ids) {
+        await applicationsApi.teamMembers.remove(application.id, memberId);
+      }
+      const recheck = await applicationsApi.validation(application.id);
+      await load();
+      if (recheck.valid) {
+        await applicationsApi.submit(application.id);
+        setValidation(null);
+        await load();
+      } else {
+        setValidation(recheck);
+      }
+    } catch (caught) {
+      setActionError(caught instanceof ApiError ? caught.message : 'Не удалось обновить состав заявки');
+      setValidation(null);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const meta = useMemo(() => {
     if (!application) return [];
     return [
@@ -105,6 +162,11 @@ export function ApplicationDetailPage() {
         title={application.title}
         actions={
           <>
+            {!application.submittedAt ? (
+              <Button icon="check" loading={submitting} onClick={() => void handleStartSubmit()}>
+                Отправить на проверку
+              </Button>
+            ) : null}
             <Button variant="secondary" icon="edit" onClick={() => setEditing(true)}>
               Редактировать
             </Button>
@@ -175,6 +237,12 @@ export function ApplicationDetailPage() {
       </Container>
 
       <ApplicationFormModal open={editing} application={application} onClose={() => setEditing(false)} onSaved={load} />
+      <ApplicationValidationDialog
+        result={validation}
+        saving={submitting}
+        onClose={() => setValidation(null)}
+        onRemoveWithoutConsent={() => void handleRemoveWithoutConsent()}
+      />
       <ConfirmDialog
         open={deleting}
         title="Удаление заявки"

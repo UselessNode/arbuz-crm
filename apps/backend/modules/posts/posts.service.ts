@@ -8,8 +8,8 @@ import { renderMarkdown } from './markdown';
 export const POST_TITLE_MAX = 255;
 export const POST_CONTENT_MAX = 1_000_000;
 
-export function isAdmin(user: CurrentUser): boolean {
-  return user.role === RoleType.admin;
+export function isAdmin(user: CurrentUser | undefined): boolean {
+  return user?.role === RoleType.admin;
 }
 
 function requireAdmin(user: CurrentUser): void {
@@ -92,29 +92,38 @@ function serialize(post: PostWithAuthor): PostData {
 
 const authorSelect = { select: { name: true, surname: true } } as const;
 
-export async function listPosts(user: CurrentUser) {
-  const posts = await prisma.posts.findMany({
-    where: {
-      deleted_at: null,
-      ...(isAdmin(user) ? {} : { is_published: true }),
-    },
-    orderBy: { created_at: 'desc' },
-    select: {
-      id: true,
-      title: true,
-      content: true,
-      is_published: true,
-      created_by: true,
-      created_at: true,
-      updated_at: true,
-      author: authorSelect,
-    },
-  });
-  return posts.map(serialize);
+export async function listPosts(
+  user: CurrentUser | undefined,
+  filter: { limit: number; offset: number },
+): Promise<{ posts: PostData[]; total: number }> {
+  const where = {
+    deleted_at: null,
+    ...(isAdmin(user) ? {} : { is_published: true }),
+  };
+  const [posts, total] = await Promise.all([
+    prisma.posts.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      skip: filter.offset,
+      take: filter.limit,
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        is_published: true,
+        created_by: true,
+        created_at: true,
+        updated_at: true,
+        author: authorSelect,
+      },
+    }),
+    prisma.posts.count({ where }),
+  ]);
+  return { posts: posts.map(serialize), total };
 }
 
 /** Чтение поста: администратор — любой, остальные — только опубликованный. */
-export async function getPostOrThrow(user: CurrentUser, postId: number) {
+export async function getPostOrThrow(user: CurrentUser | undefined, postId: number) {
   const post = await prisma.posts.findUnique({
     where: { id: postId },
     select: {

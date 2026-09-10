@@ -1,10 +1,11 @@
 // Секция «Команда проекта» в карточке заявки.
 import { useState, type FormEvent } from 'react';
-import { Button, Checkbox, ConfirmDialog, Input, Modal, StateMessage, Table } from '../../components/ui';
+import { Badge, Button, Checkbox, ConfirmDialog, Input, Modal, StateMessage, Table } from '../../components/ui';
 import type { TableColumn } from '../../components/ui';
 import { applicationsApi, type TeamMember, type TeamMemberPayload } from '../../api/applications';
 import { ApiError } from '../../api/client';
 import { formatUserName } from '../../lib/format';
+import { ConsentModal } from './ConsentModal';
 import styles from './Applications.module.css';
 
 interface Props {
@@ -26,6 +27,7 @@ export function TeamMembersSection({ applicationId, members, onChanged }: Props)
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<TeamMember | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+  const [consentMember, setConsentMember] = useState<TeamMember | null>(null);
 
   const startCreate = () => {
     setEditing(null);
@@ -97,11 +99,26 @@ export function TeamMembersSection({ applicationId, members, onChanged }: Props)
       render: (m) => [m.isResponsible ? 'ответственный' : null, m.isCoordinator ? 'координатор' : null].filter(Boolean).join(', ') || '—',
     },
     {
+      key: 'consent',
+      header: 'Согласие',
+      render: (m) =>
+        m.hasConsent ? (
+          <Badge tone="green" icon="check">
+            есть
+          </Badge>
+        ) : (
+          <Badge tone="red" icon="warning">
+            нет
+          </Badge>
+        ),
+    },
+    {
       key: 'actions',
       header: '',
-      width: '100px',
+      width: '140px',
       render: (m) => (
         <div className={styles.actions}>
+          <Button size="sm" variant="ghost" icon="document" aria-label="Согласия" onClick={() => setConsentMember(m)} />
           <Button size="sm" variant="ghost" icon="edit" aria-label="Изменить" onClick={() => startEdit(m)} />
           <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => setDeleting(m)} />
         </div>
@@ -159,6 +176,15 @@ export function TeamMembersSection({ applicationId, members, onChanged }: Props)
         onConfirm={() => void confirmDelete()}
         onClose={() => setDeleting(null)}
       />
+
+      {consentMember ? (
+        <ConsentModal
+          applicationId={applicationId}
+          member={consentMember}
+          onClose={() => setConsentMember(null)}
+          onChanged={onChanged}
+        />
+      ) : null}
     </>
   );
 }

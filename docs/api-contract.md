@@ -47,6 +47,15 @@
 - `GET/POST /api/applications/:id/project-plans`, `PATCH/DELETE .../project-plans/:planId`
 - `GET/POST /api/applications/:id/project-budget`, `PATCH/DELETE .../project-budget/:itemId`
 
+**Согласия участника** (`consent_files`):
+- `GET/POST /api/applications/:id/team-members/:memberId/consents`
+- `GET /api/applications/:id/consents/:consentId/download`, `DELETE /api/applications/:id/consents/:consentId`
+- В детали заявки у участника: `hasConsent` и `consentsCount`.
+
+**Проверка перед отправкой:** `GET /api/applications/:id/validation` → `{ valid, issues[] }`
+(≥ 1 участник, совершеннолетний координатор, согласие у каждого участника).
+`POST /api/applications/:id/submit` возвращает 400 `APPLICATION_INVALID`, если состав не прошёл проверку.
+
 `status` в детали: `{ id, name, isEditable, isDeletable }` — **список статусов берём только с бэкенда** (не хардкодим).
 В списке (`GET /api/applications`) поле `status` — тоже объект `{ id, name } | null`; `ownerName` заполнен.
 
@@ -70,8 +79,8 @@
 
 | Метод | Путь | Доступ | Запрос |
 |---|---|---|---|
-| GET | `/api/posts` | авторизованные | admin видит все, остальные — опубликованные |
-| GET | `/api/posts/:id` | по видимости | — |
+| GET | `/api/posts?limit=&offset=` | **публично** | admin видит все, остальные — только опубликованные; ответ `{ posts, total }` |
+| GET | `/api/posts/:id` | публично (по видимости) | черновик — только admin |
 | POST | `/api/posts` | admin | `{ title, content, is_published? }` (content — Markdown) |
 | POST | `/api/posts/preview` | авторизованные | `{ content }` → `{ html }` (рендер + санитизация на сервере) |
 | PATCH | `/api/posts/:id` | admin | частично |
@@ -104,3 +113,10 @@
 - Список заявок: `status` теперь `{ id, name } | null`.
 - Создание/обновление заявки: валидация `tender_id`/`direction_id`/`status_id` (400 вместо 500).
 - Файлы заявки: чтение доступно назначенному эксперту.
+
+## Изменения 1.10.0 (MVP-1)
+
+- `GET /api/posts`, `GET /api/posts/:id` — публичные (гость видит только опубликованные);
+  пагинация `limit/offset` (default 20, max 100), ответ `{ posts, total }`.
+- Деталь заявки: `hasConsent`/`consentsCount` у участников.
+- `GET /api/applications/:id/validation`; `submit` возвращает 400 `APPLICATION_INVALID` при нарушениях.

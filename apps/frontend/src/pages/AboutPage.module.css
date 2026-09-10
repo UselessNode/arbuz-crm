@@ -1,0 +1,19 @@
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+}
+
+.content {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.content ul {
+  padding-left: var(--space-5);
+}
+
+.muted {
+  color: var(--color-muted);
+  font-size: 14px;
+}

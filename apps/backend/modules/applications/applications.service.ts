@@ -202,6 +202,54 @@ function optionalId(value: unknown): number | null {
   return id;
 }
 
+export type ApplicationValidationIssueCode = 'NO_MEMBERS' | 'NO_ADULT_COORDINATOR' | 'MISSING_CONSENT';
+
+export interface ApplicationValidationIssue {
+  code: ApplicationValidationIssueCode;
+  message: string;
+  /** Для MISSING_CONSENT — id участников без файла согласия. */
+  teamMemberIds?: number[];
+}
+
+export interface ApplicationValidationResult {
+  valid: boolean;
+  issues: ApplicationValidationIssue[];
+}
+
+/**
+ * Проверка готовности заявки к отправке:
+ *  - не менее одного участника;
+ *  - есть совершеннолетний координатор;
+ *  - у каждого участника загружен файл согласия.
+ * Используется и при отправке, и для предпросмотра в UI.
+ */
+export async function validateApplication(applicationId: number): Promise<ApplicationValidationResult> {
+  const members = await prisma.team_members.findMany({
+    where: { application_id: applicationId, deleted_at: null },
+    select: {
+      id: true,
+      is_coordinator: true,
+      is_adult: true,
+      consent_files: { where: { deleted_at: null }, select: { id: true } },
+    },
+    orderBy: { id: 'asc' },
+  });
+
+  const issues: ApplicationValidationIssue[] = [];
+  if (members.length === 0) {
+    issues.push({ code: 'NO_MEMBERS', message: 'В заявке должен быть хотя бы один участник' });
+  } else if (!members.some((member) => member.is_coordinator && member.is_adult)) {
+    issues.push({ code: 'NO_ADULT_COORDINATOR', message: 'Нужен совершеннолетний координатор' });
+  }
+
+  const withoutConsent = members.filter((member) => member.consent_files.length === 0).map((member) => member.id);
+  if (withoutConsent.length > 0) {
+    issues.push({ code: 'MISSING_CONSENT', message: 'У части участников нет файла согласия', teamMemberIds: withoutConsent });
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
 /** Возвращает id системного статуса по имени; ошибка, если статус не заведён. */
 async function requireStatusIdByName(name: string): Promise<number> {
   const status = await prisma.application_statuses.findFirst({
@@ -240,7 +288,11 @@ export async function getApplicationDetail(user: CurrentUser, applicationId: num
       tenders: true,
       directions: true,
       users: { select: { id: true, email: true, name: true, surname: true, patronymic: true } },
-      team_members: { where: { deleted_at: null }, orderBy: { id: 'asc' } },
+      team_members: {
+        where: { deleted_at: null },
+        orderBy: { id: 'asc' },
+        include: { consent_files: { where: { deleted_at: null }, select: { id: true } } },
+      },
       project_plans: { where: { deleted_at: null }, orderBy: { id: 'asc' } },
       project_budget: { where: { deleted_at: null }, orderBy: { id: 'asc' } },
       additional_materials: { where: { deleted_at: null }, orderBy: { id: 'asc' } },
@@ -303,6 +355,8 @@ export async function getApplicationDetail(user: CurrentUser, applicationId: num
       workExperience: member.work_experience,
       isAdult: member.is_adult,
       consentFilePath: member.consent_file_path,
+      hasConsent: member.consent_files.length > 0,
+      consentsCount: member.consent_files.length,
     })),
     projectPlans: application.project_plans.map((plan) => ({
       id: plan.id,
@@ -439,6 +493,15 @@ export async function deleteApplication(user: CurrentUser, applicationId: number
 
 export async function submitApplication(user: CurrentUser, applicationId: number) {
   await getApplicationForAccess(user, applicationId, 'submit');
+
+  const validation = await validateApplication(applicationId);
+  if (!validation.valid) {
+    throw httpError(
+      400,
+      `Заявка не прошла проверку: ${validation.issues.map((issue) => issue.message).join('; ')}`,
+      'APPLICATION_INVALID',
+    );
+  }
 
   const reviewStatusId = await requireStatusIdByName(APPLICATION_STATUS_NAMES.submitted);
 

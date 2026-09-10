@@ -9,6 +9,7 @@ import {
   DragDrop,
   Input,
   Modal,
+  Pagination,
   StateMessage,
   StatusBadge,
   Table,
@@ -21,6 +22,8 @@ import { formatDateTime } from '../../lib/format';
 import styles from './PostsPage.module.css';
 
 const POST_STATUS = { draft: 'draft', published: 'published' } as const;
+
+const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 
 const POST_STATUS_OPTIONS: readonly StatusOption<string>[] = [
   { value: POST_STATUS.draft, label: 'Черновик', tone: 'gray' },
@@ -206,6 +209,9 @@ function PostFormModal({
 
 export function PostsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -217,14 +223,15 @@ export function PostsPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await postsApi.list();
+      const response = await postsApi.list({ limit: pageSize, offset: (page - 1) * pageSize });
       setPosts(response.posts);
+      setTotal(response.total);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить посты');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, pageSize]);
 
   useEffect(() => {
     void load();
@@ -303,7 +310,17 @@ export function PostsPage() {
       ) : posts.length === 0 ? (
         <StateMessage state="empty" message="Постов пока нет" />
       ) : (
-        <Table columns={columns} data={posts} rowKey={(post) => post.id} />
+        <>
+          <Table columns={columns} data={posts} rowKey={(post) => post.id} />
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+          />
+        </>
       )}
 
       <PostFormModal open={creating} initial={null} onClose={() => setCreating(false)} onSaved={load} />

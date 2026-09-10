@@ -1,6 +1,7 @@
-// Маршруты приложения.
+// Маршруты приложения: публичная зона, личный кабинет, админ-раздел.
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { AdminLayout } from '../layouts/AdminLayout';
+import { AppLayout } from '../layouts/AppLayout';
+import { PublicLayout } from '../layouts/PublicLayout';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { UsersPage } from '../features/users/UsersPage';
@@ -12,12 +13,14 @@ import { TendersPage } from '../features/references/TendersPage';
 import { DirectionsPage } from '../features/references/DirectionsPage';
 import { StatusesPage } from '../features/references/StatusesPage';
 import { DesignSystemPage } from '../pages/DesignSystemPage/DesignSystemPage';
+import { HomePage } from '../pages/HomePage/HomePage';
+import { AboutPage } from '../pages/AboutPage';
+import { PrivacyPolicyPage } from '../pages/PrivacyPolicyPage';
 import { AccountPage } from '../pages/AccountPage';
 import { ForbiddenPage } from '../pages/ForbiddenPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { Roles } from '../lib/roles';
 import { ProtectedRoute } from './ProtectedRoute';
-import { HomeRedirect } from './HomeRedirect';
 
 export function AppRouter() {
   return (
@@ -26,20 +29,28 @@ export function AppRouter() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forbidden" element={<ForbiddenPage />} />
 
+      <Route element={<PublicLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+      </Route>
+
       <Route
         path="/account"
         element={
           <ProtectedRoute>
-            <AccountPage />
+            <AppLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<AccountPage />} />
+      </Route>
 
       <Route
         path="/admin"
         element={
           <ProtectedRoute roles={[Roles.admin]}>
-            <AdminLayout />
+            <AppLayout />
           </ProtectedRoute>
         }
       >
@@ -55,7 +66,6 @@ export function AppRouter() {
         <Route path="design-system" element={<DesignSystemPage />} />
       </Route>
 
-      <Route path="/" element={<HomeRedirect />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

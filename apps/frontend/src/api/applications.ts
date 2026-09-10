@@ -29,6 +29,17 @@ export interface TeamMember {
   education: string | null;
   workExperience: string | null;
   isAdult: boolean | null;
+  consentFilePath: string;
+  hasConsent: boolean;
+  consentsCount: number;
+}
+
+export interface ConsentFile {
+  id: number;
+  fileName: string | null;
+  fileType: string | null;
+  sizeBytes: number | null;
+  uploadedAt: string;
 }
 
 export interface ProjectPlan {
@@ -95,6 +106,19 @@ export interface ApplicationDetail {
   reviews: ApplicationReview[];
 }
 
+export type ApplicationValidationIssueCode = 'NO_MEMBERS' | 'NO_ADULT_COORDINATOR' | 'MISSING_CONSENT';
+
+export interface ApplicationValidationIssue {
+  code: ApplicationValidationIssueCode;
+  message: string;
+  teamMemberIds?: number[];
+}
+
+export interface ApplicationValidationResult {
+  valid: boolean;
+  issues: ApplicationValidationIssue[];
+}
+
 export interface ApplicationPayload {
   title: string;
   idea_description: string;
@@ -146,6 +170,7 @@ export const applicationsApi = {
     api.patch<{ application: ApplicationDetail }>(`/applications/${id}`, patch),
   remove: (id: number) => api.delete<{ ok: boolean }>(`/applications/${id}`),
   submit: (id: number) => api.post<{ application: ApplicationDetail }>(`/applications/${id}/submit`),
+  validation: (id: number) => api.get<ApplicationValidationResult>(`/applications/${id}/validation`),
 
   teamMembers: {
     create: (applicationId: number, payload: TeamMemberPayload) =>
@@ -184,5 +209,19 @@ export const applicationsApi = {
       api.delete<{ ok: boolean }>(`/applications/${applicationId}/files/${fileId}`),
     downloadUrl: (applicationId: number, fileId: number) =>
       `/api/applications/${applicationId}/files/${fileId}/download`,
+  },
+
+  consents: {
+    list: (applicationId: number, memberId: number) =>
+      api.get<{ consents: ConsentFile[] }>(`/applications/${applicationId}/team-members/${memberId}/consents`),
+    upload: (applicationId: number, memberId: number, file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return api.upload<{ consent: ConsentFile }>(`/applications/${applicationId}/team-members/${memberId}/consents`, formData);
+    },
+    remove: (applicationId: number, consentId: number) =>
+      api.delete<{ ok: boolean }>(`/applications/${applicationId}/consents/${consentId}`),
+    downloadUrl: (applicationId: number, consentId: number) =>
+      `/api/applications/${applicationId}/consents/${consentId}/download`,
   },
 };

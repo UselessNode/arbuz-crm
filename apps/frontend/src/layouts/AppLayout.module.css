@@ -19,6 +19,8 @@
   align-items: center;
   gap: var(--space-2);
   padding: 0 var(--space-2);
+  color: var(--color-text);
+  text-decoration: none;
 }
 
 .logo {
@@ -65,14 +67,29 @@
   min-width: 0;
 }
 
+/* Шапка: цвет зависит от роли пользователя (см. roleTheme.ts). */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-5);
-  background-color: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
+}
+
+.headerAdmin {
+  background-color: var(--tone-gray-bg);
+  color: var(--tone-gray-text);
+}
+
+.headerExpert {
+  background-color: var(--tone-green-bg);
+  color: var(--tone-green-text);
+}
+
+.headerApplicant {
+  background-color: var(--tone-blue-bg);
+  color: var(--tone-blue-text);
 }
 
 .headerTitle {
@@ -86,8 +103,8 @@
 }
 
 .userName {
-  color: var(--color-muted);
   font-size: 14px;
+  opacity: 0.85;
 }
 
 .content {

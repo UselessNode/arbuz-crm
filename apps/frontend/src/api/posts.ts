@@ -26,7 +26,13 @@ export interface PostPayload {
 }
 
 export const postsApi = {
-  list: () => api.get<{ posts: Post[] }>('/posts'),
+  list: (params?: { limit?: number; offset?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit !== undefined) query.set('limit', String(params.limit));
+    if (params?.offset !== undefined) query.set('offset', String(params.offset));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return api.get<{ posts: Post[]; total: number }>(`/posts${suffix}`);
+  },
   get: (id: number) => api.get<{ post: Post }>(`/posts/${id}`),
   create: (payload: PostPayload) => api.post<{ post: Post }>('/posts', payload),
   update: (id: number, payload: PostPayload) => api.patch<{ post: Post }>(`/posts/${id}`, payload),
