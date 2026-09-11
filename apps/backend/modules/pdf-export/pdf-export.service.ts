@@ -6,7 +6,7 @@ import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 import { log } from '../../lib/logger';
 import type { CurrentUser } from '../files/files.service';
-import { requireManageableApplication } from '../files/files.service';
+import { requireViewableApplication } from '../files/files.service';
 import { WORKER_JOB_ARG } from './constants';
 
 const workerPath = fileURLToPath(new URL('../../scripts/pdf-worker.ts', import.meta.url));
@@ -88,17 +88,18 @@ function runWorker(jobId: number): void {
 }
 
 export async function startExport(user: CurrentUser, applicationId: number): Promise<PdfExportJob> {
-  await requireManageableApplication(user, applicationId);
+  // PDF доступен всем, кто видит заявку: владелец, администратор, назначенный эксперт.
+  await requireViewableApplication(user, applicationId);
   const job = await prisma.pdf_export_jobs.create({ data: { application_id: applicationId, status: PdfExportStatus.pending } });
   log.audit('pdf-export.start', { userId: user.id, applicationId, jobId: job.id });
   runWorker(job.id);
   return serializeJob(job);
 }
 
-/** Возвращает задание с проверкой прав (владелец заявки или админ). */
+/** Возвращает задание с проверкой прав (владелец/админ/назначенный эксперт). */
 export async function getJobForUser(user: CurrentUser, jobId: number): Promise<PdfExportJob> {
   const job = await prisma.pdf_export_jobs.findUnique({ where: { id: jobId } });
   if (!job) throw httpError(404, 'Задание не найдено', 'PDF_JOB_NOT_FOUND');
-  await requireManageableApplication(user, job.application_id);
+  await requireViewableApplication(user, job.application_id);
   return serializeJob(job);
 }

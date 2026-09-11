@@ -29,6 +29,12 @@ export interface ExportBudgetItem {
   comment: string | null;
 }
 
+export interface ExportMaterial {
+  file_name: string;
+  file_type: string | null;
+  file_bytes_size: number | null;
+}
+
 export interface ExportApplicationData {
   id: number;
   title: string;
@@ -44,6 +50,7 @@ export interface ExportApplicationData {
   team: ExportTeamMember[];
   plans: ExportPlanItem[];
   budget: ExportBudgetItem[];
+  materials: ExportMaterial[];
 }
 
 interface PdfFonts {
@@ -147,8 +154,17 @@ export function buildPdfDefinition(data: ExportApplicationData): DocNode {
   }
 
   content.push(sectionTitle(9, 'Дополнительные материалы'));
-  // Файлы к заявке (имена) загружаются отдельно; в выгрузку добавим позже при синхронизации с UI.
-  content.push(paragraph('—'));
+  if (data.materials.length === 0) {
+    content.push(paragraph('—'));
+  } else {
+    data.materials.forEach((material) => {
+      const size =
+        material.file_bytes_size === null || material.file_bytes_size === undefined
+          ? ''
+          : ` — ${Math.max(1, Math.round(Number(material.file_bytes_size) / 1024))} КБ`;
+      content.push({ text: `• ${material.file_name}${size}`, style: 'body' });
+    });
+  }
 
   // Таблица бюджета.
   content.push({ text: 'Бюджет проекта', style: 'h2' });

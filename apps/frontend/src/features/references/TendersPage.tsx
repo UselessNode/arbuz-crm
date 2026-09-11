@@ -1,6 +1,7 @@
-// Справочник «Тендеры» (конкурсы) + критерии оценивания.
+// Справочник «Конкурсы» (тендеры) + критерии оценивания, история и «опасная зона».
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
+  Badge,
   Button,
   ConfirmDialog,
   Container,
@@ -12,24 +13,41 @@ import {
   useToast,
 } from '../../components/ui';
 import type { TableColumn } from '../../components/ui';
-import { criteriaApi, tendersApi, type Criterion, type Tender } from '../../api/references';
+import {
+  criteriaApi,
+  tendersApi,
+  type Criterion,
+  type CriterionHistoryEntry,
+  type Tender,
+} from '../../api/references';
 import { ApiError } from '../../api/client';
+import { formatDateTime } from '../../lib/format';
 import styles from './References.module.css';
+
+const HISTORY_ACTIONS: Record<string, string> = {
+  created: 'Создан',
+  updated: 'Изменён',
+  deleted: 'Удалён',
+  reset: 'Сброс заявок',
+};
 
 function TenderFormModal({
   open,
   initial,
   onClose,
   onSaved,
+  onExpertsCountChanged,
 }: {
   open: boolean;
   initial: Tender | null;
   onClose: () => void;
   onSaved: () => Promise<void>;
+  onExpertsCountChanged?: (tender: Tender) => void;
 }) {
   const toast = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [expertsCount, setExpertsCount] = useState(2);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -37,6 +55,7 @@ function TenderFormModal({
     if (!open) return;
     setName(initial?.name ?? '');
     setDescription(initial?.description ?? '');
+    setExpertsCount(initial?.expertsCount ?? 2);
     setError(null);
   }, [open, initial]);
 
@@ -45,12 +64,19 @@ function TenderFormModal({
     setError(null);
     setSaving(true);
     try {
-      const payload = { name: name.trim(), description: description.trim() || null };
-      if (initial) await tendersApi.update(initial.id, payload);
-      else await tendersApi.create(payload);
-      await onSaved();
-      toast.showToast({ message: 'Сохранено', tone: 'success' });
-      onClose();
+      const payload = { name: name.trim(), description: description.trim() || null, experts_count: expertsCount };
+      if (initial) {
+        const response = await tendersApi.update(initial.id, payload);
+        await onSaved();
+        toast.showToast({ message: 'Конкурс сохранён', tone: 'success' });
+        onClose();
+        if (initial.expertsCount !== response.tender.expertsCount) onExpertsCountChanged?.(response.tender);
+      } else {
+        await tendersApi.create(payload);
+        await onSaved();
+        toast.showToast({ message: 'Конкурс создан', tone: 'success' });
+        onClose();
+      }
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить');
     } finally {
@@ -59,10 +85,18 @@ function TenderFormModal({
   };
 
   return (
-    <Modal open={open} title={initial ? 'Редактировать тендер' : 'Новый тендер'} onClose={onClose} width={480}>
+    <Modal open={open} title={initial ? 'Редактировать конкурс' : 'Новый конкурс'} onClose={onClose} width={480}>
       <form className={styles.form} onSubmit={handleSubmit}>
         <Input label="Название" value={name} onChange={(e) => setName(e.target.value)} required />
         <Input label="Описание" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <NumberInput
+          label="Число экспертов на заявку"
+          value={expertsCount}
+          onChange={setExpertsCount}
+          min={1}
+          max={20}
+          step={1}
+        />
         {error ? <div className={styles.error}>{error}</div> : null}
         <div className={styles.formActions}>
           <Button variant="secondary" type="button" onClick={onClose} disabled={saving}>
@@ -77,7 +111,109 @@ function TenderFormModal({
   );
 }
 
-function CriteriaModal({ tender, onClose }: { tender: Tender | null; onClose: () => void }) {
+/** «Опасная зона»: двойное предупреждение перед сбросом заявок конкурса. */
+function TenderResetDialog({
+  tender,
+  reason,
+  onClose,
+  onDone,
+}: {
+  tender: Tender | null;
+  reason: string;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const toast = useToast();
+  const [step, setStep] = useState<1 | 2>(1);
+  const [impact, setImpact] = useState<{ applications: number; reviews: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!tender) return;
+    setStep(1);
+    setError(null);
+    setLoading(true);
+    tendersApi
+      .impact(tender.id)
+      .then((response) => setImpact(response))
+      .catch((caught) => setError(caught instanceof ApiError ? caught.message : 'Не удалось оценить последствия'))
+      .finally(() => setLoading(false));
+  }, [tender]);
+
+  const handleReset = async () => {
+    if (!tender) return;
+    setResetting(true);
+    setError(null);
+    try {
+      const result = await tendersApi.resetApplications(tender.id);
+      await onDone();
+      toast.showToast({
+        message: `Сброшено: ${result.applications} заявок, ${result.reviews} экспертиз`,
+        tone: 'success',
+      });
+      onClose();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Не удалось сбросить заявки');
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  return (
+    <Modal open={tender !== null} title="Опасная зона: сброс заявок конкурса" onClose={onClose} width={520}>
+      <div className={styles.danger}>
+        <strong>Внимание!</strong> {reason}
+      </div>
+
+      {step === 1 ? (
+        <>
+          <p className={styles.dangerText}>
+            Все заявки этого конкурса будут переведены в статус «Черновик», а назначенные экспертизы —
+            сняты. Заявителям придётся отправить заявки повторно, экспертам — оценить их заново.
+          </p>
+          <p className={styles.dangerText}>Действие необратимо. Продолжить?</p>
+          {error ? <div className={styles.error}>{error}</div> : null}
+          <div className={styles.formActions}>
+            <Button variant="secondary" onClick={onClose} disabled={resetting}>
+              Отмена
+            </Button>
+            <Button variant="danger" icon="warning" disabled={loading} onClick={() => setStep(2)}>
+              Продолжить
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className={styles.dangerText}>Подтвердите повторно. Будет затронуто:</p>
+          <p className={styles.dangerCounts}>
+            {loading ? 'Подсчёт…' : `Заявок: ${impact?.applications ?? 0}, экспертиз: ${impact?.reviews ?? 0}`}
+          </p>
+          {error ? <div className={styles.error}>{error}</div> : null}
+          <div className={styles.formActions}>
+            <Button variant="secondary" onClick={() => setStep(1)} disabled={resetting}>
+              Назад
+            </Button>
+            <Button variant="danger" icon="warning" loading={resetting} onClick={() => void handleReset()}>
+              Сбросить заявки
+            </Button>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+function CriteriaModal({
+  tender,
+  onClose,
+  onChanged,
+}: {
+  tender: Tender | null;
+  onClose: () => void;
+  onChanged: (reason: string) => void;
+}) {
   const toast = useToast();
   const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +224,8 @@ function CriteriaModal({ tender, onClose }: { tender: Tender | null; onClose: ()
   const [maxValue, setMaxValue] = useState(10);
   const [weight, setWeight] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState<CriterionHistoryEntry[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const load = useCallback(async () => {
     if (!tender) return;
@@ -106,6 +244,21 @@ function CriteriaModal({ tender, onClose }: { tender: Tender | null; onClose: ()
   useEffect(() => {
     void load();
   }, [load]);
+
+  const toggleHistory = async () => {
+    if (!tender) return;
+    if (showHistory) {
+      setShowHistory(false);
+      return;
+    }
+    try {
+      const response = await criteriaApi.history(tender.id);
+      setHistory(response.history);
+      setShowHistory(true);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить историю');
+    }
+  };
 
   const resetForm = () => {
     setEditing(null);
@@ -126,7 +279,8 @@ function CriteriaModal({ tender, onClose }: { tender: Tender | null; onClose: ()
       else await criteriaApi.create(tender.id, payload);
       resetForm();
       await load();
-      toast.showToast({ message: 'Сохранено', tone: 'success' });
+      toast.showToast({ message: 'Критерий сохранён', tone: 'success' });
+      onChanged(editing ? 'Критерий изменён.' : 'Добавлен новый критерий.');
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить критерий');
     } finally {
@@ -139,7 +293,8 @@ function CriteriaModal({ tender, onClose }: { tender: Tender | null; onClose: ()
     try {
       await criteriaApi.remove(tender.id, criterion.id);
       await load();
-      toast.showToast({ message: 'Удалено', tone: 'success' });
+      toast.showToast({ message: 'Критерий удалён', tone: 'success' });
+      onChanged('Критерий удалён.');
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить критерий');
     }
@@ -185,10 +340,33 @@ function CriteriaModal({ tender, onClose }: { tender: Tender | null; onClose: ()
         />
       )}
 
+      <div className={styles.sectionGap}>
+        <Button size="sm" variant="secondary" icon="clock" onClick={() => void toggleHistory()}>
+          {showHistory ? 'Скрыть историю' : 'История изменений'}
+        </Button>
+        {showHistory ? (
+          history.length === 0 ? (
+            <p className={styles.hintGap}>Изменений пока не было.</p>
+          ) : (
+            <div className={styles.historyList}>
+              {history.map((entry) => (
+                <div key={entry.id} className={styles.historyRow}>
+                  <Badge tone={entry.action === 'reset' ? 'red' : 'neutral'}>
+                    {HISTORY_ACTIONS[entry.action] ?? entry.action}
+                  </Badge>
+                  <span>{entry.name}</span>
+                  <span className={styles.historyMeta}>{formatDateTime(entry.changedAt)}</span>
+                </div>
+              ))}
+            </div>
+          )
+        ) : null}
+      </div>
+
       <form className={`${styles.form} ${styles.sectionGap}`} onSubmit={handleSubmit}>
         <div className={styles.grid2}>
           <Input label="Название критерия" value={name} onChange={(e) => setName(e.target.value)} required />
-          <NumberInput label="Вес" value={weight} onChange={setWeight} min={0} step={0.5} />
+          <NumberInput label="Вес" value={weight} onChange={setWeight} min={0.5} step={0.5} />
         </div>
         <div className={styles.grid2}>
           <NumberInput label="Мин. значение" value={minValue} onChange={setMinValue} step={1} />
@@ -219,6 +397,7 @@ export function TendersPage() {
   const [deleting, setDeleting] = useState<Tender | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [criteriaFor, setCriteriaFor] = useState<Tender | null>(null);
+  const [resetRequest, setResetRequest] = useState<{ tender: Tender; reason: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -227,7 +406,7 @@ export function TendersPage() {
       const response = await tendersApi.list();
       setTenders(response.tenders);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить тендеры');
+      setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить конкурсы');
     } finally {
       setLoading(false);
     }
@@ -244,9 +423,9 @@ export function TendersPage() {
       await tendersApi.remove(deleting.id);
       setDeleting(null);
       await load();
-      toast.showToast({ message: 'Удалено', tone: 'success' });
+      toast.showToast({ message: 'Конкурс удалён', tone: 'success' });
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить тендер');
+      setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить конкурс');
     } finally {
       setDeleteSaving(false);
     }
@@ -255,15 +434,23 @@ export function TendersPage() {
   const columns: TableColumn<Tender>[] = [
     { key: 'name', header: 'Название', field: 'name' },
     { key: 'description', header: 'Описание', render: (t) => t.description ?? '—' },
+    { key: 'experts', header: 'Экспертов на заявку', width: '170px', render: (t) => t.expertsCount },
     {
       key: 'actions',
       header: '',
-      width: '150px',
+      width: '230px',
       render: (t) => (
         <div className={styles.actions}>
           <Button size="sm" variant="secondary" icon="settings" onClick={() => setCriteriaFor(t)}>
             Критерии
           </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon="warning"
+            aria-label="Сбросить заявки конкурса"
+            onClick={() => setResetRequest({ tender: t, reason: 'Сброс инициирован вручную.' })}
+          />
           <Button size="sm" variant="ghost" icon="edit" aria-label="Изменить" onClick={() => setEditing(t)} />
           <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => setDeleting(t)} />
         </div>
@@ -273,7 +460,7 @@ export function TendersPage() {
 
   return (
     <Container
-      title="Тендеры (конкурсы)"
+      title="Конкурсы"
       actions={
         <Button icon="add" onClick={() => setCreating(true)}>
           Добавить
@@ -285,18 +472,45 @@ export function TendersPage() {
       ) : error ? (
         <StateMessage state="error" message={error} onRetry={() => void load()} />
       ) : tenders.length === 0 ? (
-        <StateMessage state="empty" message="Тендеры не найдены" />
+        <StateMessage state="empty" message="Конкурсы не найдены" />
       ) : (
         <Table columns={columns} data={tenders} rowKey={(t) => t.id} />
       )}
 
-      <TenderFormModal open={creating} initial={null} onClose={() => setCreating(false)} onSaved={load} />
-      <TenderFormModal open={editing !== null} initial={editing} onClose={() => setEditing(null)} onSaved={load} />
-      <CriteriaModal tender={criteriaFor} onClose={() => setCriteriaFor(null)} />
+      <TenderFormModal
+        open={creating}
+        initial={null}
+        onClose={() => setCreating(false)}
+        onSaved={load}
+      />
+      <TenderFormModal
+        open={editing !== null}
+        initial={editing}
+        onClose={() => setEditing(null)}
+        onSaved={load}
+        onExpertsCountChanged={(tender) =>
+          setResetRequest({ tender, reason: 'Изменено число экспертов на заявку.' })
+        }
+      />
+      <CriteriaModal
+        tender={criteriaFor}
+        onClose={() => setCriteriaFor(null)}
+        onChanged={(reason) => {
+          const tender = criteriaFor;
+          setCriteriaFor(null);
+          if (tender) setResetRequest({ tender, reason });
+        }}
+      />
+      <TenderResetDialog
+        tender={resetRequest?.tender ?? null}
+        reason={resetRequest?.reason ?? ''}
+        onClose={() => setResetRequest(null)}
+        onDone={load}
+      />
       <ConfirmDialog
         open={deleting !== null}
-        title="Удаление тендера"
-        message={`Удалить тендер «${deleting?.name ?? ''}»?`}
+        title="Удаление конкурса"
+        message={`Удалить конкурс «${deleting?.name ?? ''}»?`}
         confirmLabel="Удалить"
         danger
         loading={deleteSaving}

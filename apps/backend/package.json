@@ -1,7 +1,7 @@
 {
   "name": "@arbuz/backend",
   "private": true,
-  "version": "1.13.0",
+  "version": "1.14.0",
   "type": "module",
   "scripts": {
     "dev": "bun --watch index.ts",

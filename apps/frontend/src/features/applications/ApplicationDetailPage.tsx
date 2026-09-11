@@ -19,6 +19,7 @@ import { ApiError } from '../../api/client';
 import { formatDateTime, formatUserName } from '../../lib/format';
 import { ApplicationFormModal } from './ApplicationFormModal';
 import { ApplicationValidationDialog } from './ApplicationValidationDialog';
+import { PdfExportButton } from './PdfExportButton';
 import { TeamMembersSection } from './TeamMembersSection';
 import { PlansSection } from './PlansSection';
 import { BudgetSection } from './BudgetSection';
@@ -205,6 +206,7 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
         title={application.title}
         actions={
           <>
+            <PdfExportButton applicationId={application.id} />
             {canSubmit ? (
               <Button icon="check" loading={submitting} onClick={() => void handleStartSubmit()}>
                 Отправить на проверку
@@ -279,7 +281,13 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
 
           <AccordionItem itemKey="reviews" title={`Рецензии (${application.reviews.length})`}>
             {isExpertArea ? <ExpertEvaluationSection application={application} onChanged={load} /> : null}
-            <ReviewsSection applicationId={application.id} reviews={application.reviews} canManage={isAdmin} onChanged={load} />
+            <ReviewsSection
+              applicationId={application.id}
+              reviews={application.reviews}
+              canManage={isAdmin}
+              requiredExperts={application.tender?.expertsCount}
+              onChanged={load}
+            />
           </AccordionItem>
         </Accordion>
       </Container>

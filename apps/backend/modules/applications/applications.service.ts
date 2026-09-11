@@ -322,7 +322,9 @@ export async function getApplicationDetail(user: CurrentUser, applicationId: num
           patronymic: application.users.patronymic,
         }
       : null,
-    tender: application.tenders ? { id: application.tenders.id, name: application.tenders.name } : null,
+    tender: application.tenders
+      ? { id: application.tenders.id, name: application.tenders.name, expertsCount: application.tenders.experts_count }
+      : null,
     direction: application.directions ? { id: application.directions.id, name: application.directions.name } : null,
     status: application.application_statuses
       ? {

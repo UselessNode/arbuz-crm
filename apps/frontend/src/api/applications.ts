@@ -87,7 +87,7 @@ export interface ApplicationDetail {
   title: string;
   ownerId: number | null;
   owner: { id: number; email: string; name: string | null; surname: string | null; patronymic: string | null } | null;
-  tender: { id: number; name: string } | null;
+  tender: { id: number; name: string; expertsCount: number } | null;
   direction: { id: number; name: string } | null;
   status: { id: number; name: string; isEditable: boolean | null; isDeletable: boolean | null } | null;
   ideaDescription: string;

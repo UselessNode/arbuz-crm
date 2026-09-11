@@ -69,8 +69,11 @@ GET-эндпоинты (конкурсы, направления, статусы
 
 | Метод | Путь | Запрос |
 |---|---|---|
-| GET/POST | `/api/tenders` | `{ name, description? }` |
-| GET/PATCH/DELETE | `/api/tenders/:id` | `{ name?, description? }` |
+| GET/POST | `/api/tenders` | `{ name, description?, experts_count? }` |
+| GET/PATCH/DELETE | `/api/tenders/:id` | `{ name?, description?, experts_count? }` |
+| GET | `/api/tenders/:id/impact` | admin — `{ applications, reviews }` (последствия сброса) |
+| POST | `/api/tenders/:id/reset-applications` | admin — заявки → «Черновик», экспертизы снимаются |
+| GET | `/api/tenders/:id/criteria-history` | история изменений критериев |
 | GET/POST | `/api/tenders/:id/criteria` | `{ name, description?, min_value?, max_value?, weight?, config? }` |
 | PATCH/DELETE | `/api/tenders/:id/criteria/:criterionId` | те же поля частично |
 | GET/POST | `/api/directions` (`?tenderId=`) | `{ name, description?, tender_id? }` |
@@ -126,6 +129,14 @@ GET-эндпоинты (конкурсы, направления, статусы
 ## Изменения 1.11.0 (MVP-1.1)
 
 - Публикации редактируются в WYSIWYG (`@mdxeditor/editor`); серверный `POST /api/posts/preview` удалён.
+
+## Изменения 1.14.0 (MVP-3.1 + MVP-4)
+
+- `tenders.experts_count` (default 2); `GET /api/tenders/:id/impact`;
+  `POST /api/tenders/:id/reset-applications`; `GET /api/tenders/:id/criteria-history`.
+- Критерии: валидация `min_value <= max_value`, `weight > 0`; изменения пишутся в историю.
+- PDF-экспорт доступен назначенному эксперту; в PDF добавлен список материалов.
+- Деталь заявки: `tender.expertsCount`.
 
 ## Изменения 1.13.0 (MVP-3, часть A)
 

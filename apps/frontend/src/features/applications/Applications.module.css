@@ -164,3 +164,9 @@
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: var(--space-3);
 }
+
+.expertsProgress {
+  margin-bottom: var(--space-3);
+  font-size: 13px;
+  color: var(--color-muted);
+}

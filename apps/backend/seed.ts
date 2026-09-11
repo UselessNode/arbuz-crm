@@ -1,7 +1,7 @@
 // Начальное наполнение БД для разработки:
 //  1) администратор из env ADMIN_EMAIL / ADMIN_PASSWORD (обязательно);
-//  2) при SEED_DEMO=true — демо-заявитель, демо-заявка и участник команды
-//     (чтобы можно было проверить загрузку файлов и согласий).
+//  2) при SEED_DEMO=true — демо-заявитель, демо-эксперт, демо-конкурс с критериями,
+//     демо-заявка и участник команды (для проверки экспертизы, файлов и PDF).
 import { RoleType } from '@arbuz/shared';
 import { prisma } from './lib/prisma';
 import { hashPassword } from './modules/auth/auth.service';
@@ -31,6 +31,33 @@ async function ensureStatuses(): Promise<number> {
     throw new Error(`[seed] Статус «${APPLICATION_STATUS_NAMES.draft}» не найден в справочнике статусов`);
   }
   return draft.id;
+}
+
+/** Демо-конкурс с критериями (для проверки экспертизы и PDF). */
+async function ensureTender(): Promise<number> {
+  const existing = await prisma.tenders.findFirst({
+    where: { deleted_at: null },
+    orderBy: { id: 'asc' },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const tender = await prisma.tenders.create({
+    data: {
+      name: '2026 — Демонстрационный конкурс',
+      description: 'Демо-конкурс для проверки экспертизы, критериев и выгрузки PDF',
+      experts_count: 2,
+    },
+  });
+  await prisma.evaluation_criteria.createMany({
+    data: [
+      { tender_id: tender.id, name: 'Актуальность', description: 'Важность проекта для сообщества', min_value: 0, max_value: 10, weight: 1 },
+      { tender_id: tender.id, name: 'Проработанность', description: 'Детализация плана и бюджета', min_value: 0, max_value: 10, weight: 1.5 },
+      { tender_id: tender.id, name: 'Реализуемость', description: 'Реалистичность сроков и ресурсов', min_value: 0, max_value: 10, weight: 1 },
+    ],
+  });
+  log.info('seed: создан демо-конкурс с критериями', { id: tender.id });
+  return tender.id;
 }
 
 async function ensureUser(email: string, password: string, role: RoleType) {
@@ -63,6 +90,8 @@ async function main(): Promise<void> {
   const demoEmail = process.env.DEMO_EMAIL ?? 'demo@arbuz.local';
   const demoPassword = process.env.DEMO_PASSWORD ?? 'demo12345';
   const applicant = await ensureUser(demoEmail, demoPassword, RoleType.applicant);
+  await ensureUser(process.env.EXPERT_EMAIL ?? 'expert@arbuz.local', process.env.EXPERT_PASSWORD ?? 'expert12345', RoleType.expert);
+  const tenderId = await ensureTender();
 
   const existingApp = await prisma.applications.findFirst({
     where: { owner_id: applicant.id },
@@ -71,6 +100,12 @@ async function main(): Promise<void> {
   let application;
   if (existingApp) {
     application = await prisma.applications.findUnique({ where: { id: existingApp.id } });
+    if (application && !application.tender_id) {
+      application = await prisma.applications.update({
+        where: { id: application.id },
+        data: { tender_id: tenderId },
+      });
+    }
     log.info('seed: демо-заявка уже существует', { id: application?.id });
   } else {
     application = await prisma.applications.create({
@@ -78,6 +113,7 @@ async function main(): Promise<void> {
         owner_id: applicant.id,
         title: 'Демо-заявка',
         status_id: draftStatusId,
+        tender_id: tenderId,
         idea_description: 'Описание идеи (демо).',
         importance_to_team: 'Значимость для команды (демо).',
         project_goal: 'Цель проекта (демо).',

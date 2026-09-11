@@ -30,6 +30,7 @@ async function loadApplicationData(applicationId: number): Promise<ExportApplica
       team_members: { where: { deleted_at: null }, orderBy: { id: 'asc' } },
       project_plans: { where: { deleted_at: null }, orderBy: { id: 'asc' } },
       project_budget: { where: { deleted_at: null }, orderBy: { id: 'asc' } },
+      additional_materials: { where: { deleted_at: null }, orderBy: { id: 'asc' } },
     },
   });
   if (!application || application.deleted_at) return null;
@@ -64,6 +65,11 @@ async function loadApplicationData(applicationId: number): Promise<ExportApplica
       own_funds: b.own_funds === null ? null : Number(b.own_funds),
       grant_funds: b.grant_funds === null ? null : Number(b.grant_funds),
       comment: b.comment,
+    })),
+    materials: application.additional_materials.map((m) => ({
+      file_name: m.file_name,
+      file_type: m.file_type,
+      file_bytes_size: m.file_bytes_size === null ? null : Number(m.file_bytes_size),
     })),
   };
 }

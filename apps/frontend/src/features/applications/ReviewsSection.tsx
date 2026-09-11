@@ -14,10 +14,12 @@ interface Props {
   reviews: ApplicationReview[];
   /** Управление экспертами доступно только администратору. */
   canManage?: boolean;
+  /** Сколько экспертов требуется по условиям конкурса. */
+  requiredExperts?: number;
   onChanged: () => Promise<void>;
 }
 
-export function ReviewsSection({ applicationId, reviews, canManage = true, onChanged }: Props) {
+export function ReviewsSection({ applicationId, reviews, canManage = true, requiredExperts, onChanged }: Props) {
   const [experts, setExperts] = useState<ExpertItem[]>([]);
   const [selectedExpert, setSelectedExpert] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +86,12 @@ export function ReviewsSection({ applicationId, reviews, canManage = true, onCha
             options={expertOptions}
             disabled={busy}
           />
+        </div>
+      ) : null}
+      {canManage && requiredExperts !== undefined ? (
+        <div className={styles.expertsProgress}>
+          Назначено экспертов: <strong>{reviews.length}</strong> из {requiredExperts}
+          {reviews.length < requiredExperts ? ' — требуется назначить ещё' : ''}
         </div>
       ) : null}
       {error ? <div className={styles.error}>{error}</div> : null}

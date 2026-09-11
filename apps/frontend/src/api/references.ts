@@ -4,6 +4,7 @@ export interface Tender {
   id: number;
   name: string;
   description: string | null;
+  expertsCount: number;
 }
 
 export interface Criterion {
@@ -35,6 +36,19 @@ export interface ApplicationStatus {
 export interface TenderPayload {
   name: string;
   description: string | null;
+  experts_count?: number;
+}
+
+export interface CriterionHistoryEntry {
+  id: number;
+  criterionId: number | null;
+  action: string;
+  name: string;
+  minValue: number | null;
+  maxValue: number | null;
+  weight: number | null;
+  changedBy: number | null;
+  changedAt: string;
 }
 
 export interface CriterionPayload {
@@ -63,10 +77,16 @@ export const tendersApi = {
   create: (payload: TenderPayload) => api.post<{ tender: Tender }>('/tenders', payload),
   update: (id: number, payload: TenderPayload) => api.patch<{ tender: Tender }>(`/tenders/${id}`, payload),
   remove: (id: number) => api.delete<{ ok: boolean }>(`/tenders/${id}`),
+  /** Сколько заявок/экспертиз затронет сброс по конкурсу («опасная зона»). */
+  impact: (id: number) => api.get<{ applications: number; reviews: number }>(`/tenders/${id}/impact`),
+  /** Сброс заявок конкурса в «черновик» и снятие экспертиз. */
+  resetApplications: (id: number) =>
+    api.post<{ ok: boolean; applications: number; reviews: number }>(`/tenders/${id}/reset-applications`),
 };
 
 export const criteriaApi = {
   list: (tenderId: number) => api.get<{ criteria: Criterion[] }>(`/tenders/${tenderId}/criteria`),
+  history: (tenderId: number) => api.get<{ history: CriterionHistoryEntry[] }>(`/tenders/${tenderId}/criteria-history`),
   create: (tenderId: number, payload: CriterionPayload) =>
     api.post<{ criterion: Criterion }>(`/tenders/${tenderId}/criteria`, payload),
   update: (tenderId: number, id: number, payload: CriterionPayload) =>
