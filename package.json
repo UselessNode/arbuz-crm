@@ -26,6 +26,7 @@
     "db:generate": "dotenv -e .env -- prisma generate",
     "db:migrate": "dotenv -e .env -- prisma migrate dev",
     "/* === НАЧАЛЬНОЕ НАПОЛНЕНИЕ И ОБСЛУЖИВАНИЕ === */": "",
+    "db:reset": "dotenv -e .env -- bun --cwd apps/backend db:reset",
     "seed": "dotenv -e .env -- bun --cwd apps/backend seed",
     "storage:cleanup": "dotenv -e .env -- bun --cwd apps/backend storage:cleanup"
   },

@@ -31,7 +31,7 @@
 - `bun dev` — frontend + backend вместе; `bun dev:backend` (порт 3000), `bun dev:frontend` (5173).
 - `bun typecheck` — shared → backend → frontend. `bun run build` — typecheck + сборка (именно `run`, т.к. `bun build` — встроенный bundler).
 - `bun db:generate` / `bun db:push` / `bun db:update` / `bun db:migrate`.
-- `bun seed` / `bun storage:cleanup`.
+- `bun seed` (тестовые данные; `SEED_DEMO=false` — только админ), `bun db:reset` (очистка данных, только dev), `bun storage:cleanup`.
 - Bun лежит в `C:\Users\Reloya\.bun\bin` (в PATH).
 
 ## Договорённости / версионирование
