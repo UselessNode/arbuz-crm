@@ -161,11 +161,23 @@ export interface BudgetPayload {
   comment?: string | null;
 }
 
+export interface ApplicationListParams {
+  limit: number;
+  offset: number;
+  /** Поиск по названию заявки и заявителю. */
+  search?: string;
+  statusId?: number;
+  tenderId?: number;
+}
+
 export const applicationsApi = {
-  list: (params: { limit: number; offset: number }) =>
-    api.get<{ applications: ApplicationSummary[]; total: number }>(
-      `/applications?limit=${params.limit}&offset=${params.offset}`,
-    ),
+  list: (params: ApplicationListParams) => {
+    const query = new URLSearchParams({ limit: String(params.limit), offset: String(params.offset) });
+    if (params.search) query.set('q', params.search);
+    if (params.statusId) query.set('status_id', String(params.statusId));
+    if (params.tenderId) query.set('tender_id', String(params.tenderId));
+    return api.get<{ applications: ApplicationSummary[]; total: number }>(`/applications?${query.toString()}`);
+  },
   get: (id: number) => api.get<{ application: ApplicationDetail }>(`/applications/${id}`),
   create: (payload: ApplicationPayload) => api.post<{ application: ApplicationDetail }>('/applications', payload),
   update: (id: number, patch: Partial<ApplicationPayload> & { status_id?: number }) =>

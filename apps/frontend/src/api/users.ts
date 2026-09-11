@@ -4,6 +4,8 @@ import type { UserListItem } from './types';
 
 export interface UserListParams {
   role?: RoleType;
+  /** Поиск по ФИО и email. */
+  search?: string;
   limit: number;
   offset: number;
 }
@@ -37,6 +39,7 @@ export const usersApi = {
   list(params: UserListParams) {
     const query = new URLSearchParams({ limit: String(params.limit), offset: String(params.offset) });
     if (params.role) query.set('role', params.role);
+    if (params.search) query.set('q', params.search);
     return api.get<{ users: UserListItem[]; total: number }>(`/users?${query.toString()}`);
   },
   create(payload: UserPayload) {

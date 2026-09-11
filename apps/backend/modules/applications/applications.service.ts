@@ -101,14 +101,38 @@ export async function getApplicationForAccess(
 
 export async function listApplications(
   user: CurrentUser,
-  filter: { limit: number; offset: number },
+  filter: { limit: number; offset: number; search?: string; statusId?: number; tenderId?: number },
 ): Promise<{ applications: unknown[]; total: number }> {
-  const where =
+  const accessWhere =
     user.role === RoleType.admin
-      ? { deleted_at: null }
+      ? {}
       : user.role === RoleType.expert
-        ? { deleted_at: null, application_reviews: { some: { expert_id: user.id, deleted_at: null } } }
-        : { deleted_at: null, owner_id: user.id };
+        ? { application_reviews: { some: { expert_id: user.id, deleted_at: null } } }
+        : { owner_id: user.id };
+
+  const where = {
+    deleted_at: null,
+    ...accessWhere,
+    ...(filter.statusId ? { status_id: filter.statusId } : {}),
+    ...(filter.tenderId ? { tender_id: filter.tenderId } : {}),
+    ...(filter.search
+      ? {
+          OR: [
+            { title: { contains: filter.search, mode: 'insensitive' as const } },
+            {
+              users: {
+                OR: [
+                  { surname: { contains: filter.search, mode: 'insensitive' as const } },
+                  { name: { contains: filter.search, mode: 'insensitive' as const } },
+                  { patronymic: { contains: filter.search, mode: 'insensitive' as const } },
+                  { email: { contains: filter.search, mode: 'insensitive' as const } },
+                ],
+              },
+            },
+          ],
+        }
+      : {}),
+  };
 
   const [rows, total] = await Promise.all([
     prisma.applications.findMany({

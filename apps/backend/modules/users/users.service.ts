@@ -77,10 +77,20 @@ function userSelect() {
   } as const;
 }
 
-export async function listUsers(filter: { role?: RoleType; limit: number; offset: number }) {
+export async function listUsers(filter: { role?: RoleType; search?: string; limit: number; offset: number }) {
   const where = {
     deleted_at: null,
     ...(filter.role ? { role: filter.role } : {}),
+    ...(filter.search
+      ? {
+          OR: [
+            { email: { contains: filter.search, mode: 'insensitive' as const } },
+            { surname: { contains: filter.search, mode: 'insensitive' as const } },
+            { name: { contains: filter.search, mode: 'insensitive' as const } },
+            { patronymic: { contains: filter.search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {}),
   };
   const [users, total] = await Promise.all([
     prisma.users.findMany({ where, orderBy: { id: 'asc' }, skip: filter.offset, take: filter.limit, select: userSelect() }),

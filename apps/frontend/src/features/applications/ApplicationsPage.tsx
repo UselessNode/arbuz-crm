@@ -1,10 +1,10 @@
 // Список заявок (админ).
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge, Button, Container, Pagination, StateMessage, StatusBadge, Table } from '../../components/ui';
-import type { StatusOption, TableColumn } from '../../components/ui';
+import { Badge, Button, Container, ListToolbar, Pagination, SearchInput, Select, StateMessage, StatusBadge, Table } from '../../components/ui';
+import type { SelectOption, StatusOption, TableColumn } from '../../components/ui';
 import { applicationsApi, type ApplicationSummary } from '../../api/applications';
-import { statusesApi } from '../../api/references';
+import { statusesApi, tendersApi } from '../../api/references';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
 import { ApplicationFormModal } from './ApplicationFormModal';
@@ -16,9 +16,13 @@ export function ApplicationsPage() {
   const navigate = useNavigate();
   const [applications, setApplications] = useState<ApplicationSummary[]>([]);
   const [statusOptions, setStatusOptions] = useState<readonly StatusOption<string>[]>([]);
+  const [tenderOptions, setTenderOptions] = useState<readonly SelectOption<string>[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [tenderFilter, setTenderFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -27,20 +31,28 @@ export function ApplicationsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [response, statuses] = await Promise.all([
-        applicationsApi.list({ limit: pageSize, offset: (page - 1) * pageSize }),
+      const [response, statuses, tenders] = await Promise.all([
+        applicationsApi.list({
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
+          search: search || undefined,
+          statusId: statusFilter ? Number(statusFilter) : undefined,
+          tenderId: tenderFilter ? Number(tenderFilter) : undefined,
+        }),
         statusesApi.list(),
+        tendersApi.list(),
       ]);
       setApplications(response.applications);
       setTotal(response.total);
       // Статусы заявок — редактируемый справочник; метки и идентификаторы берём с сервера.
       setStatusOptions(statuses.statuses.map((status) => ({ value: String(status.id), label: status.name, tone: 'blue' })));
+      setTenderOptions(tenders.tenders.map((tender) => ({ value: String(tender.id), label: tender.name })));
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить заявки');
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, search, statusFilter, tenderFilter]);
 
   useEffect(() => {
     void load();
@@ -78,6 +90,36 @@ export function ApplicationsPage() {
         </Button>
       }
     >
+      <ListToolbar>
+        <SearchInput
+          placeholder="Поиск по названию и заявителю"
+          onChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
+        />
+        <Select
+          label="Статус"
+          placeholder="Все статусы"
+          value={statusFilter}
+          onChange={(value) => {
+            setStatusFilter(value);
+            setPage(1);
+          }}
+          options={statusOptions}
+        />
+        <Select
+          label="Конкурс"
+          placeholder="Все конкурсы"
+          value={tenderFilter}
+          onChange={(value) => {
+            setTenderFilter(value);
+            setPage(1);
+          }}
+          options={tenderOptions}
+        />
+      </ListToolbar>
+
       {loading ? (
         <StateMessage state="loading" />
       ) : error ? (

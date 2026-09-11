@@ -3,6 +3,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../lib/http';
 import { log } from '../../lib/logger';
+import { parseLimitOffset, parseOptionalId, parseSearch } from '../../lib/query';
 import { requireAuth } from '../auth/auth.middleware';
 import type { CurrentUser } from '../files/files.service';
 import {
@@ -20,20 +21,14 @@ import {
 export const applicationsRouter = Router();
 applicationsRouter.use(requireAuth);
 
-function parseLimitOffset(query: Request['query']): { limit: number; offset: number } {
-  const limit = Number(query.limit ?? 20);
-  const offset = Number(query.offset ?? 0);
-  return {
-    limit: Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 20,
-    offset: Number.isFinite(offset) ? Math.max(Math.trunc(offset), 0) : 0,
-  };
-}
-
 applicationsRouter.get(
   '/',
   asyncHandler(async (req: Request, res: Response) => {
     const { limit, offset } = parseLimitOffset(req.query);
-    const result = await listApplications(req.user as CurrentUser, { limit, offset });
+    const search = parseSearch(req.query);
+    const statusId = parseOptionalId(req.query.status_id);
+    const tenderId = parseOptionalId(req.query.tender_id);
+    const result = await listApplications(req.user as CurrentUser, { search, statusId, tenderId, limit, offset });
     res.json(result);
   }),
 );

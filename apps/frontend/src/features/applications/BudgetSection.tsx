@@ -26,6 +26,13 @@ const emptyForm = (): FormState => ({ resourceType: '', quantity: 0, unitCost: 0
 
 const money = (value: number | null): string => (value === null ? '—' : value.toLocaleString('ru-RU'));
 
+/** Итого по статье: свои + запрашиваемые. */
+const itemTotal = (item: { ownFunds: number | null; grantFunds: number | null }): number =>
+  (item.ownFunds ?? 0) + (item.grantFunds ?? 0);
+
+const sumBy = (items: BudgetItem[], pick: (item: BudgetItem) => number | null): number =>
+  items.reduce((acc, item) => acc + (pick(item) ?? 0), 0);
+
 export function BudgetSection({ applicationId, items, readOnly = false, onChanged }: Props) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<BudgetItem | null>(null);
@@ -100,6 +107,8 @@ export function BudgetSection({ applicationId, items, readOnly = false, onChange
     { key: 'unit', header: 'Цена за ед., ₽', render: (i) => money(i.unitCost) },
     { key: 'own', header: 'Свои, ₽', render: (i) => money(i.ownFunds) },
     { key: 'grant', header: 'Запрашиваемые, ₽', render: (i) => money(i.grantFunds) },
+    // Итог по статье — свои + запрашиваемые средства.
+    { key: 'total', header: 'Итого, ₽', render: (i) => money(itemTotal(i)) },
   ];
   if (!readOnly) {
     columns.push({
@@ -115,6 +124,12 @@ export function BudgetSection({ applicationId, items, readOnly = false, onChange
     });
   }
 
+  const ownTotal = sumBy(items, (i) => i.ownFunds);
+  const grantTotal = sumBy(items, (i) => i.grantFunds);
+  const computedTotal = sumBy(items, (i) => (i.quantity ?? 0) * (i.unitCost ?? 0));
+  const formComputed = (form.quantity || 0) * (form.unitCost || 0);
+  const formTotal = (form.ownFunds || 0) + (form.grantFunds || 0);
+
   return (
     <>
       {!readOnly ? (
@@ -127,7 +142,23 @@ export function BudgetSection({ applicationId, items, readOnly = false, onChange
       {items.length === 0 ? (
         <StateMessage state="empty" message="Бюджет не заполнен" />
       ) : (
-        <Table columns={columns} data={items} rowKey={(i) => i.id} />
+        <>
+          <Table columns={columns} data={items} rowKey={(i) => i.id} />
+          <div className={styles.budgetSummary}>
+            <span>
+              Расчётная стоимость: <strong>{money(computedTotal)}</strong>
+            </span>
+            <span>
+              Свои средства: <strong>{money(ownTotal)}</strong>
+            </span>
+            <span>
+              Запрашиваемые: <strong>{money(grantTotal)}</strong>
+            </span>
+            <span>
+              Всего: <strong>{money(ownTotal + grantTotal)}</strong>
+            </span>
+          </div>
+        </>
       )}
 
       <Modal open={open} title={editing ? 'Статья бюджета' : 'Новая статья'} onClose={() => setOpen(false)} width={520}>
@@ -148,6 +179,14 @@ export function BudgetSection({ applicationId, items, readOnly = false, onChange
             />
           </div>
           <Input label="Комментарий" value={form.comment} onChange={(e) => setForm({ ...form, comment: e.target.value })} />
+          <div className={styles.calcHint}>
+            <span>
+              Кол-во × цена: <strong>{money(formComputed)}</strong>
+            </span>
+            <span>
+              Итого по статье (свои + запрашиваемые): <strong>{money(formTotal)}</strong>
+            </span>
+          </div>
           {error ? <div className={styles.error}>{error}</div> : null}
           <div className={styles.formActions}>
             <Button variant="secondary" type="button" onClick={() => setOpen(false)} disabled={saving}>

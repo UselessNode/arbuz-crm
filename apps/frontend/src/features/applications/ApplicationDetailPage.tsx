@@ -54,24 +54,31 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [validation, setValidation] = useState<ApplicationValidationResult | null>(null);
 
-  const load = useCallback(async () => {
-    if (!Number.isInteger(id) || id <= 0) {
-      setError('Некорректный идентификатор заявки');
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const [detail, statuses] = await Promise.all([applicationsApi.get(id), statusesApi.list()]);
-      setApplication(detail.application);
-      setStatusOptions(statuses.statuses.map((status) => ({ value: String(status.id), label: status.name, tone: 'blue' })));
-    } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить заявку');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+  const load = useCallback(
+    async (silent = false) => {
+      if (!Number.isInteger(id) || id <= 0) {
+        setError('Некорректный идентификатор заявки');
+        setLoading(false);
+        return;
+      }
+      // Тихая перезагрузка (после действий в секциях) не сбрасывает аккордеоны и скролл.
+      if (!silent) setLoading(true);
+      setError(null);
+      try {
+        const [detail, statuses] = await Promise.all([applicationsApi.get(id), statusesApi.list()]);
+        setApplication(detail.application);
+        setStatusOptions(statuses.statuses.map((status) => ({ value: String(status.id), label: status.name, tone: 'blue' })));
+      } catch (caught) {
+        setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить заявку');
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [id],
+  );
+
+  /** Обновление данных без потери состояния интерфейса. */
+  const refresh = useCallback(() => load(true), [load]);
 
   useEffect(() => {
     void load();
@@ -84,7 +91,7 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
     const previousStatusId = application.status?.id;
     try {
       await applicationsApi.update(targetId, { status_id: Number(value) });
-      await load();
+      await refresh();
       toast.showToast({
         message: 'Статус изменён',
         tone: 'success',
@@ -96,17 +103,17 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
                 onClick: () => {
                   void applicationsApi
                     .update(targetId, { status_id: previousStatusId })
-                    .then(() => load())
+                    .then(() => refresh())
                     .catch(() => {
                       setActionError('Не удалось отменить изменение статуса');
-                      void load();
+                      void refresh();
                     });
                 },
               },
       });
     } catch (caught) {
       setActionError(caught instanceof ApiError ? caught.message : 'Не удалось изменить статус');
-      await load();
+      await refresh();
     }
   };
 
@@ -131,7 +138,7 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
     try {
       await applicationsApi.submit(application.id);
       setValidation(null);
-      await load();
+      await refresh();
       toast.showToast({ message: 'Заявка отправлена на проверку', tone: 'success' });
     } catch (caught) {
       setActionError(caught instanceof ApiError ? caught.message : 'Не удалось отправить заявку');
@@ -163,11 +170,11 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
         await applicationsApi.teamMembers.remove(application.id, memberId);
       }
       const recheck = await applicationsApi.validation(application.id);
-      await load();
+      await refresh();
       if (recheck.valid) {
         await applicationsApi.submit(application.id);
         setValidation(null);
-        await load();
+        await refresh();
         toast.showToast({ message: 'Участники без согласия удалены, заявка отправлена', tone: 'success' });
       } else {
         setValidation(recheck);
@@ -264,29 +271,29 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
           </AccordionItem>
 
           <AccordionItem itemKey="team" title={`Команда (${application.teamMembers.length})`}>
-            <TeamMembersSection applicationId={application.id} members={application.teamMembers} readOnly={!canEdit} onChanged={load} />
+            <TeamMembersSection applicationId={application.id} members={application.teamMembers} readOnly={!canEdit} onChanged={refresh} />
           </AccordionItem>
 
           <AccordionItem itemKey="plans" title={`План мероприятий (${application.projectPlans.length})`}>
-            <PlansSection applicationId={application.id} plans={application.projectPlans} readOnly={!canEdit} onChanged={load} />
+            <PlansSection applicationId={application.id} plans={application.projectPlans} readOnly={!canEdit} onChanged={refresh} />
           </AccordionItem>
 
           <AccordionItem itemKey="budget" title={`Бюджет (${application.projectBudget.length})`}>
-            <BudgetSection applicationId={application.id} items={application.projectBudget} readOnly={!canEdit} onChanged={load} />
+            <BudgetSection applicationId={application.id} items={application.projectBudget} readOnly={!canEdit} onChanged={refresh} />
           </AccordionItem>
 
           <AccordionItem itemKey="materials" title={`Материалы (${application.materials.length})`}>
-            <MaterialsSection applicationId={application.id} materials={application.materials} readOnly={!canEdit} onChanged={load} />
+            <MaterialsSection applicationId={application.id} materials={application.materials} readOnly={!canEdit} onChanged={refresh} />
           </AccordionItem>
 
           <AccordionItem itemKey="reviews" title={`Рецензии (${application.reviews.length})`}>
-            {isExpertArea ? <ExpertEvaluationSection application={application} onChanged={load} /> : null}
+            {isExpertArea ? <ExpertEvaluationSection application={application} onChanged={refresh} /> : null}
             <ReviewsSection
               applicationId={application.id}
               reviews={application.reviews}
               canManage={isAdmin}
               requiredExperts={application.tender?.expertsCount}
-              onChanged={load}
+              onChanged={refresh}
             />
           </AccordionItem>
         </Accordion>
@@ -297,7 +304,7 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
         mode="edit"
         application={application}
         onClose={() => setEditing(false)}
-        onSaved={() => void load()}
+        onSaved={() => void refresh()}
       />
       <ApplicationValidationDialog
         result={validation}

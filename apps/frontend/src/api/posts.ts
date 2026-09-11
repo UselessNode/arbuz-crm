@@ -25,11 +25,22 @@ export interface PostPayload {
   is_published: boolean;
 }
 
+export interface PostListParams {
+  limit?: number;
+  offset?: number;
+  /** Поиск по заголовку (админ). */
+  search?: string;
+  /** Фильтр по статусу публикации (админ). */
+  isPublished?: boolean;
+}
+
 export const postsApi = {
-  list: (params?: { limit?: number; offset?: number }) => {
+  list: (params?: PostListParams) => {
     const query = new URLSearchParams();
     if (params?.limit !== undefined) query.set('limit', String(params.limit));
     if (params?.offset !== undefined) query.set('offset', String(params.offset));
+    if (params?.search) query.set('q', params.search);
+    if (params?.isPublished !== undefined) query.set('is_published', String(params.isPublished));
     const suffix = query.toString() ? `?${query.toString()}` : '';
     return api.get<{ posts: Post[]; total: number }>(`/posts${suffix}`);
   },

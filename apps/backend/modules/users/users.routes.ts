@@ -4,6 +4,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler, httpError } from '../../lib/http';
 import { log } from '../../lib/logger';
+import { parseLimitOffset, parseSearch } from '../../lib/query';
 import { requireAuth, requireRole } from '../auth/auth.middleware';
 import type { CurrentUser } from '../files/files.service';
 import {
@@ -27,25 +28,17 @@ function parseId(raw: string | undefined): number {
   return value;
 }
 
-function parseLimitOffset(query: Request['query']): { limit: number; offset: number } {
-  const limit = Number(query.limit ?? 20);
-  const offset = Number(query.offset ?? 0);
-  return {
-    limit: Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 20,
-    offset: Number.isFinite(offset) ? Math.max(Math.trunc(offset), 0) : 0,
-  };
-}
-
 usersRouter.get(
   '/',
   asyncHandler(async (req: Request, res: Response) => {
     const { limit, offset } = parseLimitOffset(req.query);
+    const search = parseSearch(req.query);
     const roleRaw = req.query.role;
     const role =
       roleRaw !== undefined && [RoleType.admin, RoleType.expert, RoleType.applicant].includes(roleRaw as RoleType)
         ? (roleRaw as RoleType)
         : undefined;
-    const result = await listUsers({ role, limit, offset });
+    const result = await listUsers({ role, search, limit, offset });
     res.json(result);
   }),
 );

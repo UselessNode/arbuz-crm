@@ -8,17 +8,20 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: ReactNode;
   hint?: ReactNode;
   icon?: IconName;
+  /** Растянуть поле на всю ширину контейнера (например, заголовок в форме). */
+  fullWidth?: boolean;
 }
 
-export function Input({ label, error, hint, icon, id, className, ...rest }: InputProps) {
+export function Input({ label, error, hint, icon, fullWidth = false, id, className, ...rest }: InputProps) {
   const autoId = useId();
   const inputId = id ?? autoId;
   const classes = [styles.input, icon ? styles.inputWithIcon : '', error ? styles.inputError : '', className ?? '']
     .filter(Boolean)
     .join(' ');
+  const fieldClasses = [styles.field, fullWidth ? styles.fullWidth : ''].filter(Boolean).join(' ');
 
   return (
-    <label className={styles.field} htmlFor={inputId}>
+    <label className={fieldClasses} htmlFor={inputId}>
       {label ? <span className={styles.label}>{label}</span> : null}
       <span className={styles.inputWrap}>
         {icon ? <Icon name={icon} size={15} className={styles.inputIcon} /> : null}

@@ -5,6 +5,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../lib/http';
 import { log } from '../../lib/logger';
+import { parseLimitOffset, parseOptionalBoolean, parseSearch } from '../../lib/query';
 import { optionalAuth, requireAuth } from '../auth/auth.middleware';
 import type { CurrentUser } from '../files/files.service';
 import {
@@ -26,15 +27,6 @@ import {
 export const postsRouter = Router();
 postsRouter.use(optionalAuth);
 
-function parseLimitOffset(query: Request['query']): { limit: number; offset: number } {
-  const limit = Number(query.limit ?? 20);
-  const offset = Number(query.offset ?? 0);
-  return {
-    limit: Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 20,
-    offset: Number.isFinite(offset) ? Math.max(Math.trunc(offset), 0) : 0,
-  };
-}
-
 // Предпросмотр Markdown больше не нужен: содержание редактируется WYSIWYG-редактором
 // во фронтенде, а HTML для показа рендерит и санитизирует сервис (contentHtml).
 
@@ -43,7 +35,9 @@ postsRouter.get(
   '/',
   asyncHandler(async (req: Request, res: Response) => {
     const { limit, offset } = parseLimitOffset(req.query);
-    const result = await listPosts(req.user as CurrentUser | undefined, { limit, offset });
+    const search = parseSearch(req.query);
+    const isPublished = parseOptionalBoolean(req.query.is_published);
+    const result = await listPosts(req.user as CurrentUser | undefined, { search, isPublished, limit, offset });
     res.json(result);
   }),
 );

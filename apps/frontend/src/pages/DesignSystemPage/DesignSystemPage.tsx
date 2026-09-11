@@ -181,7 +181,7 @@ export function DesignSystemPage() {
         {files.length > 0 && (
           <div className={styles.row}>
             {files.map((file, index) => (
-              <Badge key={`${file.name}-${index}`} tone="blue" icon="file">
+              <Badge key={`${file.name}-${index}`} tone="blue" icon="document">
                 {file.name} ({Math.round(file.size / 1024)} КБ)
               </Badge>
             ))}

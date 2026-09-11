@@ -1,13 +1,15 @@
 // Справочник «Конкурсы» (тендеры) + критерии оценивания, история и «опасная зона».
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   Badge,
   Button,
   ConfirmDialog,
   Container,
   Input,
+  ListToolbar,
   Modal,
   NumberInput,
+  SearchInput,
   StateMessage,
   Table,
   useToast,
@@ -390,6 +392,7 @@ function CriteriaModal({
 export function TendersPage() {
   const toast = useToast();
   const [tenders, setTenders] = useState<Tender[]>([]);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -415,6 +418,13 @@ export function TendersPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Справочник небольшой — фильтруем на клиенте.
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return tenders;
+    return tenders.filter((tender) => [tender.name, tender.description ?? ''].join(' ').toLowerCase().includes(needle));
+  }, [tenders, search]);
 
   const handleDelete = async () => {
     if (!deleting) return;
@@ -467,14 +477,18 @@ export function TendersPage() {
         </Button>
       }
     >
+      <ListToolbar>
+        <SearchInput placeholder="Поиск по названию и описанию" onChange={setSearch} />
+      </ListToolbar>
+
       {loading ? (
         <StateMessage state="loading" />
       ) : error ? (
         <StateMessage state="error" message={error} onRetry={() => void load()} />
-      ) : tenders.length === 0 ? (
-        <StateMessage state="empty" message="Конкурсы не найдены" />
+      ) : filtered.length === 0 ? (
+        <StateMessage state="empty" message={tenders.length === 0 ? 'Конкурсы не найдены' : 'Ничего не найдено'} />
       ) : (
-        <Table columns={columns} data={tenders} rowKey={(t) => t.id} />
+        <Table columns={columns} data={filtered} rowKey={(t) => t.id} />
       )}
 
       <TenderFormModal

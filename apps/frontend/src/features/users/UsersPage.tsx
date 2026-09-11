@@ -6,9 +6,11 @@ import {
   ConfirmDialog,
   Container,
   Input,
+  ListToolbar,
   Modal,
   Pagination,
   ROLE_OPTIONS,
+  SearchInput,
   Select,
   StateMessage,
   StatusBadge,
@@ -198,6 +200,7 @@ export function UsersPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [roleFilter, setRoleFilter] = useState<RoleType | ''>('');
+  const [search, setSearch] = useState('');
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -210,6 +213,7 @@ export function UsersPage() {
     try {
       const response = await usersApi.list({
         role: roleFilter || undefined,
+        search: search || undefined,
         limit: pageSize,
         offset: (page - 1) * pageSize,
       });
@@ -220,7 +224,7 @@ export function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, roleFilter]);
+  }, [page, pageSize, roleFilter, search]);
 
   useEffect(() => {
     void load();
@@ -329,7 +333,14 @@ export function UsersPage() {
         </Button>
       }
     >
-      <div className={styles.toolbar}>
+      <ListToolbar>
+        <SearchInput
+          placeholder="Поиск по ФИО и email"
+          onChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
+        />
         <Select
           label="Фильтр по роли"
           placeholder="Все роли"
@@ -340,7 +351,7 @@ export function UsersPage() {
           }}
           options={ROLE_SELECT_OPTIONS}
         />
-      </div>
+      </ListToolbar>
 
       {actionError ? <div className={styles.error}>{actionError}</div> : null}
 

@@ -94,11 +94,15 @@ const authorSelect = { select: { name: true, surname: true } } as const;
 
 export async function listPosts(
   user: CurrentUser | undefined,
-  filter: { limit: number; offset: number },
+  filter: { limit: number; offset: number; search?: string; isPublished?: boolean },
 ): Promise<{ posts: PostData[]; total: number }> {
+  const admin = isAdmin(user);
   const where = {
     deleted_at: null,
-    ...(isAdmin(user) ? {} : { is_published: true }),
+    ...(admin ? {} : { is_published: true }),
+    // Фильтр по статусу публикации доступен только администратору.
+    ...(admin && filter.isPublished !== undefined ? { is_published: filter.isPublished } : {}),
+    ...(filter.search ? { title: { contains: filter.search, mode: 'insensitive' as const } } : {}),
   };
   const [posts, total] = await Promise.all([
     prisma.posts.findMany({

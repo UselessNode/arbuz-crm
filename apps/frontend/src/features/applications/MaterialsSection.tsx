@@ -61,10 +61,12 @@ export function MaterialsSection({ applicationId, materials, readOnly = false, o
         <div className={`${styles.materialsList} ${styles.materialsTop}`}>
           {materials.map((material) => (
             <div key={material.id} className={styles.materialRow}>
-              <span>
-                <Badge tone="blue" icon="document">
-                  {material.fileName}
-                </Badge>{' '}
+              <span className={styles.materialInfo}>
+                <Badge tone="blue" icon="document" className={styles.materialName}>
+                  <span className={styles.materialNameText} title={material.fileName}>
+                    {material.fileName}
+                  </span>
+                </Badge>
                 <span className={styles.metaLabel}>
                   {material.sizeBytes ? `${Math.round(material.sizeBytes / 1024)} КБ · ` : ''}
                   {formatDateTime(material.uploadedAt)}

@@ -10,12 +10,13 @@ export type BadgeTone = 'neutral' | 'blue' | 'green' | 'yellow' | 'red' | 'purpl
 export interface BadgeProps {
   tone?: BadgeTone;
   icon?: IconName;
+  className?: string;
   children: ReactNode;
 }
 
-export function Badge({ tone = 'neutral', icon, children }: BadgeProps) {
+export function Badge({ tone = 'neutral', icon, className, children }: BadgeProps) {
   return (
-    <span className={`${styles.badge} ${styles[tone]}`}>
+    <span className={`${styles.badge} ${styles[tone]} ${className ?? ''}`}>
       {icon ? <Icon name={icon} size={13} /> : null}
       {children}
     </span>
@@ -60,19 +61,22 @@ export function StatusBadge<V extends string>({
   }
 
   return (
-    <select
-      className={`${styles.select} ${styles[current.tone]} ${className ?? ''}`}
-      value={value}
-      onChange={(event) => onChange(event.target.value as V)}
-      aria-label={ariaLabel ?? 'Сменить значение'}
-      {...rest}
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+    <span className={`${styles.selectWrap} ${styles[current.tone]}`}>
+      <select
+        className={`${styles.select} ${className ?? ''}`}
+        value={value}
+        onChange={(event) => onChange(event.target.value as V)}
+        aria-label={ariaLabel ?? 'Сменить значение'}
+        {...rest}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <Icon name="chevron-down" size={12} className={styles.selectIcon} />
+    </span>
   );
 }
 

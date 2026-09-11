@@ -1,6 +1,6 @@
 // Модалка создания/редактирования заявки: основные поля и привязка владельца (админ).
-import { useEffect, useState, type FormEvent } from 'react';
-import { Button, Input, Modal, Select, Textarea } from '../../components/ui';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Button, Input, Modal, Select, Textarea, useToast } from '../../components/ui';
 import type { SelectOption } from '../../components/ui';
 import { applicationsApi, type ApplicationDetail, type ApplicationPayload } from '../../api/applications';
 import { directionsApi, tendersApi } from '../../api/references';
@@ -34,6 +34,9 @@ const emptyForm = (): ApplicationPayload => ({
 });
 
 export function ApplicationFormModal({ open, mode, application, canAssignOwner = false, onClose, onSaved }: Props) {
+  const toast = useToast();
+  // Какая кнопка отправила форму: «Сохранить» (остаться) или «Сохранить и выйти».
+  const keepOpenRef = useRef(false);
   const [form, setForm] = useState<ApplicationPayload>(emptyForm());
   const [tenderId, setTenderId] = useState('');
   const [directionId, setDirectionId] = useState('');
@@ -117,10 +120,15 @@ export function ApplicationFormModal({ open, mode, application, canAssignOwner =
         const response = await applicationsApi.create({ ...base, owner_id: ownerId ? Number(ownerId) : undefined });
         onSaved(response.application);
       }
-      onClose();
+      if (keepOpenRef.current) {
+        toast.showToast({ message: 'Изменения сохранены', tone: 'success' });
+      } else {
+        onClose();
+      }
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить заявку');
     } finally {
+      keepOpenRef.current = false;
       setSaving(false);
     }
   };
@@ -168,8 +176,28 @@ export function ApplicationFormModal({ open, mode, application, canAssignOwner =
           <Button variant="secondary" type="button" onClick={onClose} disabled={saving}>
             Отмена
           </Button>
-          <Button type="submit" icon="check" loading={saving}>
-            Сохранить
+          {mode === 'edit' ? (
+            <Button
+              variant="secondary"
+              type="submit"
+              icon="check"
+              loading={saving}
+              onClick={() => {
+                keepOpenRef.current = true;
+              }}
+            >
+              Сохранить
+            </Button>
+          ) : null}
+          <Button
+            type="submit"
+            icon="check"
+            loading={saving}
+            onClick={() => {
+              keepOpenRef.current = false;
+            }}
+          >
+            Сохранить и выйти
           </Button>
         </div>
       </form>

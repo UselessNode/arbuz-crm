@@ -8,14 +8,17 @@ import {
   Container,
   DragDrop,
   Input,
+  ListToolbar,
   Modal,
   Pagination,
+  SearchInput,
+  Select,
   StateMessage,
   StatusBadge,
   Table,
   useToast,
 } from '../../components/ui';
-import type { StatusOption, TableColumn } from '../../components/ui';
+import type { SelectOption, StatusOption, TableColumn } from '../../components/ui';
 import { postsApi, type Post, type PostFile } from '../../api/posts';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
@@ -31,6 +34,11 @@ const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 const POST_STATUS_OPTIONS: readonly StatusOption<string>[] = [
   { value: POST_STATUS.draft, label: 'Черновик', tone: 'gray' },
   { value: POST_STATUS.published, label: 'Опубликован', tone: 'green' },
+];
+
+const POST_FILTER_OPTIONS: readonly SelectOption<string>[] = [
+  { value: POST_STATUS.draft, label: 'Черновики' },
+  { value: POST_STATUS.published, label: 'Опубликованные' },
 ];
 
 function AttachmentsSection({ postId }: { postId: number }) {
@@ -160,7 +168,7 @@ function PostFormModal({
     <Modal open={open} title={initial ? 'Редактировать пост' : 'Новый пост'} onClose={onClose} width={880}>
       <form className={styles.form} onSubmit={handleSubmit}>
         <div className={styles.formHeader}>
-          <Input label="Заголовок" value={title} onChange={(e) => setTitle(e.target.value)} required />
+          <Input label="Заголовок" value={title} onChange={(e) => setTitle(e.target.value)} required fullWidth />
           <Checkbox label="Опубликован" checked={isPublished} onChange={setIsPublished} />
         </div>
         <div className={styles.editorWrap}>
@@ -192,6 +200,8 @@ export function PostsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -203,7 +213,12 @@ export function PostsPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await postsApi.list({ limit: pageSize, offset: (page - 1) * pageSize });
+      const response = await postsApi.list({
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+        search: search || undefined,
+        isPublished: statusFilter ? statusFilter === POST_STATUS.published : undefined,
+      });
       setPosts(response.posts);
       setTotal(response.total);
     } catch (caught) {
@@ -211,7 +226,7 @@ export function PostsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, search, statusFilter]);
 
   useEffect(() => {
     void load();
@@ -303,6 +318,26 @@ export function PostsPage() {
         </Button>
       }
     >
+      <ListToolbar>
+        <SearchInput
+          placeholder="Поиск по заголовку"
+          onChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
+        />
+        <Select
+          label="Статус"
+          placeholder="Все посты"
+          value={statusFilter}
+          onChange={(value) => {
+            setStatusFilter(value);
+            setPage(1);
+          }}
+          options={POST_FILTER_OPTIONS}
+        />
+      </ListToolbar>
+
       {loading ? (
         <StateMessage state="loading" />
       ) : error ? (

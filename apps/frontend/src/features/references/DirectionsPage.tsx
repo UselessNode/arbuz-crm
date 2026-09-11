@@ -1,6 +1,6 @@
 // Справочник «Направления».
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Button, ConfirmDialog, Container, Input, Modal, Select, StateMessage, Table, useToast } from '../../components/ui';
+import { Button, ConfirmDialog, Container, Input, ListToolbar, Modal, SearchInput, Select, StateMessage, Table, useToast } from '../../components/ui';
 import type { SelectOption, TableColumn } from '../../components/ui';
 import { directionsApi, tendersApi, type Direction, type Tender } from '../../api/references';
 import { ApiError } from '../../api/client';
@@ -91,6 +91,8 @@ export function DirectionsPage() {
   const toast = useToast();
   const [directions, setDirections] = useState<Direction[]>([]);
   const [tenders, setTenders] = useState<Tender[]>([]);
+  const [search, setSearch] = useState('');
+  const [tenderFilter, setTenderFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -120,6 +122,22 @@ export function DirectionsPage() {
     const map = new Map(tenders.map((tender) => [tender.id, tender.name]));
     return (id: number | null) => (id ? map.get(id) ?? '—' : '—');
   }, [tenders]);
+
+  // Справочник небольшой — фильтруем на клиенте.
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return directions.filter((direction) => {
+      if (tenderFilter === 'none' && direction.tenderId !== null) return false;
+      if (tenderFilter && tenderFilter !== 'none' && direction.tenderId !== Number(tenderFilter)) return false;
+      if (!needle) return true;
+      return [direction.name, direction.description ?? ''].join(' ').toLowerCase().includes(needle);
+    });
+  }, [directions, search, tenderFilter]);
+
+  const tenderFilterOptions: readonly SelectOption<string>[] = [
+    ...tenders.map((tender) => ({ value: String(tender.id), label: tender.name })),
+    { value: 'none', label: 'Без привязки' },
+  ];
 
   const handleDelete = async () => {
     if (!deleting) return;
@@ -162,14 +180,25 @@ export function DirectionsPage() {
         </Button>
       }
     >
+      <ListToolbar>
+        <SearchInput placeholder="Поиск по названию и описанию" onChange={setSearch} />
+        <Select
+          label="Конкурс"
+          placeholder="Все конкурсы"
+          value={tenderFilter}
+          onChange={setTenderFilter}
+          options={tenderFilterOptions}
+        />
+      </ListToolbar>
+
       {loading ? (
         <StateMessage state="loading" />
       ) : error ? (
         <StateMessage state="error" message={error} onRetry={() => void load()} />
-      ) : directions.length === 0 ? (
-        <StateMessage state="empty" message="Направления не найдены" />
+      ) : filtered.length === 0 ? (
+        <StateMessage state="empty" message={directions.length === 0 ? 'Направления не найдены' : 'Ничего не найдено'} />
       ) : (
-        <Table columns={columns} data={directions} rowKey={(d) => d.id} />
+        <Table columns={columns} data={filtered} rowKey={(d) => d.id} />
       )}
 
       <DirectionFormModal open={creating} initial={null} tenders={tenders} onClose={() => setCreating(false)} onSaved={load} />

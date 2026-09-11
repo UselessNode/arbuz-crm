@@ -36,6 +36,9 @@ export type { CheckboxProps } from './Form';
 export { Table } from './Table';
 export type { TableColumn, TableProps } from './Table';
 
+export { ListToolbar, SearchInput } from './ListToolbar';
+export type { ListToolbarProps, SearchInputProps } from './ListToolbar';
+
 export { StateMessage } from './Feedback';
 export type { StateMessageProps } from './Feedback';
 export { Modal } from './Feedback';

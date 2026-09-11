@@ -4,7 +4,7 @@ import { Button, ConfirmDialog, DatePicker, Input, Modal, StateMessage, Table } 
 import type { TableColumn } from '../../components/ui';
 import { applicationsApi, type PlanPayload, type ProjectPlan } from '../../api/applications';
 import { ApiError } from '../../api/client';
-import { formatDateTime } from '../../lib/format';
+import { formatDate, toDateInputValue } from '../../lib/format';
 import styles from './Applications.module.css';
 
 interface Props {
@@ -38,8 +38,8 @@ export function PlansSection({ applicationId, plans, readOnly = false, onChanged
       task: plan.task,
       event_name: plan.eventName,
       event_description: plan.eventDescription,
-      start_date: plan.startDate ? plan.startDate.slice(0, 10) : '',
-      end_date: plan.endDate ? plan.endDate.slice(0, 10) : '',
+      start_date: toDateInputValue(plan.startDate),
+      end_date: toDateInputValue(plan.endDate),
     });
     setError(null);
     setOpen(true);
@@ -83,8 +83,8 @@ export function PlansSection({ applicationId, plans, readOnly = false, onChanged
   const columns: TableColumn<ProjectPlan>[] = [
     { key: 'event', header: 'Мероприятие', field: 'eventName' },
     { key: 'task', header: 'Задача', field: 'task' },
-    { key: 'start', header: 'Начало', render: (p) => formatDateTime(p.startDate) },
-    { key: 'end', header: 'Окончание', render: (p) => formatDateTime(p.endDate) },
+    { key: 'start', header: 'Начало', render: (p) => formatDate(p.startDate) },
+    { key: 'end', header: 'Окончание', render: (p) => formatDate(p.endDate) },
   ];
   if (!readOnly) {
     columns.push({
@@ -125,8 +125,29 @@ export function PlansSection({ applicationId, plans, readOnly = false, onChanged
             onChange={(e) => setForm({ ...form, event_description: e.target.value })}
           />
           <div className={styles.grid2}>
-            <DatePicker label="Начало" value={form.start_date ?? ''} onChange={(value) => setForm({ ...form, start_date: value })} />
-            <DatePicker label="Окончание" value={form.end_date ?? ''} onChange={(value) => setForm({ ...form, end_date: value })} />
+            <DatePicker
+              label="Начало"
+              value={form.start_date ?? ''}
+              onChange={(value) =>
+                // Окончание не может быть раньше начала: подтягиваем его за началом.
+                setForm((prev) => ({
+                  ...prev,
+                  start_date: value,
+                  end_date: prev.end_date && value && prev.end_date < value ? value : prev.end_date,
+                }))
+              }
+              rangeStart={form.start_date ?? undefined}
+              rangeEnd={form.end_date ?? undefined}
+            />
+            <DatePicker
+              label="Окончание"
+              value={form.end_date ?? ''}
+              onChange={(value) => setForm({ ...form, end_date: value })}
+              min={form.start_date ?? undefined}
+              rangeStart={form.start_date ?? undefined}
+              rangeEnd={form.end_date ?? undefined}
+              error={form.start_date && form.end_date && form.end_date < form.start_date ? 'Раньше даты начала' : undefined}
+            />
           </div>
           {error ? <div className={styles.error}>{error}</div> : null}
           <div className={styles.formActions}>
