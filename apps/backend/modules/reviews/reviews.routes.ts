@@ -3,9 +3,10 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../lib/http';
 import { log } from '../../lib/logger';
+import { parseId } from '../../lib/parse';
 import { requireAuth } from '../auth/auth.middleware';
 import type { CurrentUser } from '../files/files.service';
-import { assignExpert, deleteReview, listReviews, parseId, updateReview } from './reviews.service';
+import { assignExpert, deleteReview, listReviews, updateReview } from './reviews.service';
 
 export const reviewsRouter = Router();
 reviewsRouter.use(requireAuth);
@@ -35,11 +36,11 @@ reviewsRouter.patch(
     const actor = req.user as CurrentUser;
     const reviewId = parseId(req.params.reviewId);
     const review = await updateReview(actor, reviewId, {
-      review_status: req.body?.review_status,
+      status_id: req.body?.status_id,
       review_text: req.body?.review_text,
       rating: req.body?.rating,
     });
-    log.audit('reviews.update', { userId: actor.id, reviewId: review.id, status: review.status });
+    log.audit('reviews.update', { userId: actor.id, reviewId: review.id, status: review.status?.name });
     res.json({ review });
   }),
 );

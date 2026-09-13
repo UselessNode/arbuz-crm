@@ -36,6 +36,13 @@
   margin-right: var(--space-2);
 }
 
+.prototypeHint {
+  margin: 0 0 var(--space-3);
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .iconGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));

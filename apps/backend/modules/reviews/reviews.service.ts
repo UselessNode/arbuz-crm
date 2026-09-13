@@ -1,25 +1,30 @@
 // Бизнес-логика рецензий: назначение экспертов администратором и оценка заявок.
-import { RoleType, ReviewStatus } from '@arbuz/shared';
+import { RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
+import { parseId } from '../../lib/parse';
 import type { CurrentUser } from '../files/files.service';
 import { getApplicationForAccess } from '../applications/applications.service';
+import { getDefaultReviewStatusId } from './review-statuses.service';
 
-const REVIEW_STATUSES: readonly ReviewStatus[] = [ReviewStatus.draft, ReviewStatus.approved, ReviewStatus.rejected];
+/** Сколько экспертов назначается на заявку, если у конкурса не задано иное. */
+const DEFAULT_EXPERTS_COUNT = 2;
 
-export function parseId(raw: string | undefined): number {
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value <= 0) {
-    throw httpError(400, 'Некорректный идентификатор', 'INVALID_ID');
-  }
-  return value;
+/** Согласование слова «эксперт» с числом (1 — эксперт, 2 — эксперта, 5 — экспертов). */
+function expertsWord(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'эксперт';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'эксперта';
+  return 'экспертов';
 }
 
-function parseReviewStatus(value: unknown): ReviewStatus {
-  if (typeof value !== 'string' || !(REVIEW_STATUSES as readonly string[]).includes(value)) {
-    throw httpError(400, 'Недопустимый статус рецензии', 'INVALID_REVIEW_STATUS');
-  }
-  return value as ReviewStatus;
+export { parseId } from '../../lib/parse';
+
+interface ReviewStatusRef {
+  id: number;
+  name: string;
+  tone: string;
 }
 
 function optionalText(value: unknown): string | null {
@@ -31,13 +36,13 @@ function optionalText(value: unknown): string | null {
 function serializeReview(review: {
   id: number;
   application_id: number;
-  review_status: ReviewStatus | null;
   review_text: string | null;
   rating: unknown;
   total_score: number | null;
   updated_at: Date;
   applications?: { id: number; title: string } | null;
   users?: { id: number; email: string; name: string | null; surname: string | null; patronymic: string | null } | null;
+  review_statuses?: ReviewStatusRef | null;
 }) {
   return {
     id: review.id,
@@ -52,7 +57,9 @@ function serializeReview(review: {
           patronymic: review.users.patronymic,
         }
       : null,
-    status: review.review_status,
+    status: review.review_statuses
+      ? { id: review.review_statuses.id, name: review.review_statuses.name, tone: review.review_statuses.tone }
+      : null,
     text: review.review_text,
     rating: review.rating,
     totalScore: review.total_score,
@@ -63,14 +70,25 @@ function serializeReview(review: {
 const reviewInclude = {
   applications: { select: { id: true, title: true } },
   users: { select: { id: true, email: true, name: true, surname: true, patronymic: true } },
+  review_statuses: { select: { id: true, name: true, tone: true } },
 } as const;
 
-/** Назначение эксперта на заявку (создаёт рецензию в статусе draft). Только администратор. */
+/** Ограничение конкурса: сколько экспертов можно назначить на одну заявку. */
+export async function expertsLimitForTender(tenderId: number | null): Promise<number> {
+  if (!tenderId) return DEFAULT_EXPERTS_COUNT;
+  const tender = await prisma.tenders.findUnique({
+    where: { id: tenderId },
+    select: { experts_count: true },
+  });
+  return tender?.experts_count ?? DEFAULT_EXPERTS_COUNT;
+}
+
+/** Назначение эксперта на заявку (создаёт рецензию с вердиктом по умолчанию). Только администратор. */
 export async function assignExpert(actor: CurrentUser, applicationId: number, rawExpertId: unknown) {
   if (actor.role !== RoleType.admin) throw httpError(403, 'Действие доступно только администратору', 'FORBIDDEN');
   const application = await getApplicationForAccess(actor, applicationId, 'view');
 
-  const expertId = parseId(String(rawExpertId ?? ''));
+  const expertId = parseId(rawExpertId, 'Некорректный идентификатор эксперта');
   const expert = await prisma.users.findFirst({
     where: { id: expertId, role: RoleType.expert, deleted_at: null },
     select: { id: true },
@@ -83,8 +101,21 @@ export async function assignExpert(actor: CurrentUser, applicationId: number, ra
   });
   if (existing) throw httpError(409, 'Этот эксперт уже назначен на заявку', 'EXPERT_ALREADY_ASSIGNED');
 
+  // Не больше, чем задано в настройках конкурса (см. «Настройки конкурсов и направлений»).
+  const limit = await expertsLimitForTender(application.tender_id);
+  const assigned = await prisma.application_reviews.count({
+    where: { application_id: application.id, deleted_at: null },
+  });
+  if (assigned >= limit) {
+    throw httpError(
+      409,
+      `По условиям конкурса на заявку назначается не более ${limit} ${expertsWord(limit)}. Снимите лишнего эксперта.`,
+      'EXPERT_LIMIT_REACHED',
+    );
+  }
+
   const review = await prisma.application_reviews.create({
-    data: { application_id: application.id, expert_id: expertId, review_status: ReviewStatus.draft },
+    data: { application_id: application.id, expert_id: expertId, status_id: await getDefaultReviewStatusId() },
     include: reviewInclude,
   });
   return serializeReview(review);
@@ -110,7 +141,7 @@ export async function listReviews(user: CurrentUser) {
 export async function updateReview(
   user: CurrentUser,
   reviewId: number,
-  patch: { review_status?: unknown; review_text?: unknown; rating?: unknown },
+  patch: { status_id?: unknown; review_text?: unknown; rating?: unknown },
 ) {
   const review = await prisma.application_reviews.findUnique({
     where: { id: reviewId },
@@ -121,8 +152,16 @@ export async function updateReview(
     throw httpError(403, 'Можно редактировать только свои рецензии', 'FORBIDDEN');
   }
 
-  const data: { review_status?: ReviewStatus; review_text?: string | null; rating?: object; total_score?: number } = {};
-  if (patch.review_status !== undefined) data.review_status = parseReviewStatus(patch.review_status);
+  const data: { status_id?: number; review_text?: string | null; rating?: object; total_score?: number } = {};
+  if (patch.status_id !== undefined) {
+    const statusId = parseId(patch.status_id, 'Некорректный вердикт');
+    const status = await prisma.review_statuses.findFirst({
+      where: { id: statusId, deleted_at: null },
+      select: { id: true },
+    });
+    if (!status) throw httpError(400, 'Вердикт не найден', 'REVIEW_STATUS_NOT_FOUND');
+    data.status_id = statusId;
+  }
   if (patch.review_text !== undefined) data.review_text = optionalText(patch.review_text);
   if (patch.rating !== undefined) {
     const { rating, totalScore } = await validateAndScore(review.applications.tender_id, patch.rating);

@@ -4,11 +4,34 @@
   padding: var(--space-5) var(--space-5) var(--space-6);
 }
 
-/* Верхний блок: заголовок и краткое описание. */
+/* Верхний блок: логотип, заголовок и краткое описание. */
 .hero {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
   padding: var(--space-6) 0 var(--space-5);
   border-bottom: 1px solid var(--color-border);
   margin-bottom: var(--space-5);
+}
+
+.heroLogo {
+  width: 132px;
+  height: 132px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+@media (max-width: 640px) {
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .heroLogo {
+    width: 88px;
+    height: 88px;
+  }
 }
 
 .eyebrow {
@@ -146,6 +169,49 @@
 }
 
 .postContent a {
+  color: var(--color-primary);
+}
+
+/* Вложения публикации. */
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--color-border);
+}
+
+.attachmentImageLink {
+  display: block;
+  line-height: 0;
+}
+
+.attachmentImage {
+  max-width: 240px;
+  max-height: 180px;
+  display: block;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.attachmentLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--tone-neutral-bg);
+  color: var(--color-text);
+  font-size: 13px;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.attachmentLink:hover {
+  background-color: var(--tone-blue-bg);
   color: var(--color-primary);
 }
 

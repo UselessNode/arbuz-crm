@@ -11,9 +11,8 @@ import { ApplicationDetailPage } from '../features/applications/ApplicationDetai
 import { ExpertApplicationsPage } from '../features/expert/ExpertApplicationsPage';
 import { ReviewsPage } from '../features/reviews/ReviewsPage';
 import { PostsPage } from '../features/posts/PostsPage';
-import { TendersPage } from '../features/references/TendersPage';
-import { DirectionsPage } from '../features/references/DirectionsPage';
-import { StatusesPage } from '../features/references/StatusesPage';
+import { ContestSettingsPage } from '../features/references/ContestSettingsPage';
+import { ExpertiseSettingsPage } from '../features/references/ExpertiseSettingsPage';
 import { DesignSystemPage } from '../pages/DesignSystemPage/DesignSystemPage';
 import { HomePage } from '../pages/HomePage/HomePage';
 import { AboutPage } from '../pages/AboutPage';
@@ -79,9 +78,11 @@ export function AppRouter() {
         <Route path="applications/:applicationId" element={<ApplicationDetailPage area="admin" />} />
         <Route path="reviews" element={<ReviewsPage />} />
         <Route path="posts" element={<PostsPage />} />
-        <Route path="tenders" element={<TendersPage />} />
-        <Route path="directions" element={<DirectionsPage />} />
-        <Route path="statuses" element={<StatusesPage />} />
+        <Route path="contests" element={<ContestSettingsPage />} />
+        <Route path="tenders" element={<Navigate to="/admin/contests" replace />} />
+        <Route path="directions" element={<Navigate to="/admin/contests" replace />} />
+        <Route path="expertise" element={<ExpertiseSettingsPage />} />
+        <Route path="statuses" element={<Navigate to="/admin/expertise" replace />} />
         <Route path="design-system" element={<DesignSystemPage />} />
       </Route>
 

@@ -9,13 +9,36 @@
 //      заявки в разных состояниях, публикации для ленты новостей.
 //
 // Скрипт идемпотентен: повторный запуск не создаёт дубликатов.
-import { ReviewStatus, RoleType } from '@arbuz/shared';
+import { RoleType } from '@arbuz/shared';
 import { prisma } from './lib/prisma';
 import { hashPassword } from './modules/auth/auth.service';
 import { log } from './lib/logger';
 import { APPLICATION_STATUS_NAMES } from './lib/app-status';
 
 type StatusMap = Record<'draft' | 'submitted' | 'accepted' | 'rejected', number>;
+
+/** Базовые вердикты рецензий (редактируемый справочник). */
+const REVIEW_STATUS_SEED = [
+  { name: 'Черновик', tone: 'gray', is_default: true, description: 'Рецензия ещё не завершена' },
+  { name: 'Рекомендую поддержать', tone: 'green', is_default: false, description: 'Эксперт рекомендует поддержать заявку' },
+  { name: 'Не рекомендую поддержать', tone: 'red', is_default: false, description: 'Эксперт не рекомендует поддержку заявки' },
+] as const;
+
+/** Создаёт базовые вердикты (если их нет) и возвращает их идентификаторы по названию. */
+async function ensureReviewStatuses(): Promise<(name: string) => number> {
+  const existing = await prisma.review_statuses.findFirst({ select: { id: true } });
+  if (!existing) {
+    await prisma.review_statuses.createMany({ data: REVIEW_STATUS_SEED.map((row) => ({ ...row })) });
+    log.info('seed: созданы вердикты рецензий');
+  }
+
+  const rows = await prisma.review_statuses.findMany({ where: { deleted_at: null }, select: { id: true, name: true } });
+  return (name: string) => {
+    const status = rows.find((row) => row.name === name);
+    if (!status) throw new Error(`[seed] Вердикт «${name}» не найден в справочнике`);
+    return status.id;
+  };
+}
 
 /** Создаёт базовые статусы (если их нет) и возвращает их идентификаторы. */
 async function ensureStatuses(): Promise<StatusMap> {
@@ -249,14 +272,24 @@ async function ensureBudgetItem(
   });
 }
 
-async function ensureReview(applicationId: number, expertId: number) {
+interface ReviewSeed {
+  statusId: number;
+  text?: string;
+}
+
+async function ensureReview(applicationId: number, expertId: number, seed: ReviewSeed) {
   const existing = await prisma.application_reviews.findFirst({
     where: { application_id: applicationId, expert_id: expertId },
     select: { id: true },
   });
   if (existing) return;
   await prisma.application_reviews.create({
-    data: { application_id: applicationId, expert_id: expertId, review_status: ReviewStatus.draft },
+    data: {
+      application_id: applicationId,
+      expert_id: expertId,
+      status_id: seed.statusId,
+      review_text: seed.text ?? null,
+    },
   });
 }
 
@@ -266,7 +299,7 @@ async function ensurePost(title: string, content: string, published: boolean, au
   await prisma.posts.create({ data: { title, content, is_published: published, created_by: authorId } });
 }
 
-async function seedDemo(statuses: StatusMap, adminId: number): Promise<void> {
+async function seedDemo(statuses: StatusMap, adminId: number, reviewStatusByName: (name: string) => number): Promise<void> {
   const applicant = await ensureUser({
     email: process.env.DEMO_EMAIL ?? 'demo@arbuz.local',
     password: process.env.DEMO_PASSWORD ?? 'demo12345',
@@ -383,8 +416,11 @@ async function seedDemo(statuses: StatusMap, adminId: number): Promise<void> {
   });
   await ensureBudgetItem(submitted.id, { resource: 'Витрины и стенды', quantity: 6, unitCost: 8000, own: 10000, grant: 38000 });
   await ensureBudgetItem(submitted.id, { resource: 'Полиграфия для занятий', quantity: 250, unitCost: 120, own: 0, grant: 30000 });
-  await ensureReview(submitted.id, expert1.id);
-  await ensureReview(submitted.id, expert2.id);
+  await ensureReview(submitted.id, expert1.id, {
+    statusId: reviewStatusByName('Рекомендую поддержать'),
+    text: 'Проект решает актуальную задачу, план и бюджет реалистичны, команда имеет опыт.',
+  });
+  await ensureReview(submitted.id, expert2.id, { statusId: reviewStatusByName('Черновик') });
 
   // 3. Пустой черновик — демонстрация пустых состояний и подсказок.
   await ensureApplication({
@@ -439,6 +475,7 @@ async function main(): Promise<void> {
   }
 
   const statuses = await ensureStatuses();
+  const reviewStatusByName = await ensureReviewStatuses();
   const admin = await ensureUser({ email: adminEmail, password: adminPassword, role: RoleType.admin });
 
   const demoDisabled = process.env.SEED_DEMO === 'false' || process.env.NODE_ENV === 'production';
@@ -447,7 +484,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  await seedDemo(statuses, admin.id);
+  await seedDemo(statuses, admin.id, reviewStatusByName);
 
   log.info('seed: готово', {
     admin: admin.email,

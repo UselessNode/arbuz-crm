@@ -33,6 +33,26 @@ export interface ApplicationStatus {
   description: string | null;
 }
 
+/** Вердикт в составе рецензии (без служебных полей справочника). */
+export interface ReviewVerdictRef {
+  id: number;
+  name: string;
+  tone: string;
+}
+
+/** Вердикт рецензии — редактируемый справочник (см. «Настройки экспертизы»). */
+export interface ReviewVerdict extends ReviewVerdictRef {
+  description: string | null;
+  isDefault: boolean;
+}
+
+export interface ReviewVerdictPayload {
+  name: string;
+  description: string | null;
+  tone: string;
+  is_default?: boolean;
+}
+
 export interface TenderPayload {
   name: string;
   description: string | null;
@@ -107,4 +127,12 @@ export const statusesApi = {
   update: (id: number, payload: ApplicationStatusPayload) =>
     api.patch<{ status: ApplicationStatus }>(`/application-statuses/${id}`, payload),
   remove: (id: number) => api.delete<{ ok: boolean }>(`/application-statuses/${id}`),
+};
+
+export const reviewStatusesApi = {
+  list: () => api.get<{ statuses: ReviewVerdict[] }>('/review-statuses'),
+  create: (payload: ReviewVerdictPayload) => api.post<{ status: ReviewVerdict }>('/review-statuses', payload),
+  update: (id: number, payload: ReviewVerdictPayload) =>
+    api.patch<{ status: ReviewVerdict }>(`/review-statuses/${id}`, payload),
+  remove: (id: number) => api.delete<{ ok: boolean }>(`/review-statuses/${id}`),
 };

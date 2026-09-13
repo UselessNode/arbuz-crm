@@ -1,6 +1,6 @@
 import type { RoleType } from '@arbuz/shared';
 import { api } from './client';
-import type { UserListItem } from './types';
+import type { UserBrief, UserListItem } from './types';
 
 export interface UserListParams {
   role?: RoleType;
@@ -27,13 +27,8 @@ export interface UserPatch {
   patronymic?: string | null;
 }
 
-export interface ExpertItem {
-  id: number;
-  email: string;
-  name: string | null;
-  surname: string | null;
-  patronymic: string | null;
-}
+/** Эксперт для селекта назначения (без служебных полей). */
+export type ExpertItem = UserBrief;
 
 export const usersApi = {
   list(params: UserListParams) {

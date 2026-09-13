@@ -16,6 +16,9 @@ export function readMultipartFile(req: Request): Promise<MultipartFile> {
     const bb = busboy({
       headers: req.headers,
       limits: { files: 1, fileSize: config.limits.maxFileBytes + 1 },
+      // Браузеры передают имя файла в UTF-8; по умолчанию busboy читает его как latin1,
+      // из-за чего кириллица в названиях превращается в «кракозябры».
+      defParamCharset: 'utf8',
     });
     const chunks: Buffer[] = [];
     const comments: string[] = [];

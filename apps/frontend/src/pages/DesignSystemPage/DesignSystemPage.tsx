@@ -1,6 +1,6 @@
 // Тестовая страница дизайн-системы: показывает все компоненты и их композицию.
-import { useState, type ReactNode } from 'react';
-import type { ReviewStatus, RoleType } from '@arbuz/shared';
+import { useMemo, useState, type ReactNode } from 'react';
+import type { RoleType } from '@arbuz/shared';
 import {
   Accordion,
   AccordionItem,
@@ -13,15 +13,17 @@ import {
   ICON_NAMES,
   Icon,
   Input,
+  ListToolbar,
   NumberInput,
   ROLE_OPTIONS,
+  SearchInput,
+  Select,
   Slider,
   StatusBadge,
   Table,
   useToast,
-  VERDICT_OPTIONS,
 } from '../../components/ui';
-import type { StatusOption, TableColumn } from '../../components/ui';
+import type { SelectOption, StatusOption, TableColumn } from '../../components/ui';
 import styles from './DesignSystemPage.module.css';
 
 // Демонстрационные статусы заявок (на проде приходят из GET /api/application-statuses).
@@ -30,6 +32,13 @@ const DEMO_STATUS_OPTIONS: readonly StatusOption<string>[] = [
   { value: 'under_review', label: 'На проверке', tone: 'yellow' },
   { value: 'accepted', label: 'Принята', tone: 'green' },
   { value: 'rejected', label: 'Отклонена', tone: 'red' },
+];
+
+// Демонстрационные вердикты (на проде приходят из GET /api/review-statuses).
+const DEMO_VERDICT_OPTIONS: readonly StatusOption<string>[] = [
+  { value: '1', label: 'Черновик', tone: 'gray', icon: 'edit' },
+  { value: '2', label: 'Рекомендую поддержать', tone: 'green', icon: 'check' },
+  { value: '3', label: 'Не рекомендую поддержать', tone: 'red', icon: 'close' },
 ];
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -54,10 +63,48 @@ const DEMO_ROWS: DemoRow[] = [
   { id: 3, title: 'Спортивный фестиваль', status: 'draft', role: 'applicant', score: 0 },
 ];
 
+const DEMO_STATUS_FILTER_OPTIONS: readonly SelectOption<string>[] = DEMO_STATUS_OPTIONS.map((option) => ({
+  value: option.value,
+  label: option.label,
+}));
+
+/**
+ * Прототип поиска и фильтрации списка: ListToolbar + SearchInput + Select + Table.
+ * Шаблон для всех таблиц: поиск с задержкой ввода, фильтры-селекты, состояния empty/loading/error.
+ */
+function ListToolbarPrototype() {
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+
+  const rows = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return DEMO_ROWS.filter((row) => {
+      if (status && row.status !== status) return false;
+      return !needle || row.title.toLowerCase().includes(needle);
+    });
+  }, [search, status]);
+
+  const columns: TableColumn<DemoRow>[] = [
+    { key: 'title', header: 'Заявка', field: 'title' },
+    { key: 'status', header: 'Статус', render: (row) => <StatusBadge value={row.status} options={DEMO_STATUS_OPTIONS} /> },
+    { key: 'score', header: 'Балл', render: (row) => (row.score > 0 ? String(row.score) : '—') },
+  ];
+
+  return (
+    <>
+      <ListToolbar>
+        <SearchInput placeholder="Поиск по названию заявки" onChange={setSearch} />
+        <Select label="Статус" placeholder="Все статусы" value={status} onChange={setStatus} options={DEMO_STATUS_FILTER_OPTIONS} />
+      </ListToolbar>
+      <Table columns={columns} data={rows} rowKey={(row) => row.id} emptyText="Ничего не найдено" />
+    </>
+  );
+}
+
 export function DesignSystemPage() {
   const [appStatus, setAppStatus] = useState<string>('draft');
   const [role, setRole] = useState<RoleType>('applicant');
-  const [verdict, setVerdict] = useState<ReviewStatus>('draft');
+  const [verdict, setVerdict] = useState<string>('1');
   const [sliderValue, setSliderValue] = useState(40);
   const [numberValue, setNumberValue] = useState(3);
   const [dateValue, setDateValue] = useState('2026-09-09');
@@ -126,14 +173,14 @@ export function DesignSystemPage() {
         <div className={styles.row}>
           <span className={styles.caption}>Статичные:</span>
           <StatusBadge value="under_review" options={DEMO_STATUS_OPTIONS} />
-          <StatusBadge value="approved" options={VERDICT_OPTIONS} />
+          <StatusBadge value="2" options={DEMO_VERDICT_OPTIONS} />
           <StatusBadge value="expert" options={ROLE_OPTIONS} />
         </div>
         <div className={styles.row}>
           <span className={styles.caption}>С выпадающим списком:</span>
           <StatusBadge value={appStatus} options={DEMO_STATUS_OPTIONS} onChange={setAppStatus} />
           <StatusBadge value={role} options={ROLE_OPTIONS} onChange={setRole} />
-          <StatusBadge value={verdict} options={VERDICT_OPTIONS} onChange={setVerdict} />
+          <StatusBadge value={verdict} options={DEMO_VERDICT_OPTIONS} onChange={setVerdict} />
         </div>
       </Section>
 
@@ -156,7 +203,7 @@ export function DesignSystemPage() {
               </div>
               <div className={styles.slide}>
                 <h3>Слайд 2 — бейдж статуса</h3>
-                <StatusBadge value="approved" options={VERDICT_OPTIONS} />
+                <StatusBadge value="2" options={DEMO_VERDICT_OPTIONS} />
               </div>
               <div className={styles.slide}>
                 <h3>Слайд 3 — карточка</h3>
@@ -203,6 +250,15 @@ export function DesignSystemPage() {
 
       <Section title="Таблица (с бейджами-статусами)">
         <Table columns={columns} data={DEMO_ROWS} rowKey={(row) => row.id} />
+      </Section>
+
+      <Section title="Поиск и фильтры (прототип)">
+        <p className={styles.prototypeHint}>
+          Единый шаблон для таблиц: <code>ListToolbar</code> + <code>SearchInput</code> + <code>Select</code> +{' '}
+          <code>Table</code>. Крупные списки фильтруются на сервере (параметр <code>q</code>), небольшие
+          справочники — на клиенте. Состояния: загрузка, пусто, ошибка.
+        </p>
+        <ListToolbarPrototype />
       </Section>
 
       <Section title="Уведомления (toast)">

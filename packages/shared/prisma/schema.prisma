@@ -15,10 +15,20 @@ enum RoleType {
   applicant
 }
 
-enum ReviewStatus {
-  draft
-  approved
-  rejected
+model review_statuses {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(100)
+  description String?
+  /// Цвет бейджа во фронтенде (neutral/blue/green/yellow/red/purple/gray).
+  tone        String    @default("gray") @db.VarChar(20)
+  /// Статус, который выставляется новой рецензии.
+  is_default  Boolean   @default(false)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  application_reviews application_reviews[]
+
+  @@index([deleted_at], map: "idx_review_statuses_deleted", where: raw("(deleted_at IS NULL)"))
 }
 
 enum PdfExportStatus {
@@ -50,7 +60,7 @@ model application_reviews {
   id             Int      @id @default(autoincrement())
   application_id Int
   expert_id      Int
-  review_status  ReviewStatus?
+  status_id      Int?
   review_text    String?
   rating         Json?    // Оценка эксперта по критериям в JSON формате: { criterion_id: value }
   total_score    Float?   // Итоговая оценка (сумма с учётом весов)
@@ -59,11 +69,13 @@ model application_reviews {
   deleted_at     DateTime? @db.Timestamptz(6)
   applications   applications @relation(fields: [application_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users          users        @relation(fields: [expert_id], references: [id], onUpdate: NoAction)
+  review_statuses review_statuses? @relation(fields: [status_id], references: [id], onUpdate: NoAction)
 
   @@unique([application_id, expert_id])
   @@index([application_id], map: "idx_app_reviews_application")
   @@index([deleted_at], map: "idx_app_reviews_deleted", where: raw("(deleted_at IS NULL)"))
   @@index([expert_id], map: "idx_app_reviews_expert")
+  @@index([status_id], map: "idx_app_reviews_status")
 }
 
 model application_statuses {

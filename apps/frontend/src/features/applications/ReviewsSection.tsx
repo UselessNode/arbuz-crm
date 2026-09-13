@@ -1,6 +1,6 @@
 // Секция «Рецензии»: назначение экспертов, просмотр, снятие.
 import { useCallback, useEffect, useState } from 'react';
-import { Badge, Button, ConfirmDialog, Select, StateMessage, VERDICT_OPTIONS } from '../../components/ui';
+import { Badge, Button, ConfirmDialog, Select, StateMessage, toBadgeTone } from '../../components/ui';
 import type { SelectOption } from '../../components/ui';
 import { reviewsApi } from '../../api/reviews';
 import { usersApi, type ExpertItem } from '../../api/users';
@@ -45,6 +45,9 @@ export function ReviewsSection({ applicationId, reviews, canManage = true, requi
     label: `${formatUserName(expert)} (${expert.email})`,
   }));
 
+  // Лимит экспертов задаётся в настройках конкурса; сервер проверяет его же.
+  const limitReached = requiredExperts !== undefined && reviews.length >= requiredExperts;
+
   const handleAssign = async (value: string) => {
     setSelectedExpert(value);
     if (!value) return;
@@ -80,11 +83,11 @@ export function ReviewsSection({ applicationId, reviews, canManage = true, requi
       {canManage ? (
         <div className={styles.sectionToolbar}>
           <Select
-            placeholder="Добавить эксперта…"
+            placeholder={limitReached ? 'Лимит экспертов достигнут' : 'Добавить эксперта…'}
             value={selectedExpert}
             onChange={(value) => void handleAssign(value)}
             options={expertOptions}
-            disabled={busy}
+            disabled={busy || limitReached}
           />
         </div>
       ) : null}
@@ -100,27 +103,23 @@ export function ReviewsSection({ applicationId, reviews, canManage = true, requi
         <StateMessage state="empty" message={canManage ? 'Эксперты не назначены' : 'Рецензий пока нет'} />
       ) : (
         <div className={styles.assignedExperts}>
-          {reviews.map((review) => {
-            const verdict =
-              VERDICT_OPTIONS.find((option) => option.value === (review.status ?? 'draft')) ?? VERDICT_OPTIONS[0];
-            return (
-              <div key={review.id} className={styles.reviewCard}>
-                <div className={styles.reviewHeader}>
-                  <strong>{review.expert ? formatUserName(review.expert) : 'Эксперт удалён'}</strong>
-                  <span className={styles.actions}>
-                    <Badge tone={verdict.tone} icon={verdict.icon}>
-                      {verdict.label}
-                    </Badge>
-                    <Badge tone="neutral">Балл: {review.totalScore ?? '—'}</Badge>
-                    {canManage ? (
-                      <Button size="sm" variant="ghost" icon="close" aria-label="Снять эксперта" onClick={() => setRemoving(review)} />
-                    ) : null}
-                  </span>
-                </div>
-                {review.text ? <p className={styles.reviewText}>{review.text}</p> : null}
+          {reviews.map((review) => (
+            <div key={review.id} className={styles.reviewCard}>
+              <div className={styles.reviewHeader}>
+                <strong>{review.expert ? formatUserName(review.expert) : 'Эксперт удалён'}</strong>
+                <span className={styles.actions}>
+                  <Badge tone={toBadgeTone(review.status?.tone)} icon="check">
+                    {review.status?.name ?? 'Вердикт не выставлен'}
+                  </Badge>
+                  <Badge tone="neutral">Балл: {review.totalScore ?? '—'}</Badge>
+                  {canManage ? (
+                    <Button size="sm" variant="ghost" icon="close" aria-label="Снять эксперта" onClick={() => setRemoving(review)} />
+                  ) : null}
+                </span>
               </div>
-            );
-          })}
+              {review.text ? <p className={styles.reviewText}>{review.text}</p> : null}
+            </div>
+          ))}
         </div>
       )}
 

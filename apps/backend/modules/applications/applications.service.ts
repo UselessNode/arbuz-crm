@@ -322,9 +322,16 @@ export async function getApplicationDetail(user: CurrentUser, applicationId: num
       project_budget: { where: { deleted_at: null }, orderBy: { id: 'asc' } },
       additional_materials: { where: { deleted_at: null }, orderBy: { id: 'asc' } },
       application_reviews: {
-        where: { deleted_at: null },
+        where: {
+          deleted_at: null,
+          // Эксперт видит только свою рецензию: оценки и тексты коллег ему недоступны.
+          ...(user.role === RoleType.expert ? { expert_id: user.id } : {}),
+        },
         orderBy: { id: 'asc' },
-        include: { users: { select: { id: true, name: true, surname: true, patronymic: true, email: true } } },
+        include: {
+          users: { select: { id: true, name: true, surname: true, patronymic: true, email: true } },
+          review_statuses: { select: { id: true, name: true, tone: true } },
+        },
       },
     },
   });
@@ -423,7 +430,9 @@ export async function getApplicationDetail(user: CurrentUser, applicationId: num
             patronymic: review.users.patronymic,
           }
         : null,
-      status: review.review_status,
+      status: review.review_statuses
+        ? { id: review.review_statuses.id, name: review.review_statuses.name, tone: review.review_statuses.tone }
+        : null,
       text: review.review_text,
       rating: review.rating,
       totalScore: review.total_score,

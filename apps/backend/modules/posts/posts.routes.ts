@@ -116,11 +116,12 @@ postsRouter.get(
   }),
 );
 
+// Вложения опубликованного поста доступны и гостям (публичная лента новостей);
+// для черновика доступ проверяет сервис (requireVisiblePost).
 postsRouter.get(
   '/:postId/files/:fileId/download',
-  requireAuth,
   asyncHandler(async (req: Request, res: Response) => {
-    const actor = req.user as CurrentUser;
+    const actor = req.user as CurrentUser | undefined;
     const { stream, size, file } = await downloadPostAttachment(actor, req.params.postId, req.params.fileId);
     applyDownloadHeaders(res, file.name, file.file_type, size);
     stream.on('error', () => res.destroy());

@@ -49,6 +49,12 @@ function validateInput(input: Partial<PostInput> & { title?: string; content?: s
   return { title, content, is_published: Boolean(input.is_published) };
 }
 
+export interface PostAttachment {
+  id: number;
+  name: string;
+  fileType: string | null;
+}
+
 export interface PostData {
   id: number;
   title: string;
@@ -59,6 +65,7 @@ export interface PostData {
   authorName: string | null;
   createdAt: Date;
   updatedAt: Date;
+  attachments: PostAttachment[];
 }
 
 type PostWithAuthor = {
@@ -70,6 +77,7 @@ type PostWithAuthor = {
   created_at: Date;
   updated_at: Date;
   author: { surname: string | null; name: string | null } | null;
+  posts_files: Array<{ files: { id: number; name: string; file_type: string | null } }>;
 };
 
 function serialize(post: PostWithAuthor): PostData {
@@ -87,10 +95,33 @@ function serialize(post: PostWithAuthor): PostData {
     authorName,
     createdAt: post.created_at,
     updatedAt: post.updated_at,
+    // Вложения отдаём вместе с постом: лента показывает их без дополнительных запросов.
+    attachments: post.posts_files.map((link) => ({
+      id: link.files.id,
+      name: link.files.name,
+      fileType: link.files.file_type,
+    })),
   };
 }
 
 const authorSelect = { select: { name: true, surname: true } } as const;
+
+/** Единый набор полей поста (включая вложения) для всех операций чтения. */
+const postSelect = {
+  id: true,
+  title: true,
+  content: true,
+  is_published: true,
+  created_by: true,
+  created_at: true,
+  updated_at: true,
+  author: authorSelect,
+  posts_files: {
+    where: { files: { deleted_at: null } },
+    orderBy: { created_at: 'asc' },
+    select: { files: { select: { id: true, name: true, file_type: true } } },
+  },
+} as const;
 
 export async function listPosts(
   user: CurrentUser | undefined,
@@ -110,16 +141,7 @@ export async function listPosts(
       orderBy: { created_at: 'desc' },
       skip: filter.offset,
       take: filter.limit,
-      select: {
-        id: true,
-        title: true,
-        content: true,
-        is_published: true,
-        created_by: true,
-        created_at: true,
-        updated_at: true,
-        author: authorSelect,
-      },
+      select: postSelect,
     }),
     prisma.posts.count({ where }),
   ]);
@@ -130,17 +152,7 @@ export async function listPosts(
 export async function getPostOrThrow(user: CurrentUser | undefined, postId: number) {
   const post = await prisma.posts.findUnique({
     where: { id: postId },
-    select: {
-      id: true,
-      title: true,
-      content: true,
-      is_published: true,
-      created_by: true,
-      created_at: true,
-      updated_at: true,
-      deleted_at: true,
-      author: authorSelect,
-    },
+    select: { ...postSelect, deleted_at: true },
   });
   if (!post || post.deleted_at || (!post.is_published && !isAdmin(user))) {
     throw httpError(404, 'Пост не найден', 'POST_NOT_FOUND');
@@ -153,16 +165,7 @@ export async function createPost(user: CurrentUser, input: Partial<PostInput>) {
   const data = validateInput(input);
   const post = await prisma.posts.create({
     data: { title: data.title, content: data.content, is_published: data.is_published, created_by: user.id },
-    select: {
-      id: true,
-      title: true,
-      content: true,
-      is_published: true,
-      created_by: true,
-      created_at: true,
-      updated_at: true,
-      author: authorSelect,
-    },
+    select: postSelect,
   });
   return serialize(post);
 }
@@ -176,16 +179,7 @@ export async function updatePost(user: CurrentUser, postId: number, input: Parti
   const post = await prisma.posts.update({
     where: { id: postId },
     data: { title: data.title, content: data.content, is_published: data.is_published },
-    select: {
-      id: true,
-      title: true,
-      content: true,
-      is_published: true,
-      created_by: true,
-      created_at: true,
-      updated_at: true,
-      author: authorSelect,
-    },
+    select: postSelect,
   });
   return serialize(post);
 }

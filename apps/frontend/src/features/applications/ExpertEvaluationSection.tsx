@@ -1,9 +1,8 @@
 // Секция эксперта: оценка назначенной заявки по критериям конкурса.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ReviewStatus } from '@arbuz/shared';
-import { Button, NumberInput, Select, StateMessage, Textarea, VERDICT_OPTIONS, useToast } from '../../components/ui';
+import { Button, NumberInput, Select, StateMessage, Textarea, useToast } from '../../components/ui';
 import type { SelectOption } from '../../components/ui';
-import { criteriaApi, type Criterion } from '../../api/references';
+import { criteriaApi, reviewStatusesApi, type Criterion, type ReviewVerdict } from '../../api/references';
 import { reviewsApi } from '../../api/reviews';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
@@ -15,11 +14,6 @@ interface Props {
   onChanged: () => Promise<void>;
 }
 
-const VERDICT_SELECT_OPTIONS: readonly SelectOption<ReviewStatus>[] = VERDICT_OPTIONS.map((option) => ({
-  value: option.value,
-  label: option.label,
-}));
-
 export function ExpertEvaluationSection({ application, onChanged }: Props) {
   const { user } = useAuth();
   const toast = useToast();
@@ -27,22 +21,29 @@ export function ExpertEvaluationSection({ application, onChanged }: Props) {
   const myReview = application.reviews.find((review) => review.expert?.id === user?.id) ?? null;
 
   const [criteria, setCriteria] = useState<Criterion[]>([]);
+  const [verdicts, setVerdicts] = useState<ReviewVerdict[]>([]);
   const [values, setValues] = useState<Record<number, number>>({});
-  const [verdict, setVerdict] = useState<ReviewStatus>('draft');
+  const [verdictId, setVerdictId] = useState('');
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Вердикты — редактируемый справочник, приходит с сервера.
+  const verdictOptions: readonly SelectOption<string>[] = useMemo(
+    () => verdicts.map((verdict) => ({ value: String(verdict.id), label: verdict.name })),
+    [verdicts],
+  );
+
   const loadCriteria = useCallback(async () => {
-    if (!tenderId) {
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     try {
-      const response = await criteriaApi.list(tenderId);
-      setCriteria(response.criteria);
+      const [criteriaResponse, verdictsResponse] = await Promise.all([
+        tenderId ? criteriaApi.list(tenderId) : Promise.resolve({ criteria: [] as Criterion[] }),
+        reviewStatusesApi.list(),
+      ]);
+      setCriteria(criteriaResponse.criteria);
+      setVerdicts(verdictsResponse.statuses);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить критерии конкурса');
     } finally {
@@ -57,7 +58,7 @@ export function ExpertEvaluationSection({ application, onChanged }: Props) {
   // Заполняем форму из своей рецензии и критериев конкурса.
   useEffect(() => {
     if (!myReview) return;
-    setVerdict(myReview.status ?? 'draft');
+    setVerdictId(myReview.status ? String(myReview.status.id) : '');
     setText(myReview.text ?? '');
     const rating =
       myReview.rating && typeof myReview.rating === 'object' ? (myReview.rating as Record<string, unknown>) : {};
@@ -90,7 +91,11 @@ export function ExpertEvaluationSection({ application, onChanged }: Props) {
       for (const criterion of criteria) {
         rating[String(criterion.id)] = values[criterion.id] ?? criterion.minValue;
       }
-      await reviewsApi.update(myReview.id, { rating, review_status: verdict, review_text: text || null });
+      await reviewsApi.update(myReview.id, {
+        rating,
+        status_id: verdictId ? Number(verdictId) : undefined,
+        review_text: text || null,
+      });
       await onChanged();
       toast.showToast({ message: 'Рецензия сохранена', tone: 'success' });
     } catch (caught) {
@@ -129,9 +134,10 @@ export function ExpertEvaluationSection({ application, onChanged }: Props) {
 
       <Select
         label="Вердикт"
-        value={verdict}
-        onChange={(value) => setVerdict(value as ReviewStatus)}
-        options={VERDICT_SELECT_OPTIONS}
+        placeholder="Выберите вердикт"
+        value={verdictId}
+        onChange={setVerdictId}
+        options={verdictOptions}
       />
       <Textarea label="Текст рецензии" value={text} onChange={(event) => setText(event.target.value)} />
 

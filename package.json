@@ -25,6 +25,8 @@
     "db:push": "dotenv -e .env -- prisma db push",
     "db:generate": "dotenv -e .env -- prisma generate",
     "db:migrate": "dotenv -e .env -- prisma migrate dev",
+    "/* === Только для dev: допускает удаление колонок с данными (в прод-БД так нельзя!) === */": "",
+    "db:push:dev": "dotenv -e .env -- prisma db push --accept-data-loss",
     "/* === НАЧАЛЬНОЕ НАПОЛНЕНИЕ И ОБСЛУЖИВАНИЕ === */": "",
     "db:reset": "dotenv -e .env -- bun --cwd apps/backend db:reset",
     "seed": "dotenv -e .env -- bun --cwd apps/backend seed",

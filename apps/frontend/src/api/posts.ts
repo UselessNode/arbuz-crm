@@ -1,5 +1,11 @@
 import { api } from './client';
 
+export interface PostAttachment {
+  id: number;
+  name: string;
+  fileType: string | null;
+}
+
 export interface Post {
   id: number;
   title: string;
@@ -10,6 +16,8 @@ export interface Post {
   authorName: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Вложения поста (приходят вместе со списком — нужны ленте на главной). */
+  attachments: PostAttachment[];
 }
 
 export interface PostFile {
@@ -50,6 +58,7 @@ export const postsApi = {
   remove: (id: number) => api.delete<{ ok: boolean }>(`/posts/${id}`),
   files: {
     list: (postId: number) => api.get<{ files: PostFile[] }>(`/posts/${postId}/files`),
+    downloadUrl: (postId: number, fileId: number) => `/api/posts/${postId}/files/${fileId}/download`,
     upload: (postId: number, file: File) => {
       const formData = new FormData();
       formData.append('file', file);

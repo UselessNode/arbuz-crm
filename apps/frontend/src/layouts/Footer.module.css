@@ -37,3 +37,15 @@
 .copy {
   white-space: nowrap;
 }
+
+.contacts a,
+.copy a {
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.contacts a:hover,
+.copy a:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}

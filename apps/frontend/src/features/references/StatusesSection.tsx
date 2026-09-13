@@ -1,4 +1,4 @@
-// Справочник «Статусы заявок».
+// Блок «Статусы заявок» в разделе «Настройки экспертизы».
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Button, Checkbox, ConfirmDialog, Container, Input, Modal, StateMessage, Table, useToast } from '../../components/ui';
 import type { TableColumn } from '../../components/ui';
@@ -74,7 +74,7 @@ function StatusFormModal({
   );
 }
 
-export function StatusesPage() {
+export function StatusesSection() {
   const toast = useToast();
   const [statuses, setStatuses] = useState<ApplicationStatus[]>([]);
   const [loading, setLoading] = useState(true);

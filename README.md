@@ -25,8 +25,8 @@ arbuz-crm/
 │   ├── backend/                      # @arbuz/backend — API-сервер (Express + Prisma)
 │   │   ├── app.ts                    # Сборка Express-приложения (без запуска)
 │   │   ├── index.ts                  # Точка входа: слушает порт, graceful shutdown
-│   │   ├── seed.ts                   # Начальное наполнение (админ, статусы, демо)
-│   │   ├── lib/                      # config, prisma, http, logger, multipart
+│   │   ├── seed.ts                   # Начальное наполнение (админ, статусы, вердикты, демо)
+│   │   ├── lib/                      # config, prisma, http, logger, multipart, query, parse
 │   │   ├── modules/                  # Доменные модули (*.routes.ts + *.service.ts)
 │   │   │   ├── auth/                 # Вход/выход, сессия (JWT-cookie), регистрация
 │   │   │   ├── users/                # Пользователи и роли (admin)
@@ -35,7 +35,7 @@ arbuz-crm/
 │   │   │   ├── tenders/              # Конкурсы и критерии оценки
 │   │   │   ├── directions/           # Направления конкурсов
 │   │   │   ├── statuses/             # Статусы заявок
-│   │   │   ├── reviews/              # Экспертные рецензии
+│   │   │   ├── reviews/              # Экспертные рецензии и справочник вердиктов
 │   │   │   ├── posts/                # Публикации (Markdown) + вложения
 │   │   │   └── pdf-export/           # Асинхронная PDF-выгрузка заявки
 │   │   ├── scripts/                  # pdf-worker, cleanup-storage
@@ -47,9 +47,9 @@ arbuz-crm/
 │           ├── auth/                 # Контекст аутентификации (восстановление сессии)
 │           ├── components/ui/        # Дизайн-система (единый импорт из './ui')
 │           ├── features/             # Разделы: auth, users, applications, reviews, posts, references
-│           ├── layouts/              # AdminLayout (сайдбар + шапка)
-│           ├── pages/                # AccountPage, ForbiddenPage, NotFoundPage, DesignSystemPage
-│           ├── router/               # AppRouter, ProtectedRoute, HomeRedirect
+│           ├── layouts/              # AppLayout (сайдбар + ролевая шапка), PublicLayout, Footer
+│           ├── pages/                # HomePage, AboutPage, PrivacyPolicyPage, DesignSystemPage, …
+│           ├── router/               # AppRouter, ProtectedRoute
 │           ├── styles/               # Дизайн-токены (tokens.css)
 │           └── assets/               # Иконки (SVG), изображения
 ├── packages/
@@ -100,7 +100,7 @@ bun db:generate
 bun db:push
 
 # 4.1. Тестовые данные (админ, заявитель, 2 эксперта, конкурс с критериями, заявки, публикации)
-bun seed                    # SEED_DEMO=false — только админ и статусы
+bun seed                    # SEED_DEMO=false — только админ, статусы и вердикты
 
 # 4.2. При необходимости полностью очистить данные (только dev) и заполнить заново
 bun db:reset && bun seed
@@ -130,8 +130,9 @@ bun dev:frontend   # http://127.0.0.1:5173
 | `bun db:generate`      | Сгенерировать Prisma Client                            |
 | `bun db:update`        | `db:push` + `db:generate`                              |
 | `bun db:migrate`       | Создать/применить миграции (`prisma migrate dev`)      |
+| `bun db:push:dev`      | `db:push` с `--accept-data-loss` (только dev, если данные не нужны) |
 | `bun db:reset`         | Полная очистка данных БД (только dev)            |
-| `bun seed`             | Тестовые данные: админ, статусы, демо-набор (`SEED_DEMO=false` — только админ) |
+| `bun seed`             | Тестовые данные: админ, статусы, вердикты, демо-набор (`SEED_DEMO=false` — только админ) |
 | `bun storage:cleanup`  | Очистка удалённых/осиротевших файлов (для cron)       |
 
 ## База данных
@@ -143,7 +144,7 @@ bun dev:frontend   # http://127.0.0.1:5173
 - Основные домены схемы:
   - **Пользователи и роли** — `users` (роли `admin`, `expert`, `applicant`).
   - **Конкурсы и направления** — `tenders`, `directions`, критерии оценки `evaluation_criteria`.
-  - **Заявки** — `applications`, статусы `application_statuses`, рецензии `application_reviews`.
+  - **Заявки** — `applications`, статусы `application_statuses`, рецензии `application_reviews` + справочник вердиктов `review_statuses`.
   - **Содержимое заявки** — `project_plans`, `project_budget`, `team_members` + `consent_files`, материалы `additional_materials`.
   - **Прочее** — `files`/`file_categories`, `posts`/`posts_files`, `pdf_export_jobs`, журнал `change_logs`.
 - Конвенции: `snake_case`, мягкое удаление через `deleted_at`, частичные индексы `(deleted_at IS NULL)`.
@@ -152,14 +153,14 @@ bun dev:frontend   # http://127.0.0.1:5173
 
 | Роль      | Возможности                                                                                   |
 | --------- | --------------------------------------------------------------------------------------------- |
-| `admin`   | Полный доступ: пользователи и роли, заявки, справочники, посты, назначение экспертов, модерация |
-| `expert`  | Только назначенные ему заявки и собственные рецензии (оценивание)                             |
+| `admin`   | Полный доступ: пользователи и роли, заявки, справочники и вердикты, посты, назначение экспертов, модерация |
+| `expert`  | Только назначенные ему заявки и **собственная** рецензия (чужие рецензии не видны)              |
 | `applicant` | Свои заявки (создание/отправка), опубликованные посты, свой вердикт/статус                  |
 
 Все проверки доступа выполняются **на бэкенде** (`requireAuth`/`requireRole` и проверки
-владения в сервисах); фронтенд лишь скрывает недоступные действия. Роли и статусы
-сравниваются через перечисления из `@arbuz/shared` (`RoleType`, `ReviewStatus`,
-`PdfExportStatus`) — без строковых литералов.
+владения в сервисах); фронтенд лишь скрывает недоступные действия. Роли сравниваются через
+перечисления из `@arbuz/shared` (`RoleType`, `PdfExportStatus`) — без строковых литералов;
+статусы заявок и вердикты — редактируемые справочники, фронтенд использует их id/названия из API.
 
 ## API
 
@@ -183,23 +184,27 @@ bun dev:frontend   # http://127.0.0.1:5173
 `POST /api/applications/:id/submit`.
 Состав: `GET/POST/PATCH/DELETE /api/applications/:id/team-members|project-plans|project-budget`.
 
-### Справочники (только admin)
+### Справочники (чтение — авторизованным, изменения — admin)
 
 Тендеры `/api/tenders`, критерии `/api/tenders/:id/criteria`, направления `/api/directions`,
-статусы `/api/application-statuses`.
+статусы заявок `/api/application-statuses`, вердикты рецензий `/api/review-statuses`.
+Вердикт помеченный `is_default` выставляется новой рецензии; вердикт по умолчанию и используемый
+в рецензиях удалить нельзя.
 
 ### Рецензии
 
-Назначение эксперта `POST /api/applications/:id/reviews` (admin), список
-`GET /api/reviews` (по ролям), оценка `PATCH /api/reviews/:id`, снятие `DELETE /api/reviews/:id`.
-Итоговый балл (`total_score`) считается на сервере по критериям конкурса.
+Назначение эксперта `POST /api/applications/:id/reviews` (admin) — не больше, чем
+`tenders.experts_count`; список `GET /api/reviews` (по ролям), оценка `PATCH /api/reviews/:id`,
+снятие `DELETE /api/reviews/:id`. Итоговый балл (`total_score`) считается на сервере по критериям
+конкурса. Эксперт видит только свою рецензию (и в списке, и в карточке заявки).
 
 ### Посты (лента новостей)
 
 `GET/POST/PATCH/DELETE /api/posts[/:id]` (создание/правка/публикация — admin; чтение
 опубликованного — все). Содержимое — Markdown; HTML рендерится и санитизируется на
-сервере (`contentHtml`, `POST /api/posts/preview`). Вложения —
-`POST/GET/DELETE /api/posts/:id/files[/:fileId][/download]`.
+сервере (`contentHtml`). Вложения — `POST/GET/DELETE /api/posts/:id/files[/:fileId]`,
+скачивание `GET /api/posts/:id/files/:fileId/download` (для опубликованного поста доступно
+и гостям — вложения показываются в публичной ленте).
 
 ### PDF-экспорт заявки
 
@@ -223,14 +228,15 @@ bun dev:frontend   # http://127.0.0.1:5173
 ## Frontend
 
 - **Дизайн-система** — `src/components/ui` с единым barrel-импортом:
-  `Icon`, `Button`, `Badge`/`StatusBadge` (+ `ROLE_OPTIONS`, `VERDICT_OPTIONS`, `APPLICATION_STATUS_OPTIONS`),
+  `Icon`, `Button`, `Badge`/`StatusBadge` (+ `ROLE_OPTIONS`, `toBadgeTone`),
   `Container`/`Accordion`/`Carousel`, `DragDrop`, `Input`/`NumberInput`/`Slider`/`DatePicker`/`Select`/`Textarea`/`Checkbox`,
-  `Table`, `StateMessage`/`Modal`/`ConfirmDialog`, `Pagination`.
+  `Table`, `ListToolbar`/`SearchInput` (поиск и фильтры списков),
+  `StateMessage`/`Modal`/`ConfirmDialog`, `Pagination`.
 - Иконки — кастомные SVG из `src/assets/icons/*.svg`, подхватываются через `import.meta.glob`; цвет наследуется через `currentColor`.
-- Демонстрация всех компонентов — страница `/admin/design-system`.
+- Демонстрация всех компонентов — страница `/admin/design-system` (включая прототип поиска и фильтров).
 - **Публикации**: WYSIWYG-редактор `@mdxeditor/editor` (ленивый чанк); на выходе Markdown, HTML формирует сервер.
 - **Уведомления**: тосты (`useToast`) с тонами и кнопкой «Отменить» для обратимых действий.
-- **Разделы админки** (`/admin`): Пользователи, Заявки, Рецензии, Посты, Конкурсы, Направления, Статусы заявок. В конкурсах настраиваются критерии (с историей изменений), число экспертов и «опасная зона» сброса заявок.
+- **Разделы админки** (`/admin`): Пользователи, Заявки, Рецензии, Посты, **Настройки конкурсов и направлений** (конкурсы, критерии с историей, число экспертов, «опасная зона», направления) и **Настройки экспертизы** (статусы заявок, вердикты рецензий). Поиск и фильтры — на всех списочных страницах.
 - **Область заявителя**: `/applications` — «Мои заявки», создание и заполнение (команда, план, бюджет, материалы, согласия), отправка на проверку; владелец может редактировать заявку. Заявитель видит статус и рецензии экспертов.
 - **Область эксперта**: `/expert` — назначенные заявки (чтение + оценка по критериям конкурса, вердикт и текст рецензии).
 - **Публичные страницы**: домашняя `/` (лента публикаций + контакты), `/about`, `/privacy`, вход `/login`, регистрация `/register` (с обязательным соглашением). Шапка авторизованной зоны окрашена по роли (админ — серый, эксперт — зелёный, заявитель — синий).

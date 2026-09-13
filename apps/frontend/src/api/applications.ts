@@ -1,5 +1,6 @@
-import type { ReviewStatus } from '@arbuz/shared';
 import { api } from './client';
+import type { UserBrief } from './types';
+import type { ReviewVerdictRef } from './references';
 
 export interface ApplicationSummary {
   id: number;
@@ -74,8 +75,8 @@ export interface Material {
 
 export interface ApplicationReview {
   id: number;
-  expert: { id: number; email: string; name: string | null; surname: string | null; patronymic: string | null } | null;
-  status: ReviewStatus | null;
+  expert: UserBrief | null;
+  status: ReviewVerdictRef | null;
   text: string | null;
   rating: unknown;
   totalScore: number | null;
@@ -86,7 +87,7 @@ export interface ApplicationDetail {
   id: number;
   title: string;
   ownerId: number | null;
-  owner: { id: number; email: string; name: string | null; surname: string | null; patronymic: string | null } | null;
+  owner: UserBrief | null;
   tender: { id: number; name: string; expertsCount: number } | null;
   direction: { id: number; name: string } | null;
   status: { id: number; name: string; isEditable: boolean | null; isDeletable: boolean | null } | null;

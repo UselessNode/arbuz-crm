@@ -15,8 +15,8 @@ function requireAdmin(user: CurrentUser): void {
   if (!isAdmin(user)) throw httpError(403, 'Действие доступно только администратору', 'FORBIDDEN');
 }
 
-/** Проверка видимости поста: опубликован для всех, черновик — только админу. */
-async function requireVisiblePost(user: CurrentUser, postId: number) {
+/** Проверка видимости поста: опубликован для всех (в т.ч. гостей), черновик — только админу. */
+async function requireVisiblePost(user: CurrentUser | undefined, postId: number) {
   const post = await prisma.posts.findFirst({
     where: { id: postId, deleted_at: null },
     select: { id: true, is_published: true },
@@ -89,7 +89,7 @@ export async function listPostAttachments(user: CurrentUser, rawPostId: string |
 }
 
 export async function downloadPostAttachment(
-  user: CurrentUser,
+  user: CurrentUser | undefined,
   rawPostId: string | undefined,
   rawFileId: string | undefined,
 ) {

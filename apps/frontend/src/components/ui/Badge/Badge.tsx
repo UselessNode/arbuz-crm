@@ -1,11 +1,19 @@
 // Бейдж: слово/метка с цветовым тоном. Статус-бейдж — вариант для
 // ролей/статусов/вердиктов, умеет превращаться в выпадающий список смены статуса.
 import type { ReactNode, SelectHTMLAttributes } from 'react';
-import type { RoleType, ReviewStatus } from '@arbuz/shared';
+import type { RoleType } from '@arbuz/shared';
 import { Icon, type IconName } from '../Icon';
 import styles from './Badge.module.css';
 
 export type BadgeTone = 'neutral' | 'blue' | 'green' | 'yellow' | 'red' | 'purple' | 'gray';
+
+/** Все допустимые тона (для валидации значений, пришедших из API/БД). */
+export const BADGE_TONES: readonly BadgeTone[] = ['neutral', 'blue', 'green', 'yellow', 'red', 'purple', 'gray'];
+
+/** Безопасно приводит тон из API/БД к BadgeTone (неизвестный → neutral). */
+export function toBadgeTone(value: string | null | undefined): BadgeTone {
+  return (BADGE_TONES as readonly string[]).includes(value ?? '') ? (value as BadgeTone) : 'neutral';
+}
 
 export interface BadgeProps {
   tone?: BadgeTone;
@@ -88,11 +96,6 @@ export const ROLE_OPTIONS: readonly StatusOption<RoleType>[] = [
   { value: 'applicant', label: 'Заявитель', tone: 'blue' },
 ];
 
-export const VERDICT_OPTIONS: readonly StatusOption<ReviewStatus>[] = [
-  { value: 'draft', label: 'Черновик', tone: 'gray', icon: 'edit' },
-  { value: 'approved', label: 'Одобрено', tone: 'green', icon: 'check' },
-  { value: 'rejected', label: 'Отклонено', tone: 'red', icon: 'close' },
-];
-
-// Статусы заявок — редактируемый справочник, поэтому они приходят с сервера
-// (`GET /api/application-statuses`), а не задаются здесь (см. ApplicationsPage / ApplicationDetailPage).
+// Статусы заявок и вердикты рецензий — редактируемые справочники: они приходят
+// с сервера (`GET /api/application-statuses`, `GET /api/review-statuses`),
+// а не задаются здесь (см. ApplicationsPage / ApplicationDetailPage / Настройки экспертизы).

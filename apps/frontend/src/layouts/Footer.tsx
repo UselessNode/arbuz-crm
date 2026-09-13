@@ -14,9 +14,17 @@ export function Footer() {
         {/* TODO(contacts): заменить на реальные контактные данные организации и вынести
             в редактируемые настройки (поиск по метке TODO(contacts)). */}
         <div className={styles.contacts} data-todo="contacts">
-          Контакты организации: будут добавлены
+          {/* Внешние адреса — обычные ссылки <a>: Link из react-router работает только с внутренними маршрутами. */}
+          <a href="https://edu-digital.su/" target="_blank" rel="noreferrer">
+            Разработано ООО «Цифровые образовательные решения»
+          </a>
         </div>
-        <div className={styles.copy}>© {year} Arbuz CRM</div>
+        <div className={styles.copy}>
+          © {year} Фонд «Мир Добра» ·{' '}
+          <a href="https://vk.ru/mirdobra19" target="_blank" rel="noreferrer">
+            Мы во ВКонтакте
+          </a>
+        </div>
       </div>
     </footer>
   );

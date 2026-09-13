@@ -5,7 +5,7 @@ export type { IconName, IconProps } from './Icon';
 export { Button } from './Button';
 export type { ButtonProps, ButtonSize, ButtonVariant } from './Button';
 
-export { Badge, StatusBadge, ROLE_OPTIONS, VERDICT_OPTIONS } from './Badge';
+export { Badge, StatusBadge, ROLE_OPTIONS, BADGE_TONES, toBadgeTone } from './Badge';
 export type { BadgeProps, BadgeTone, StatusBadgeProps, StatusOption } from './Badge';
 
 export { Container } from './Container';

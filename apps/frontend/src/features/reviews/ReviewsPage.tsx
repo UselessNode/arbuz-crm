@@ -1,9 +1,21 @@
 // Список рецензий (админ): все назначенные экспертизы по заявкам.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Container, ListToolbar, SearchInput, Select, StateMessage, StatusBadge, Table, VERDICT_OPTIONS } from '../../components/ui';
-import type { TableColumn } from '../../components/ui';
+import {
+  Badge,
+  Button,
+  Container,
+  ListToolbar,
+  SearchInput,
+  Select,
+  StateMessage,
+  StatusBadge,
+  Table,
+  toBadgeTone,
+} from '../../components/ui';
+import type { StatusOption, TableColumn } from '../../components/ui';
 import { reviewsApi, type ReviewListItem } from '../../api/reviews';
+import { reviewStatusesApi, type ReviewVerdict } from '../../api/references';
 import { ApiError } from '../../api/client';
 import { formatDateTime, formatUserName } from '../../lib/format';
 import styles from './ReviewsPage.module.css';
@@ -11,6 +23,7 @@ import styles from './ReviewsPage.module.css';
 export function ReviewsPage() {
   const navigate = useNavigate();
   const [reviews, setReviews] = useState<ReviewListItem[]>([]);
+  const [verdicts, setVerdicts] = useState<ReviewVerdict[]>([]);
   const [search, setSearch] = useState('');
   const [verdictFilter, setVerdictFilter] = useState('');
   const [loading, setLoading] = useState(true);
@@ -20,8 +33,9 @@ export function ReviewsPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await reviewsApi.list();
-      setReviews(response.reviews);
+      const [reviewsResponse, statusesResponse] = await Promise.all([reviewsApi.list(), reviewStatusesApi.list()]);
+      setReviews(reviewsResponse.reviews);
+      setVerdicts(statusesResponse.statuses);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить рецензии');
     } finally {
@@ -33,12 +47,17 @@ export function ReviewsPage() {
     void load();
   }, [load]);
 
+  // Вердикты — редактируемый справочник: метки и цвета берём с сервера.
+  const verdictOptions: readonly StatusOption<string>[] = useMemo(
+    () => verdicts.map((verdict) => ({ value: String(verdict.id), label: verdict.name, tone: toBadgeTone(verdict.tone) })),
+    [verdicts],
+  );
+
   // Список небольшой (без пагинации) — фильтруем на клиенте.
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return reviews.filter((review) => {
-      const verdict = review.status ?? 'draft';
-      if (verdictFilter && verdict !== verdictFilter) return false;
+      if (verdictFilter && String(review.status?.id ?? '') !== verdictFilter) return false;
       if (!needle) return true;
       const haystack = [review.applicationTitle ?? '', review.expert ? formatUserName(review.expert) : ''].join(' ').toLowerCase();
       return haystack.includes(needle);
@@ -51,7 +70,8 @@ export function ReviewsPage() {
     {
       key: 'status',
       header: 'Вердикт',
-      render: (r) => <StatusBadge value={r.status ?? 'draft'} options={VERDICT_OPTIONS} />,
+      render: (r) =>
+        r.status ? <StatusBadge value={String(r.status.id)} options={verdictOptions} /> : <Badge tone="neutral">—</Badge>,
     },
     { key: 'score', header: 'Балл', render: (r) => r.totalScore ?? '—' },
     { key: 'updated', header: 'Обновлена', render: (r) => formatDateTime(r.updatedAt) },
@@ -75,7 +95,7 @@ export function ReviewsPage() {
 
       <ListToolbar>
         <SearchInput placeholder="Поиск по заявке и эксперту" onChange={setSearch} />
-        <Select label="Вердикт" placeholder="Все вердикты" value={verdictFilter} onChange={setVerdictFilter} options={VERDICT_OPTIONS} />
+        <Select label="Вердикт" placeholder="Все вердикты" value={verdictFilter} onChange={setVerdictFilter} options={verdictOptions} />
       </ListToolbar>
 
       {loading ? (

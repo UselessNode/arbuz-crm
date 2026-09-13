@@ -23,10 +23,10 @@
 
 - **Роуты содержат бизнес-логику.** `files.routes.ts` — расчёт квоты и сериализация;
   вынести в `*.service.ts` (заголовки скачивания уже вынесены в `modules/files/download.ts`).
-- **Дублирование утилит.** `parseId`/`requiredName`/`optionalText` повторяются в
-  `tenders.service.ts`, `directions.service.ts`, `statuses.service.ts`, `files.routes.ts`,
-  `posts.attachments.ts`. `parseLimitOffset` (в 1.16.0 — `lib/query.ts`) и `parseId`
-  вынести в `lib/` полностью.
+- **Дублирование утилит.** `lib/parse.ts` (1.17.0) содержит `parseId`/`requiredText`/
+  `optionalText`/`optionalBool`/`oneOf`; его использует модуль `reviews`. Остальные модули
+  (`tenders`, `directions`, `statuses`, `files.routes`, `posts.attachments`) ещё держат
+  локальные копии — перевести на `lib/parse.ts`.
 - **Логирование.** `lib/logger.ts` пишет в `logs/audit.log` синхронно (`appendFileSync`);
   нет ротации (для слабого сервера приемлемо, но при росте нагрузки — пересмотреть).
 - **Аутентификация.** `auth.routes.ts` — проверка пароля только для существующих
@@ -46,8 +46,8 @@
 
 - **Типизация иконок.** `IconName = string`: опечатка компилируется. Сейчас в dev пишется
   `console.warn` об неизвестном имени; строгий union мешает авто-подхвату SVG — оставлено.
-- **Форматы данных.** Фигура эксперта описана в трёх местах (`ReviewListItem.expert`,
-  `ApplicationReview.expert`, `ExpertItem`) — вынести общий тип `UserBrief`.
+- **Форматы данных.** ✅ Закрыто в 1.17.0: общий тип `UserBrief` (`api/types.ts`) используют
+  `ReviewListItem.expert`, `ApplicationReview.expert`, `ExpertItem`, `owner`.
 - **`Select`** возвращает `onChange(value: string)`, из-за чего в `UsersPage` есть касты
   `value as RoleType`. Типизировать обобщённо.
 - **Carousel.** `aria-hidden` слайды сохраняют фокусируемые элементы (нужен `inert`).
@@ -64,6 +64,9 @@
 - **Справочники в списках заявок.** `ApplicationsPage` перезапрашивает статусы и конкурсы
   при каждой смене страницы/фильтра — при желании вынести в отдельный `useEffect` с загрузкой
   один раз.
+- **Вердикты — справочник в БД.** С 1.17.0 `application_reviews.status_id` ссылается на
+  `review_statuses` (enum `ReviewStatus` удалён). При добавлении/удалении вердиктов следите
+  за флагом `is_default`: он выставляется новой рецензии (проверка на сервере).
 
 ## Сессия 2
 

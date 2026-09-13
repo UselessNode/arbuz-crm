@@ -26,6 +26,7 @@ const TABLES = [
   'file_categories',
   'users',
   'application_statuses',
+  'review_statuses',
 ];
 
 async function main(): Promise<void> {

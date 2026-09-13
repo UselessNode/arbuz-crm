@@ -1,9 +1,11 @@
 // Публичная домашняя страница: лента публикаций + контакты организации.
 import { useCallback, useEffect, useState } from 'react';
-import { Pagination, StateMessage } from '../../components/ui';
+import { Icon, Pagination, StateMessage } from '../../components/ui';
 import { postsApi, type Post } from '../../api/posts';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
+import { isImageFile } from '../../lib/files';
+import melonLogo from '../../assets/images/Melon.png';
 import styles from './HomePage.module.css';
 
 const PAGE_SIZE = 5;
@@ -36,12 +38,14 @@ export function HomePage() {
   return (
     <div className={styles.page}>
       <section className={styles.hero}>
-        <p className={styles.eyebrow}>Грантовые заявки для НКО</p>
-        <h1 className={styles.heroTitle}>Arbuz CRM</h1>
-        <p className={styles.heroLead}>
-          Приём, экспертиза и рассмотрение заявок в одном месте. Войдите, чтобы подать заявку,
-          либо следите за новостями организации ниже.
-        </p>
+        <img src={melonLogo} alt="Арбузный грант" className={styles.heroLogo} />
+        <div>
+          <h1 className={styles.heroTitle}>Арбузный грант</h1>
+          <p className={styles.heroLead}>
+            Приём, экспертиза и рассмотрение заявок в одном месте. Войдите, чтобы подать заявку,
+            либо следите за новостями организации ниже.
+          </p>
+        </div>
       </section>
 
       <div className={styles.grid}>
@@ -69,6 +73,7 @@ export function HomePage() {
                     </div>
                     {/* HTML санитизируется на сервере (contentHtml). */}
                     <div className={styles.postContent} dangerouslySetInnerHTML={{ __html: post.contentHtml }} />
+                    <PostAttachments post={post} />
                   </article>
                 ))}
               </div>
@@ -79,13 +84,37 @@ export function HomePage() {
 
         <aside className={styles.contacts} aria-label="Контакты организации">
           <h2 className={styles.sectionTitle}>Контакты</h2>
-          {/* TODO(contacts): заменить на реальные контактные данные организации
-              (адрес, телефон, email, ссылки) и вынести в редактируемые настройки. */}
           <p className={styles.contactsText} data-todo="contacts">
             Контактная информация организации будет добавлена.
           </p>
         </aside>
       </div>
+    </div>
+  );
+}
+
+/** Вложения публикации: картинки показываем превью, остальное — ссылкой на скачивание. */
+function PostAttachments({ post }: { post: Post }) {
+  if (post.attachments.length === 0) return null;
+
+  return (
+    <div className={styles.attachments}>
+      {post.attachments.map((file) => {
+        const url = postsApi.files.downloadUrl(post.id, file.id);
+        if (isImageFile(file.fileType)) {
+          return (
+            <a key={file.id} href={url} target="_blank" rel="noreferrer" className={styles.attachmentImageLink}>
+              <img src={url} alt={file.name} className={styles.attachmentImage} loading="lazy" />
+            </a>
+          );
+        }
+        return (
+          <a key={file.id} href={url} target="_blank" rel="noreferrer" className={styles.attachmentLink}>
+            <Icon name="download" size={14} />
+            {file.name}
+          </a>
+        );
+      })}
     </div>
   );
 }

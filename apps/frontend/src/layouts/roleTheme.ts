@@ -15,9 +15,8 @@ const ADMIN_NAV: NavItem[] = [
   { to: '/admin/applications', label: 'Заявки', icon: 'document' },
   { to: '/admin/reviews', label: 'Рецензии', icon: 'check' },
   { to: '/admin/posts', label: 'Посты', icon: 'chat' },
-  { to: '/admin/tenders', label: 'Конкурсы', icon: 'briefcase' },
-  { to: '/admin/directions', label: 'Направления', icon: 'folder' },
-  { to: '/admin/statuses', label: 'Статусы заявок', icon: 'filter' },
+  { to: '/admin/contests', label: 'Настройки конкурсов и направлений', icon: 'briefcase' },
+  { to: '/admin/expertise', label: 'Настройки экспертизы', icon: 'filter' },
   { to: '/admin/design-system', label: 'Дизайн-система', icon: 'settings' },
 ];
 
