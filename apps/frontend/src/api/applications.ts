@@ -142,8 +142,14 @@ export interface TeamMemberPayload {
   patronymic?: string | null;
   tasks_in_project?: string | null;
   contact_info?: string | null;
+  social_media_links?: string | null;
+  /** Профиль на форуме — заполняется только ответственным за форум. */
+  forum_url?: string | null;
   is_responsible?: boolean;
   is_coordinator?: boolean;
+  /** Образование — заполняется только координатором проекта. */
+  education?: string | null;
+  work_experience?: string | null;
   is_adult?: boolean;
 }
 

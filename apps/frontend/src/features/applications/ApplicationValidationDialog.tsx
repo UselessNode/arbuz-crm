@@ -16,7 +16,7 @@ export function ApplicationValidationDialog({ result, saving, onClose, onRemoveW
   const hasMissingConsent = result.issues.some((issue) => issue.code === 'MISSING_CONSENT');
 
   return (
-    <Modal open title="Заявка не готова к отправке" onClose={onClose} width={520}>
+    <Modal open title="Заявка не готова к отправке" onClose={onClose} width={520} dismissable>
       <div className={styles.validationList}>
         {result.issues.map((issue) => (
           <div key={issue.code} className={styles.validationIssue}>

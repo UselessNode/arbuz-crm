@@ -15,7 +15,17 @@ interface Props {
   onChanged: () => Promise<void>;
 }
 
-const emptyForm = (): TeamMemberPayload => ({ surname: '', name: '', patronymic: '', tasks_in_project: '' });
+const emptyForm = (): TeamMemberPayload => ({
+  surname: '',
+  name: '',
+  patronymic: '',
+  tasks_in_project: '',
+  contact_info: '',
+  social_media_links: '',
+  forum_url: '',
+  education: '',
+  work_experience: '',
+});
 
 export function TeamMembersSection({ applicationId, members, readOnly = false, onChanged }: Props) {
   const toast = useToast();
@@ -48,6 +58,11 @@ export function TeamMembersSection({ applicationId, members, readOnly = false, o
       name: member.name,
       patronymic: member.patronymic,
       tasks_in_project: member.tasksInProject,
+      contact_info: member.contactInfo,
+      social_media_links: member.socialMediaLinks,
+      forum_url: member.forumUrl,
+      education: member.education,
+      work_experience: member.workExperience,
     });
     setIsResponsible(Boolean(member.isResponsible));
     setIsCoordinator(Boolean(member.isCoordinator));
@@ -63,6 +78,9 @@ export function TeamMembersSection({ applicationId, members, readOnly = false, o
     try {
       const payload: TeamMemberPayload = {
         ...form,
+        // Поля, которые не показываются для этой роли, очищаем — иначе они останутся невидимыми.
+        forum_url: isResponsible ? form.forum_url : null,
+        education: isCoordinator ? form.education : null,
         is_responsible: isResponsible,
         is_coordinator: isCoordinator,
         is_adult: isAdult,
@@ -100,7 +118,10 @@ export function TeamMembersSection({ applicationId, members, readOnly = false, o
     {
       key: 'flags',
       header: 'Роли',
-      render: (m) => [m.isResponsible ? 'ответственный' : null, m.isCoordinator ? 'координатор' : null].filter(Boolean).join(', ') || '—',
+      render: (m) =>
+        [m.isResponsible ? 'ответственный за форум' : null, m.isCoordinator ? 'координатор' : null]
+          .filter(Boolean)
+          .join(', ') || '—',
     },
     {
       key: 'consent',
@@ -149,7 +170,7 @@ export function TeamMembersSection({ applicationId, members, readOnly = false, o
         <Table columns={columns} data={members} rowKey={(m) => m.id} />
       )}
 
-      <Modal open={open} title={editing ? 'Участник команды' : 'Новый участник'} onClose={() => setOpen(false)} width={480}>
+      <Modal open={open} title={editing ? 'Участник команды' : 'Новый участник'} onClose={() => setOpen(false)} width={560}>
         <form className={styles.form} onSubmit={handleSubmit}>
           <div className={styles.grid2}>
             <Input label="Фамилия" value={form.surname} onChange={(e) => setForm({ ...form, surname: e.target.value })} required />
@@ -161,7 +182,45 @@ export function TeamMembersSection({ applicationId, members, readOnly = false, o
             value={form.tasks_in_project ?? ''}
             onChange={(e) => setForm({ ...form, tasks_in_project: e.target.value })}
           />
-          <Checkbox label="Ответственный" checked={isResponsible} onChange={setIsResponsible} />
+          <div className={styles.grid2}>
+            <Input
+              label="Контактные данные"
+              value={form.contact_info ?? ''}
+              onChange={(e) => setForm({ ...form, contact_info: e.target.value })}
+              placeholder="Телефон или email"
+            />
+            <Input
+              label="Ссылка на соцсеть"
+              value={form.social_media_links ?? ''}
+              onChange={(e) => setForm({ ...form, social_media_links: e.target.value })}
+              placeholder="https://"
+            />
+          </div>
+          <div className={styles.grid2}>
+            <Input
+              label="Опыт работы с проектами"
+              value={form.work_experience ?? ''}
+              onChange={(e) => setForm({ ...form, work_experience: e.target.value })}
+            />
+            {/* Образование заполняет только координатор проекта. */}
+            {isCoordinator ? (
+              <Input
+                label="Образование"
+                value={form.education ?? ''}
+                onChange={(e) => setForm({ ...form, education: e.target.value })}
+              />
+            ) : null}
+          </div>
+          {/* Профиль на форуме заполняет только ответственный за форум. */}
+          {isResponsible ? (
+            <Input
+              label="Ссылка на профиль на форуме"
+              value={form.forum_url ?? ''}
+              onChange={(e) => setForm({ ...form, forum_url: e.target.value })}
+              placeholder="https://"
+            />
+          ) : null}
+          <Checkbox label="Ответственный за форум" checked={isResponsible} onChange={setIsResponsible} />
           <Checkbox label="Координатор" checked={isCoordinator} onChange={setIsCoordinator} />
           <Checkbox label="Совершеннолетний" checked={isAdult} onChange={setIsAdult} />
           {error ? <div className={styles.error}>{error}</div> : null}

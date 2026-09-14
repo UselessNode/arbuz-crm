@@ -32,6 +32,7 @@ export function ConfirmDialog({
       title={title}
       onClose={onClose}
       width={420}
+      dismissable
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={loading}>

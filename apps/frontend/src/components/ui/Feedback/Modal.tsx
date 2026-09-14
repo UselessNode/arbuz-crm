@@ -1,4 +1,8 @@
 // Модальное окно: заголовок, контент, подвал; закрытие по Esc и клику по фону.
+//
+// По умолчанию окно закрывается только явно (крестик, кнопки) — чтобы случайный
+// клик мимо формы или Esc не уничтожил введённые данные. Для информационных
+// диалогов включайте `dismissable`: тогда закрывают и клик по фону, и Esc.
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { Icon } from '../Icon';
 import styles from './Feedback.module.css';
@@ -10,6 +14,8 @@ export interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   width?: number;
+  /** Закрывать по клику мимо окна и по Esc. По умолчанию — нет. */
+  dismissable?: boolean;
 }
 
 const FOCUSABLE_SELECTOR =
@@ -22,7 +28,7 @@ function getFocusable(container: HTMLElement): HTMLElement[] {
   );
 }
 
-export function Modal({ open, title, onClose, children, footer, width }: ModalProps) {
+export function Modal({ open, title, onClose, children, footer, width, dismissable = false }: ModalProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
@@ -35,12 +41,12 @@ export function Modal({ open, title, onClose, children, footer, width }: ModalPr
     return () => previouslyFocusedRef.current?.focus?.();
   }, [open]);
 
-  // Esc — закрыть; Tab/Shift+Tab — удержать фокус внутри диалога.
+  // Esc — закрыть (если окно закрываемое); Tab/Shift+Tab — удержать фокус внутри диалога.
   useEffect(() => {
     if (!open) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose();
+        if (dismissable) onClose();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -71,12 +77,12 @@ export function Modal({ open, title, onClose, children, footer, width }: ModalPr
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
+  }, [open, onClose, dismissable]);
 
   if (!open) return null;
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <div className={styles.overlay} onClick={dismissable ? onClose : undefined}>
       <div
         ref={dialogRef}
         className={styles.dialog}

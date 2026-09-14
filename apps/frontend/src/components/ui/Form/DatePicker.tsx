@@ -1,6 +1,19 @@
 // Выбор даты: кастомный календарь (навигация по месяцам, подсветка диапазона дат).
 // Значение — строка формата yyyy-mm-dd ('' — не выбрано).
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+//
+// Календарь рендерится в портале (position: fixed), чтобы выходить за границы
+// контейнеров с overflow (например, модального окна) и не обрезаться.
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from '../Icon';
 import styles from './Form.module.css';
 
@@ -37,6 +50,10 @@ const MONTHS = [
 ];
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+/** Отступ попапа от поля и от краёв окна (px). */
+const GAP = 4;
+const EDGE = 8;
 
 /** yyyy-mm-dd → Date (локальная полночь) либо null. */
 function parseISODate(value: string | undefined): Date | null {
@@ -77,7 +94,10 @@ export function DatePicker({
 }: DatePickerProps) {
   const popupId = useId();
   const wrapRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [popupStyle, setPopupStyle] = useState<CSSProperties>({ top: 0, left: 0, visibility: 'hidden' });
 
   const selected = parseISODate(value);
   const minDate = parseISODate(min);
@@ -98,10 +118,44 @@ export function DatePicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Позиция попапа: под полем, а если снизу не хватает места — над ним.
+  useLayoutEffect(() => {
+    if (!open) {
+      setPopupStyle({ top: 0, left: 0, visibility: 'hidden' });
+      return undefined;
+    }
+    const place = () => {
+      const button = buttonRef.current;
+      const popup = popupRef.current;
+      if (!button || !popup) return;
+      const rect = button.getBoundingClientRect();
+      const { offsetHeight: height, offsetWidth: width } = popup;
+      const fitsBelow = rect.bottom + GAP + height <= window.innerHeight - EDGE;
+      const top = fitsBelow || rect.top - GAP - height < EDGE ? rect.bottom + GAP : rect.top - GAP - height;
+      const left = Math.min(Math.max(rect.left, EDGE), window.innerWidth - width - EDGE);
+      setPopupStyle({
+        top: Math.min(Math.max(top, EDGE), Math.max(window.innerHeight - height - EDGE, EDGE)),
+        left: Math.max(left, EDGE),
+        visibility: 'visible',
+      });
+    };
+    place();
+    // Пересчитываем при прокрутке любого контейнера и изменении размера окна.
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open, viewMonth]);
+
+  // Закрытие по клику вне поля и вне попапа (попап живёт в портале).
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
     const handlePointerDown = (event: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (wrapRef.current?.contains(target) || popupRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
@@ -148,6 +202,7 @@ export function DatePicker({
       {label ? <span className={styles.label}>{label}</span> : null}
       <div className={styles.dateWrap}>
         <button
+          ref={buttonRef}
           type="button"
           className={`${styles.dateButton} ${error ? styles.inputError : ''}`}
           onClick={() => setOpen((prev) => !prev)}
@@ -159,82 +214,91 @@ export function DatePicker({
           <span className={selected ? undefined : styles.datePlaceholder}>{selected ? formatDisplay(selected) : placeholder}</span>
           <Icon name="calendar" size={15} className={styles.dateIcon} />
         </button>
-
-        {open ? (
-          <div id={popupId} className={styles.datePopup} role="dialog" aria-label="Календарь">
-            <div className={styles.calendarHeader}>
-              <button type="button" className={styles.calendarNav} onClick={() => shiftMonth(-1)} aria-label="Предыдущий месяц">
-                <Icon name="chevron-left" size={16} />
-              </button>
-              <span className={styles.calendarTitle}>
-                {MONTHS[viewMonth.getMonth()]} {viewMonth.getFullYear()}
-              </span>
-              <button type="button" className={styles.calendarNav} onClick={() => shiftMonth(1)} aria-label="Следующий месяц">
-                <Icon name="chevron-right" size={16} />
-              </button>
-            </div>
-
-            <div className={styles.calendarWeekdays}>
-              {WEEKDAYS.map((day) => (
-                <span key={day} className={styles.calendarWeekday}>
-                  {day}
-                </span>
-              ))}
-            </div>
-
-            <div className={styles.calendarGrid}>
-              {cells.map((date, index) => {
-                if (!date) return <span key={`empty-${index}`} />;
-                const dayDisabled = isDisabledDay(date);
-                const isSelected = selected !== null && isSameDay(date, selected);
-                const isOutsideRange =
-                  rangeFrom !== null && rangeTo !== null && date > rangeFrom && date < rangeTo;
-                const isRangeEdge =
-                  (rangeFrom !== null && isSameDay(date, rangeFrom)) || (rangeTo !== null && isSameDay(date, rangeTo));
-                const classes = [
-                  styles.calendarDay,
-                  isSameDay(date, today) ? styles.calendarDayToday : '',
-                  isOutsideRange || isRangeEdge ? styles.calendarDayInRange : '',
-                  isSelected ? styles.calendarDaySelected : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ');
-
-                return (
-                  <button
-                    key={toISODate(date)}
-                    type="button"
-                    className={classes}
-                    onClick={() => selectDate(date)}
-                    disabled={dayDisabled}
-                    aria-label={formatDisplay(date)}
-                    aria-current={isSelected ? 'date' : undefined}
-                  >
-                    {date.getDate()}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className={styles.calendarFooter}>
-              <button
-                type="button"
-                className={styles.calendarFooterButton}
-                onClick={() => selectDate(today)}
-                disabled={isDisabledDay(today)}
-              >
-                Сегодня
-              </button>
-              {selected ? (
-                <button type="button" className={styles.calendarFooterButton} onClick={() => onChange('')}>
-                  Очистить
-                </button>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
       </div>
       {error ? <span className={styles.error}>{error}</span> : null}
+
+      {open
+        ? createPortal(
+            <div
+              id={popupId}
+              ref={popupRef}
+              className={`${styles.datePopup} ${styles.datePopupPortal}`}
+              style={popupStyle}
+              role="dialog"
+              aria-label="Календарь"
+            >
+              <div className={styles.calendarHeader}>
+                <button type="button" className={styles.calendarNav} onClick={() => shiftMonth(-1)} aria-label="Предыдущий месяц">
+                  <Icon name="chevron-left" size={16} />
+                </button>
+                <span className={styles.calendarTitle}>
+                  {MONTHS[viewMonth.getMonth()]} {viewMonth.getFullYear()}
+                </span>
+                <button type="button" className={styles.calendarNav} onClick={() => shiftMonth(1)} aria-label="Следующий месяц">
+                  <Icon name="chevron-right" size={16} />
+                </button>
+              </div>
+
+              <div className={styles.calendarWeekdays}>
+                {WEEKDAYS.map((day) => (
+                  <span key={day} className={styles.calendarWeekday}>
+                    {day}
+                  </span>
+                ))}
+              </div>
+
+              <div className={styles.calendarGrid}>
+                {cells.map((date, index) => {
+                  if (!date) return <span key={`empty-${index}`} />;
+                  const dayDisabled = isDisabledDay(date);
+                  const isSelected = selected !== null && isSameDay(date, selected);
+                  const isOutsideRange = rangeFrom !== null && rangeTo !== null && date > rangeFrom && date < rangeTo;
+                  const isRangeEdge =
+                    (rangeFrom !== null && isSameDay(date, rangeFrom)) || (rangeTo !== null && isSameDay(date, rangeTo));
+                  const classes = [
+                    styles.calendarDay,
+                    isSameDay(date, today) ? styles.calendarDayToday : '',
+                    isOutsideRange || isRangeEdge ? styles.calendarDayInRange : '',
+                    isSelected ? styles.calendarDaySelected : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ');
+
+                  return (
+                    <button
+                      key={toISODate(date)}
+                      type="button"
+                      className={classes}
+                      onClick={() => selectDate(date)}
+                      disabled={dayDisabled}
+                      aria-label={formatDisplay(date)}
+                      aria-current={isSelected ? 'date' : undefined}
+                    >
+                      {date.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className={styles.calendarFooter}>
+                <button
+                  type="button"
+                  className={styles.calendarFooterButton}
+                  onClick={() => selectDate(today)}
+                  disabled={isDisabledDay(today)}
+                >
+                  Сегодня
+                </button>
+                {selected ? (
+                  <button type="button" className={styles.calendarFooterButton} onClick={() => onChange('')}>
+                    Очистить
+                  </button>
+                ) : null}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

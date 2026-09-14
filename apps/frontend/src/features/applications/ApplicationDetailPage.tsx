@@ -8,6 +8,7 @@ import {
   Button,
   ConfirmDialog,
   Container,
+  SectionHint,
   StateMessage,
   StatusBadge,
   useToast,
@@ -26,6 +27,7 @@ import { BudgetSection } from './BudgetSection';
 import { MaterialsSection } from './MaterialsSection';
 import { ReviewsSection } from './ReviewsSection';
 import { ExpertEvaluationSection } from './ExpertEvaluationSection';
+import { APPLICATION_SECTION_HINTS } from './section-hints';
 import styles from './Applications.module.css';
 
 export type ApplicationArea = 'admin' | 'applicant' | 'expert';
@@ -52,7 +54,10 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [validation, setValidation] = useState<ApplicationValidationResult | null>(null);
+  /** Замечания проверки после явного «Сохранить» (не мешают сохранению). */
+  const [saveIssues, setSaveIssues] = useState<ApplicationValidationResult | null>(null);
 
   const load = useCallback(
     async (silent = false) => {
@@ -114,6 +119,44 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
     } catch (caught) {
       setActionError(caught instanceof ApiError ? caught.message : 'Не удалось изменить статус');
       await refresh();
+    }
+  };
+
+  /**
+   * Явное сохранение карточки. Разделы (команда, план, бюджет, материалы) сохраняются
+   * каждым действием сразу, поэтому кнопка дублирует сохранение основных полей и служит
+   * понятной точкой «всё сохранено». Она же показывает замечания проверки заявки.
+   */
+  const handleSave = async () => {
+    if (!application) return;
+    setSaving(true);
+    setActionError(null);
+    setSaveIssues(null);
+    try {
+      await applicationsApi.update(application.id, {
+        title: application.title,
+        idea_description: application.ideaDescription,
+        importance_to_team: application.importanceToTeam,
+        project_goal: application.projectGoal,
+        project_tasks: application.projectTasks,
+        implementation_experience: application.implementationExperience,
+        results_description: application.resultsDescription,
+        tender_id: application.tender?.id ?? null,
+        direction_id: application.direction?.id ?? null,
+      });
+      await refresh();
+      // Через эту же кнопку видно соблюдение правил проверки (набор правил будет расширяться).
+      const check = await applicationsApi.validation(application.id);
+      if (check.valid) {
+        toast.showToast({ message: 'Изменения сохранены', tone: 'success' });
+      } else {
+        setSaveIssues(check);
+        toast.showToast({ message: 'Сохранено, но есть замечания проверки', tone: 'info' });
+      }
+    } catch (caught) {
+      setActionError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить заявку');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -213,10 +256,18 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
         title={application.title}
         actions={
           <>
+            <Button variant="secondary" icon="arrow-left" onClick={() => navigate(listPath)}>
+              Назад
+            </Button>
             <PdfExportButton applicationId={application.id} />
             {canSubmit ? (
               <Button icon="check" loading={submitting} onClick={() => void handleStartSubmit()}>
                 Отправить на проверку
+              </Button>
+            ) : null}
+            {canEdit ? (
+              <Button variant="secondary" icon="check" loading={saving} onClick={() => void handleSave()}>
+                Сохранить
               </Button>
             ) : null}
             {canEdit ? (
@@ -243,19 +294,34 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
               />
             </div>
           </div>
-          <div className={styles.meta}>
-            {meta.map((item) => (
-              <div key={item.label} className={styles.metaItem}>
-                <span className={styles.metaLabel}>{item.label}</span>
-                <span>{item.value}</span>
-              </div>
-            ))}
-          </div>
         </div>
         {actionError ? <div className={styles.error}>{actionError}</div> : null}
+        {saveIssues && !saveIssues.valid ? (
+          <div className={styles.saveIssues}>
+            <strong>Замечания проверки ({saveIssues.issues.length})</strong>
+            <ul className={styles.saveIssuesList}>
+              {saveIssues.issues.map((issue, index) => (
+                <li key={`${index}-${issue.code}`}>{issue.message}</li>
+              ))}
+            </ul>
+            <span className={styles.metaLabel}>Сохранению не мешают — они нужны для отправки заявки на проверку.</span>
+          </div>
+        ) : null}
 
         <Accordion allowMultiple>
+          <AccordionItem itemKey="meta" title="Основные данные" defaultOpen>
+            <div className={styles.meta}>
+              {meta.map((item) => (
+                <div key={item.label} className={styles.metaItem}>
+                  <span className={styles.metaLabel}>{item.label}</span>
+                  <span>{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </AccordionItem>
+
           <AccordionItem itemKey="main" title="Основное" defaultOpen>
+            <SectionHint>{APPLICATION_SECTION_HINTS.main}</SectionHint>
             <div className={styles.metaLabel}>Идея проекта</div>
             <p className={styles.paragraph}>{application.ideaDescription || '—'}</p>
             <div className={styles.metaLabel}>Значимость для команды</div>
@@ -270,23 +336,28 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
             <p className={styles.paragraph}>{application.resultsDescription || '—'}</p>
           </AccordionItem>
 
-          <AccordionItem itemKey="team" title={`Команда (${application.teamMembers.length})`}>
+          <AccordionItem itemKey="team" title={`Команда (${application.teamMembers.length})`} defaultOpen>
+            <SectionHint>{APPLICATION_SECTION_HINTS.team}</SectionHint>
             <TeamMembersSection applicationId={application.id} members={application.teamMembers} readOnly={!canEdit} onChanged={refresh} />
           </AccordionItem>
 
-          <AccordionItem itemKey="plans" title={`План мероприятий (${application.projectPlans.length})`}>
+          <AccordionItem itemKey="plans" title={`План мероприятий (${application.projectPlans.length})`} defaultOpen>
+            <SectionHint>{APPLICATION_SECTION_HINTS.plans}</SectionHint>
             <PlansSection applicationId={application.id} plans={application.projectPlans} readOnly={!canEdit} onChanged={refresh} />
           </AccordionItem>
 
-          <AccordionItem itemKey="budget" title={`Бюджет (${application.projectBudget.length})`}>
+          <AccordionItem itemKey="budget" title={`Бюджет (${application.projectBudget.length})`} defaultOpen>
+            <SectionHint>{APPLICATION_SECTION_HINTS.budget}</SectionHint>
             <BudgetSection applicationId={application.id} items={application.projectBudget} readOnly={!canEdit} onChanged={refresh} />
           </AccordionItem>
 
-          <AccordionItem itemKey="materials" title={`Материалы (${application.materials.length})`}>
+          <AccordionItem itemKey="materials" title={`Материалы (${application.materials.length})`} defaultOpen>
+            <SectionHint>{APPLICATION_SECTION_HINTS.materials}</SectionHint>
             <MaterialsSection applicationId={application.id} materials={application.materials} readOnly={!canEdit} onChanged={refresh} />
           </AccordionItem>
 
-          <AccordionItem itemKey="reviews" title={`Экспертизы (${application.reviews.length})`}>
+          <AccordionItem itemKey="reviews" title={`Экспертизы (${application.reviews.length})`} defaultOpen>
+            <SectionHint>{APPLICATION_SECTION_HINTS.reviews}</SectionHint>
             {isExpertArea ? <ExpertEvaluationSection application={application} onChanged={refresh} /> : null}
             {isAdmin ? <ReviewsSection
               applicationId={application.id}

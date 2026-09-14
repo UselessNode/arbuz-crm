@@ -4,6 +4,7 @@ import { Button, ConfirmDialog, Input, Modal, NumberInput, StateMessage, Table }
 import type { TableColumn } from '../../components/ui';
 import { applicationsApi, type BudgetItem, type BudgetPayload } from '../../api/applications';
 import { ApiError } from '../../api/client';
+import { budgetMismatch, budgetMismatchText, formatMoney as money, itemCost, itemTotal, sumBy } from '../../lib/budget';
 import styles from './Applications.module.css';
 
 interface Props {
@@ -23,15 +24,6 @@ interface FormState {
 }
 
 const emptyForm = (): FormState => ({ resourceType: '', quantity: 0, unitCost: 0, ownFunds: 0, grantFunds: 0, comment: '' });
-
-const money = (value: number | null): string => (value === null ? '—' : value.toLocaleString('ru-RU'));
-
-/** Итого по статье: свои + запрашиваемые. */
-const itemTotal = (item: { ownFunds: number | null; grantFunds: number | null }): number =>
-  (item.ownFunds ?? 0) + (item.grantFunds ?? 0);
-
-const sumBy = (items: BudgetItem[], pick: (item: BudgetItem) => number | null): number =>
-  items.reduce((acc, item) => acc + (pick(item) ?? 0), 0);
 
 export function BudgetSection({ applicationId, items, readOnly = false, onChanged }: Props) {
   const [open, setOpen] = useState(false);
@@ -102,13 +94,14 @@ export function BudgetSection({ applicationId, items, readOnly = false, onChange
   };
 
   const columns: TableColumn<BudgetItem>[] = [
-    { key: 'resource', header: 'Ресурс', field: 'resourceType' },
+    { key: 'resource', header: 'Требуемый ресурс', field: 'resourceType' },
     { key: 'quantity', header: 'Кол-во', render: (i) => i.quantity ?? '—' },
     { key: 'unit', header: 'Цена за ед., ₽', render: (i) => money(i.unitCost) },
-    { key: 'own', header: 'Свои, ₽', render: (i) => money(i.ownFunds) },
-    { key: 'grant', header: 'Запрашиваемые, ₽', render: (i) => money(i.grantFunds) },
-    // Итог по статье — свои + запрашиваемые средства.
+    { key: 'own', header: 'Собственные и привлечённые средства, ₽', render: (i) => money(i.ownFunds) },
+    { key: 'grant', header: 'Средства гранта, ₽', render: (i) => money(i.grantFunds) },
+    // Итог по статье — собственные (привлечённые) + средства гранта.
     { key: 'total', header: 'Итого, ₽', render: (i) => money(itemTotal(i)) },
+    { key: 'comment', header: 'Комментарий', render: (i) => i.comment ?? '—' },
   ];
   if (!readOnly) {
     columns.push({
@@ -124,11 +117,18 @@ export function BudgetSection({ applicationId, items, readOnly = false, onChange
     });
   }
 
-  const ownTotal = sumBy(items, (i) => i.ownFunds);
-  const grantTotal = sumBy(items, (i) => i.grantFunds);
-  const computedTotal = sumBy(items, (i) => (i.quantity ?? 0) * (i.unitCost ?? 0));
-  const formComputed = (form.quantity || 0) * (form.unitCost || 0);
-  const formTotal = (form.ownFunds || 0) + (form.grantFunds || 0);
+  const ownTotal = sumBy(items, (i) => i.ownFunds ?? 0);
+  const grantTotal = sumBy(items, (i) => i.grantFunds ?? 0);
+  const computedTotal = sumBy(items, itemCost);
+  const fundingTotal = ownTotal + grantTotal;
+  const sectionMismatch = budgetMismatch(computedTotal, fundingTotal);
+
+  // Живая проверка в форме: статья из формы заменяет редактируемую, а не добавляется к ней.
+  const formItemCost = (form.quantity || 0) * (form.unitCost || 0);
+  const formItemFunding = (form.ownFunds || 0) + (form.grantFunds || 0);
+  const projectedCost = computedTotal - (editing ? itemCost(editing) : 0) + formItemCost;
+  const projectedFunding = fundingTotal - (editing ? itemTotal(editing) : 0) + formItemFunding;
+  const formMismatch = budgetMismatch(projectedCost, projectedFunding);
 
   return (
     <>
@@ -149,29 +149,51 @@ export function BudgetSection({ applicationId, items, readOnly = false, onChange
               Расчётная стоимость: <strong>{money(computedTotal)}</strong>
             </span>
             <span>
-              Свои средства: <strong>{money(ownTotal)}</strong>
+              Собственные и привлечённые: <strong>{money(ownTotal)}</strong>
             </span>
             <span>
-              Запрашиваемые: <strong>{money(grantTotal)}</strong>
+              Средства гранта: <strong>{money(grantTotal)}</strong>
             </span>
             <span>
-              Всего: <strong>{money(ownTotal + grantTotal)}</strong>
+              Всего финансирование: <strong>{money(fundingTotal)}</strong>
             </span>
           </div>
+          {sectionMismatch.tone === 'ok' ? null : (
+            <div className={sectionMismatch.tone === 'error' ? styles.error : styles.warning}>
+              {budgetMismatchText(sectionMismatch)}
+            </div>
+          )}
         </>
       )}
 
       <Modal open={open} title={editing ? 'Статья бюджета' : 'Новая статья'} onClose={() => setOpen(false)} width={520}>
         <form className={styles.form} onSubmit={handleSubmit}>
-          <Input label="Ресурс" value={form.resourceType} onChange={(e) => setForm({ ...form, resourceType: e.target.value })} required />
+          <Input
+            label="Требуемый ресурс"
+            value={form.resourceType}
+            onChange={(e) => setForm({ ...form, resourceType: e.target.value })}
+            required
+          />
           <div className={styles.grid2}>
-            <NumberInput label="Количество" value={form.quantity} onChange={(value) => setForm({ ...form, quantity: value })} min={0} />
-            <NumberInput label="Цена за единицу, ₽" value={form.unitCost} onChange={(value) => setForm({ ...form, unitCost: value })} min={0} step={100} />
+            <NumberInput label="Кол-во" value={form.quantity} onChange={(value) => setForm({ ...form, quantity: value })} min={0} />
+            <NumberInput
+              label="Цена за единицу, ₽"
+              value={form.unitCost}
+              onChange={(value) => setForm({ ...form, unitCost: value })}
+              min={0}
+              step={100}
+            />
           </div>
           <div className={styles.grid2}>
-            <NumberInput label="Свои средства, ₽" value={form.ownFunds} onChange={(value) => setForm({ ...form, ownFunds: value })} min={0} step={100} />
             <NumberInput
-              label="Запрашиваемые, ₽"
+              label="Собственные и привлечённые средства, ₽"
+              value={form.ownFunds}
+              onChange={(value) => setForm({ ...form, ownFunds: value })}
+              min={0}
+              step={100}
+            />
+            <NumberInput
+              label="Средства гранта, ₽"
               value={form.grantFunds}
               onChange={(value) => setForm({ ...form, grantFunds: value })}
               min={0}
@@ -181,12 +203,18 @@ export function BudgetSection({ applicationId, items, readOnly = false, onChange
           <Input label="Комментарий" value={form.comment} onChange={(e) => setForm({ ...form, comment: e.target.value })} />
           <div className={styles.calcHint}>
             <span>
-              Кол-во × цена: <strong>{money(formComputed)}</strong>
+              Кол-во × цена: <strong>{money(formItemCost)}</strong>
             </span>
             <span>
-              Итого по статье (свои + запрашиваемые): <strong>{money(formTotal)}</strong>
+              Итого по статье (свои + средства гранта): <strong>{money(formItemFunding)}</strong>
             </span>
           </div>
+          {/* Проверка по всей заявке с учётом вводимых значений. */}
+          {formMismatch.tone === 'ok' ? null : (
+            <div className={formMismatch.tone === 'error' ? styles.error : styles.warning}>
+              {budgetMismatchText(formMismatch)}
+            </div>
+          )}
           {error ? <div className={styles.error}>{error}</div> : null}
           <div className={styles.formActions}>
             <Button variant="secondary" type="button" onClick={() => setOpen(false)} disabled={saving}>

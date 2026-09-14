@@ -287,7 +287,6 @@
 
 /* Календарь */
 .dateWrap {
-  position: relative;
   display: inline-flex;
 }
 
@@ -334,16 +333,19 @@
 }
 
 .datePopup {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 40;
   width: 268px;
   padding: var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background-color: var(--color-surface);
   box-shadow: var(--shadow-md);
+}
+
+/* Попап календаря живёт в портале: координаты считает компонент,
+   поэтому он может выходить за границы модального окна. */
+.datePopupPortal {
+  position: fixed;
+  z-index: 200;
 }
 
 .calendarHeader {

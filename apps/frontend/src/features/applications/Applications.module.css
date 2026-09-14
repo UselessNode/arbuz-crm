@@ -9,6 +9,37 @@
   margin-bottom: var(--space-2);
 }
 
+/* Предупреждение проверки (не блокирует сохранение). */
+.warning {
+  color: var(--color-warning);
+  font-size: 13px;
+  margin-bottom: var(--space-2);
+}
+
+/* Замечания проверки после явного «Сохранить» (сохранению не мешают). */
+.saveIssues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border-left: 3px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background-color: var(--tone-yellow-bg);
+  color: var(--tone-yellow-text);
+  font-size: 13px;
+}
+
+.saveIssuesList {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.saveIssues .metaLabel {
+  color: inherit;
+  opacity: 0.85;
+}
+
 .form {
   display: flex;
   flex-direction: column;

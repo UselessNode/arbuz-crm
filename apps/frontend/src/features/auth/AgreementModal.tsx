@@ -48,6 +48,7 @@ export function AgreementModal({ open, onClose, onAccept }: AgreementModalProps)
       title="Соглашение на обработку персональных данных"
       onClose={onClose}
       width={720}
+      dismissable
       footer={reachedEnd ? <Button onClick={handleAccept}>Согласиться и продолжить</Button> : undefined}
     >
       <div className={styles.wrap}>

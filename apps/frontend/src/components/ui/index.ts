@@ -49,5 +49,8 @@ export type { ConfirmDialogProps } from './Feedback';
 export { Pagination } from './Pagination';
 export type { PaginationProps } from './Pagination';
 
+export { SectionHint } from './SectionHint';
+export type { SectionHintProps } from './SectionHint';
+
 export { ToastProvider, useToast } from './Toast';
 export type { ToastAction, ToastApi, ToastOptions, ToastTone } from './Toast';
