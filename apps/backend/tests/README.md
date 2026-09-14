@@ -25,6 +25,7 @@ dotenv -e .env -- bun --cwd apps/backend tests/smoke/posts.smoke.ts
 | `smoke/reviews.smoke.ts` | Лимит экспертов из настроек конкурса, приватность экспертиз |
 | `smoke/files.smoke.ts` | Санитизация имени файла, определение типа по содержимому и расширению |
 | `smoke/budget.smoke.ts` | Правила бюджета: расчётная стоимость vs финансирование (чистая логика из `apps/frontend/src/lib/budget.ts`) |
+| `smoke/markdown.smoke.ts` | Рендер Markdown публикаций: подсветка `==…==`, выноски, чек-листы, строчный HTML и защита от опасного ввода |
 | `smoke/frontend-shared-imports.smoke.ts` | Инвариант: во фронтенде `@arbuz/shared` — только `import type` (иначе в бандл попадает CJS Prisma-клиент и страница белая) |
 
 ## Правила
@@ -37,5 +38,5 @@ dotenv -e .env -- bun --cwd apps/backend tests/smoke/posts.smoke.ts
   см. `docs/api-testing-postman.md`.
 - `smoke/frontend-shared-imports.smoke.ts` — исключение: он не работает с БД, а проверяет
   инвариант исходников фронтенда (рантайм-импорт `@arbuz/shared` роняет приложение в dev).
-- `smoke/budget.smoke.ts` тоже без БД: он проверяет чистое правило бюджета из фронтенд-модуля
-  `lib/budget.ts` (бизнес-логика проекта, а не вёрстка).
+- `smoke/markdown.smoke.ts` и `smoke/budget.smoke.ts` тоже без БД: они проверяют чистую логику
+  (рендер Markdown и правило бюджета) — бизнес-правила проекта, а не вёрстку.

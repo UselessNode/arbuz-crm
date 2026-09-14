@@ -7,6 +7,7 @@ import {
   createPost,
   deletePost,
   getPostOrThrow,
+  inlineFileIds,
   listPostsForAdmin,
   listPublishedPosts,
   updatePost,
@@ -40,6 +41,14 @@ async function main(): Promise<void> {
       computePostStatus({ is_published: true, scheduled_at: null, archived_at: now }, now),
       PostStatus.archived,
     );
+
+    // Картинки в тексте не дублируются в списке вложений: извлекаем их id из содержимого.
+    smoke.eq(
+      'встроенные картинки: id извлекаются',
+      [...inlineFileIds('текст ![схема](/api/posts/12/files/34/download) и ещё')],
+      [34],
+    );
+    smoke.eq('встроенные картинки: без картинок пусто', inlineFileIds('обычный текст').size, 0);
 
     // Публичная лента не содержит черновиков и архива демо-набора.
     const feedBefore = await listPublishedPosts({ limit: 100, offset: 0 });

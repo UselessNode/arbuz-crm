@@ -52,5 +52,9 @@ export type { PaginationProps } from './Pagination';
 export { SectionHint } from './SectionHint';
 export type { SectionHintProps } from './SectionHint';
 
+// `MarkdownEditor` намеренно не реэкспортируется: он тянет MDXEditor (~700 КБ).
+// Статический реэкспорт из barrel втянул бы редактор в основной чанк для всех страниц.
+// Импортировать только лениво: `lazy(() => import('.../components/ui/MarkdownEditor'))`.
+
 export { ToastProvider, useToast } from './Toast';
 export type { ToastAction, ToastApi, ToastOptions, ToastTone } from './Toast';

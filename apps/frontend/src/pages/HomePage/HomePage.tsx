@@ -4,7 +4,6 @@ import { Icon, Pagination, StateMessage, useToast } from '../../components/ui';
 import { postsApi, type Post } from '../../api/posts';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
-import { isImageFile } from '../../lib/files';
 import { copyToClipboard } from '../../lib/clipboard';
 import { ORGANIZER_CONTACTS } from '../../lib/contacts';
 import melonLogo from '../../assets/images/Melon.png';
@@ -122,28 +121,25 @@ function ContactValue({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Вложения публикации: картинки показываем превью, остальное — ссылкой на скачивание. */
+/** Вложения публикации: кликабельное название, файл открывается в новой вкладке. */
 function PostAttachments({ post }: { post: Post }) {
   if (post.attachments.length === 0) return null;
 
   return (
     <div className={styles.attachments}>
-      {post.attachments.map((file) => {
-        const url = postsApi.files.downloadUrl(post.id, file.id);
-        if (isImageFile(file.fileType)) {
-          return (
-            <a key={file.id} href={url} target="_blank" rel="noreferrer" className={styles.attachmentImageLink}>
-              <img src={url} alt={file.name} className={styles.attachmentImage} loading="lazy" />
-            </a>
-          );
-        }
-        return (
-          <a key={file.id} href={url} target="_blank" rel="noreferrer" className={styles.attachmentLink}>
-            <Icon name="download" size={14} />
-            {file.name}
-          </a>
-        );
-      })}
+      {post.attachments.map((file) => (
+        <a
+          key={file.id}
+          href={postsApi.files.downloadUrl(post.id, file.id)}
+          target="_blank"
+          rel="noreferrer"
+          className={styles.attachmentLink}
+          title={file.name}
+        >
+          <Icon name="document" size={14} />
+          <span className={styles.attachmentName}>{file.name}</span>
+        </a>
+      ))}
     </div>
   );
 }

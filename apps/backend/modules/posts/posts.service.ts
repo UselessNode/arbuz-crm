@@ -169,11 +169,25 @@ type PostWithAuthor = PostStatusSource & {
   posts_files: Array<{ files: { id: number; name: string; file_type: string | null } }>;
 };
 
+/**
+ * Идентификаторы файлов, вставленных в текст как изображения
+ * (`/api/posts/<id>/files/<fileId>/download`).
+ */
+export function inlineFileIds(content: string): Set<number> {
+  const ids = new Set<number>();
+  for (const match of content.matchAll(/\/posts\/\d+\/files\/(\d+)\/download/g)) {
+    ids.add(Number(match[1]));
+  }
+  return ids;
+}
+
 function serialize(post: PostWithAuthor): PostData {
   const authorName =
     !post.hide_author && post.author && (post.author.name || post.author.surname)
       ? [post.author.name, post.author.surname].filter(Boolean).join(' ')
       : null;
+  // Картинки, вставленные в текст, показываются в тексте — в списке вложений их не дублируем.
+  const inlineIds = inlineFileIds(post.content);
   return {
     id: post.id,
     title: post.title,
@@ -189,11 +203,13 @@ function serialize(post: PostWithAuthor): PostData {
     createdAt: post.created_at,
     updatedAt: post.updated_at,
     // Вложения отдаём вместе с постом: лента показывает их без дополнительных запросов.
-    attachments: post.posts_files.map((link) => ({
-      id: link.files.id,
-      name: link.files.name,
-      fileType: link.files.file_type,
-    })),
+    attachments: post.posts_files
+      .filter((link) => !inlineIds.has(link.files.id))
+      .map((link) => ({
+        id: link.files.id,
+        name: link.files.name,
+        fileType: link.files.file_type,
+      })),
   };
 }
 

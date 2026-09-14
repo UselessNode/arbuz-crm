@@ -1,6 +1,6 @@
 // Раздел «Публикации»: жизненный цикл (черновик → запланирована → опубликована → архив),
 // WYSIWYG-редактор (Markdown), вложения.
-import { lazy, Suspense, useCallback, useEffect, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type { PostStatus } from '@arbuz/shared';
 import { PostStatuses } from '../../lib/post-status';
 import {
@@ -29,7 +29,10 @@ import { formatDateTime } from '../../lib/format';
 import styles from './PostsPage.module.css';
 
 // Тяжёлый WYSIWYG-редактор грузим отдельным чанком только при работе с публикацией.
-const PostEditor = lazy(() => import('./PostEditor/PostEditor').then((module) => ({ default: module.PostEditor })));
+// Импорт по файлу (а не по index) — чтобы чанк получил понятное имя `MarkdownEditor`.
+const MarkdownEditor = lazy(() =>
+  import('../../components/ui/MarkdownEditor/MarkdownEditor').then((module) => ({ default: module.MarkdownEditor })),
+);
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 
@@ -172,6 +175,10 @@ function PostFormModal({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /** id публикации: появляется сразу после создания (в т.ч. при загрузке картинки в текст). */
+  const [postId, setPostId] = useState<number | null>(null);
+  /** Публикация была создана из этого окна — при закрытии список нужно обновить. */
+  const createdRef = useRef(false);
 
   const archived = initial?.status === PostStatuses.archived;
 
@@ -190,8 +197,54 @@ function PostFormModal({
     setScheduledDate(isoToDateInput(initial?.scheduledAt ?? null));
     setHideAuthor(initial?.hideAuthor ?? false);
     setPendingFiles([]);
+    setPostId(initial?.id ?? null);
+    createdRef.current = false;
     setError(null);
   }, [open, initial, preferredMode]);
+
+  /** Текущие значения формы в виде payload. */
+  const formPayload = (): PostPayload => ({
+    title: title.trim(),
+    content,
+    is_published: mode !== PUBLISH_MODE.draft,
+    hide_author: hideAuthor,
+    scheduled_at: mode === PUBLISH_MODE.scheduled ? dateInputToIso(scheduledDate) : null,
+    // Архив — отдельное действие в списке: при правке статус архива сохраняем.
+    archived,
+  });
+
+  /**
+   * Файлы (вложения и картинки в тексте) привязываются к публикации, поэтому она должна
+   * существовать. Если её ещё нет — создаём черновик из текущих полей формы.
+   */
+  const ensurePost = async (): Promise<number> => {
+    if (postId !== null) return postId;
+    if (!title.trim()) {
+      toast.showToast({ message: 'Сначала укажите заголовок публикации', tone: 'error' });
+      throw new Error('Укажите заголовок публикации — без него нельзя загрузить файл');
+    }
+    const response = await postsApi.create(formPayload());
+    setPostId(response.post.id);
+    createdRef.current = true;
+    return response.post.id;
+  };
+
+  /** Загрузка картинки, вставленной прямо в текст: возвращает адрес для `src`. */
+  const uploadImage = async (file: File): Promise<string> => {
+    const id = await ensurePost();
+    const response = await postsApi.files.upload(id, file);
+    return postsApi.files.downloadUrl(id, response.file.id);
+  };
+
+  /** Закрытие окна: если публикацию успели создать (загрузка файла), обновляем список. */
+  const handleClose = () => {
+    if (createdRef.current) {
+      createdRef.current = false;
+      void onSaved();
+      toast.showToast({ message: 'Публикация сохранена как черновик', tone: 'info' });
+    }
+    onClose();
+  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -202,44 +255,34 @@ function PostFormModal({
     }
     setSaving(true);
     try {
-      const payload: PostPayload = {
-        title: title.trim(),
-        content,
-        is_published: mode !== PUBLISH_MODE.draft,
-        hide_author: hideAuthor,
-        scheduled_at: mode === PUBLISH_MODE.scheduled ? dateInputToIso(scheduledDate) : null,
-        // Архив — отдельное действие в списке: при правке статус архива сохраняем.
-        archived,
-      };
-      let postId: number;
-      if (initial) {
-        await postsApi.update(initial.id, payload);
-        postId = initial.id;
-      } else {
-        const response = await postsApi.create(payload);
-        postId = response.post.id;
-      }
+      // Всегда создаём (если ещё нет), затем обновляем — так повторное нажатие не делает дубликат.
+      const id = await ensurePost();
+      await postsApi.update(id, formPayload());
 
       for (const file of pendingFiles) {
-        await postsApi.files.upload(postId, file);
+        await postsApi.files.upload(id, file);
       }
 
+      createdRef.current = false;
       await onSaved();
       toast.showToast({
         message: pendingFiles.length > 0 ? 'Публикация сохранена, вложения загружены' : 'Публикация сохранена',
         tone: 'success',
       });
-      // В обоих режимах закрываем окно: повторное «Сохранить» больше не создаёт дубликат.
       onClose();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить публикацию');
+      setError(
+        caught instanceof ApiError || caught instanceof Error
+          ? caught.message
+          : 'Не удалось сохранить публикацию',
+      );
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal open={open} title={initial ? 'Редактировать публикацию' : 'Новая публикация'} onClose={onClose} width={880}>
+    <Modal open={open} title={initial ? 'Редактировать публикацию' : 'Новая публикация'} onClose={handleClose} width={880}>
       <form className={styles.form} onSubmit={handleSubmit}>
         <Input label="Заголовок" value={title} onChange={(e) => setTitle(e.target.value)} required fullWidth />
 
@@ -275,7 +318,12 @@ function PostFormModal({
         <div className={styles.editorWrap}>
           <span className={styles.sectionLabel}>Содержание публикации</span>
           <Suspense fallback={<StateMessage state="loading" />}>
-            <PostEditor markdown={content} onChange={setContent} />
+            <MarkdownEditor
+              markdown={content}
+              onChange={setContent}
+              uploadImage={uploadImage}
+              placeholder="Начните печатать текст публикации…"
+            />
           </Suspense>
         </div>
 
@@ -306,12 +354,12 @@ function PostFormModal({
               ))}
             </div>
           ) : null}
-          {initial ? <AttachmentsList postId={initial.id} /> : null}
+          {postId !== null ? <AttachmentsList postId={postId} /> : null}
         </div>
 
         {error ? <div className={styles.error}>{error}</div> : null}
         <div className={styles.formActions}>
-          <Button variant="secondary" type="button" onClick={onClose} disabled={saving}>
+          <Button variant="secondary" type="button" onClick={handleClose} disabled={saving}>
             Закрыть
           </Button>
           <Button type="submit" icon="check" loading={saving}>
