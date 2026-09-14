@@ -1,4 +1,4 @@
-// Список рецензий (админ): все назначенные экспертизы по заявкам.
+// Список экспертиз (админ): все назначенные экспертизы по заявкам.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -37,7 +37,7 @@ export function ReviewsPage() {
       setReviews(reviewsResponse.reviews);
       setVerdicts(statusesResponse.statuses);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить рецензии');
+      setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить экспертизы');
     } finally {
       setLoading(false);
     }
@@ -88,9 +88,9 @@ export function ReviewsPage() {
   ];
 
   return (
-    <Container title="Рецензии">
+    <Container title="Экспертизы">
       <div className={styles.hint}>
-        Назначение экспертов и выставление оценок выполняются в карточке заявки.
+        Вердикты и оценки выставляются экспертами; назначение экспертов и финальный статус — в карточке заявки.
       </div>
 
       <ListToolbar>
@@ -103,7 +103,7 @@ export function ReviewsPage() {
       ) : error ? (
         <StateMessage state="error" message={error} onRetry={() => void load()} />
       ) : filtered.length === 0 ? (
-        <StateMessage state="empty" message={reviews.length === 0 ? 'Рецензий пока нет' : 'Ничего не найдено'} />
+        <StateMessage state="empty" message={reviews.length === 0 ? 'Экспертиз пока нет' : 'Ничего не найдено'} />
       ) : (
         <Table columns={columns} data={filtered} rowKey={(r) => r.id} onRowClick={(r) => navigate(`/admin/applications/${r.applicationId}`)} />
       )}

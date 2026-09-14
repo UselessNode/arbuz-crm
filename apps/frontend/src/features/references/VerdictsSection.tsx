@@ -1,6 +1,6 @@
-// Блок «Вердикты рецензий» в разделе «Настройки экспертизы».
+// Блок «Вердикты экспертиз» в разделе «Настройки экспертизы».
 // Вердикт — редактируемый справочник: администратор задаёт названия и цвета,
-// один вердикт помечается «по умолчанию» (его получает новая рецензия).
+// один вердикт помечается «по умолчанию» (его получает новая экспертиза).
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   Badge,
@@ -88,9 +88,9 @@ function VerdictFormModal({
       <form className={styles.form} onSubmit={handleSubmit}>
         <Input label="Название" value={name} onChange={(e) => setName(e.target.value)} required />
         <Input label="Описание" value={description} onChange={(e) => setDescription(e.target.value)} />
-        <Select label="Цвет бейджа" value={tone} onChange={setTone} options={TONE_OPTIONS} />
+        <Select label="Цвет выделения" value={tone} onChange={setTone} options={TONE_OPTIONS} />
         <Checkbox
-          label="Вердикт по умолчанию (выставляется новой рецензии)"
+          label="Вердикт по умолчанию (выставляется новой экспертизе)"
           checked={isDefault}
           onChange={setIsDefault}
           disabled={initial?.isDefault}
@@ -180,7 +180,7 @@ export function VerdictsSection() {
 
   return (
     <Container
-      title="Вердикты рецензий"
+      title="Вердикты экспертиз"
       actions={
         <Button icon="add" onClick={() => setCreating(true)}>
           Добавить

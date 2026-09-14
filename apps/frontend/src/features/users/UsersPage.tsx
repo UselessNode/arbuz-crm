@@ -287,9 +287,9 @@ export function UsersPage() {
 
   const columns = useMemo<TableColumn<UserListItem>[]>(
     () => [
-      { key: 'id', header: 'ID', width: '70px', field: 'id' },
+      { key: 'id', header: 'ID', width: '70px', field: 'id' as const }, // <-- as const
       { key: 'name', header: 'ФИО', render: (user) => formatUserName(user) },
-      { key: 'email', header: 'Email', field: 'email' },
+      { key: 'email', header: 'Email', field: 'email' as const }, // <-- as const
       {
         key: 'role',
         header: 'Роль',
@@ -307,13 +307,15 @@ export function UsersPage() {
         width: '140px',
         render: (user) => (
           <div className={styles.actions}>
-            <Button size="sm" variant="ghost" icon="edit" aria-label="Редактировать" onClick={() => setEditing(user)} />
-            <Button size="sm" variant="ghost" icon="lock" aria-label="Сбросить пароль" onClick={() => setResetting(user)} />
             <Button
-              size="sm"
-              variant="ghost"
-              icon="delete"
-              aria-label="Удалить"
+              size="sm" variant="ghost" icon="edit"
+              title="Редактировать пользователя" onClick={() => setEditing(user)} />
+            <Button
+              size="sm" variant="ghost" icon="key"
+              title="Сбросить пароль пользователя" onClick={() => setResetting(user)} />
+            <Button
+              size="sm" variant="danger" icon="delete"
+              title={currentUser?.id != user.id ? "Удалить пользователя" : "Самого себя нельзя удалить"}
               disabled={currentUser?.id === user.id}
               onClick={() => setDeleting(user)}
             />
@@ -323,7 +325,6 @@ export function UsersPage() {
     ],
     [currentUser?.id, handleRoleChange],
   );
-
   return (
     <Container
       title="Пользователи"

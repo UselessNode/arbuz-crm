@@ -1,7 +1,7 @@
 // Раздел эксперта: список назначенных на экспертизу заявок.
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge, Button, Container, Pagination, StateMessage, StatusBadge, Table } from '../../components/ui';
+import { Badge, Button, Container, Pagination, StateMessage, StatusBadge, Table, toBadgeTone } from '../../components/ui';
 import type { StatusOption, TableColumn } from '../../components/ui';
 import { applicationsApi, type ApplicationSummary } from '../../api/applications';
 import { statusesApi } from '../../api/references';
@@ -46,9 +46,15 @@ export function ExpertApplicationsPage() {
     { key: 'title', header: 'Заявка', field: 'title' },
     {
       key: 'status',
-      header: 'Статус',
+      header: 'Статус заявки',
       render: (a) =>
         a.status ? <StatusBadge value={String(a.status.id)} options={statusOptions} /> : <Badge tone="neutral">—</Badge>,
+    },
+    {
+      key: 'verdict',
+      header: 'Мой вердикт',
+      render: (a) =>
+        a.verdict ? <Badge tone={toBadgeTone(a.verdict.tone)}>{a.verdict.name}</Badge> : <Badge tone="neutral">—</Badge>,
     },
     { key: 'tender', header: 'Конкурс', render: (a) => a.tender ?? '—' },
     { key: 'updated', header: 'Обновлена', render: (a) => formatDateTime(a.updatedAt) },

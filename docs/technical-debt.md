@@ -34,8 +34,8 @@
 - **Пользователи.** `users.routes.ts` — inline-массив ролей дублирует `ROLE_VALUES`;
   `PASSWORD_MIN_LENGTH` (`users.service.ts`) дублирует `auth/credentials.ts`; `_actorId`
   не используется в `createUser`/`resetPassword`.
-- **Критерии оценки.** ✅ Закрыто в 1.14.0: добавлена проверка `min_value <= max_value` и `weight > 0`,
-  изменения пишутся в `evaluation_criteria_history`.
+- **Критерии оценки.** ✅ Закрыто в 1.14.0: проверка `min_value <= max_value` и `weight > 0`.
+  История правок критериев удалена в 1.17.1 (таблица `evaluation_criteria_history`, API и UI).
 - **`consent_file_path`.** Пустая строка как плейсхолдер в NOT NULL-колонке
   (`team-members.service.ts`, `files.service.ts`, `seed.ts`). Чисто — сделать колонку
   nullable (правка схемы) либо гарантировать наличие согласия.
@@ -46,6 +46,9 @@
 
 - **Типизация иконок.** `IconName = string`: опечатка компилируется. Сейчас в dev пишется
   `console.warn` об неизвестном имени; строгий union мешает авто-подхвату SVG — оставлено.
+- **Тона бейджей.** `tokens.css` содержит и старый набор тонов, и новый расширенный
+  (`-light`/`-dark` варианты, 18 тонов); базовые значения в новом блоке переопределяют старые.
+  Старый блок — кандидат на удаление после проверки цветов в UI.
 - **Форматы данных.** ✅ Закрыто в 1.17.0: общий тип `UserBrief` (`api/types.ts`) используют
   `ReviewListItem.expert`, `ApplicationReview.expert`, `ExpertItem`, `owner`.
 - **`Select`** возвращает `onChange(value: string)`, из-за чего в `UsersPage` есть касты

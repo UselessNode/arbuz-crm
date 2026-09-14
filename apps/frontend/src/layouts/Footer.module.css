@@ -23,10 +23,15 @@
 .links a {
   color: var(--color-primary);
   text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .links a:hover {
   text-decoration: underline;
+}
+
+.links a:active {
+  color: var(--color-primary-hover);
 }
 
 .contacts {
@@ -42,10 +47,16 @@
 .copy a {
   color: var(--color-muted);
   text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .contacts a:hover,
 .copy a:hover {
   color: var(--color-primary);
   text-decoration: underline;
+}
+
+.contacts a:active,
+.copy a:active {
+  color: var(--color-primary-hover);
 }

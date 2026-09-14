@@ -1,13 +1,16 @@
-// Личный кабинет (для заявителя/эксперта): профиль и выход.
+// Личный кабинет (для заявителя/эксперта): профиль, контакты организаторов и выход.
 import { useNavigate } from 'react-router-dom';
-import { Button, Container, ROLE_OPTIONS, StateMessage, StatusBadge } from '../components/ui';
+import { Button, Container, ROLE_OPTIONS, StateMessage, StatusBadge, useToast } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
+import { copyToClipboard } from '../lib/clipboard';
+import { ORGANIZER_CONTACTS } from '../lib/contacts';
 import { formatUserName } from '../lib/format';
 import styles from './SimplePage.module.css';
 
 export function AccountPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
 
   if (!user) {
     return (
@@ -22,6 +25,14 @@ export function AccountPage() {
   const handleLogout = async () => {
     await logout();
     navigate('/login', { replace: true });
+  };
+
+  const handleCopy = async (value: string) => {
+    const copied = await copyToClipboard(value);
+    toast.showToast({
+      message: copied ? 'Контакт скопирован в буфер обмена' : 'Не удалось скопировать',
+      tone: copied ? 'success' : 'error',
+    });
   };
 
   return (
@@ -39,9 +50,25 @@ export function AccountPage() {
           <span>Роль</span>
           <StatusBadge value={user.role} options={ROLE_OPTIONS} />
         </div>
-        <Button variant="secondary" icon="logout" onClick={handleLogout}>
-          Выйти
-        </Button>
+
+        <div className={styles.contacts}>
+          <h2 className={styles.contactsTitle}>Связь с организаторами</h2>
+          <p className={styles.contactsText}>
+            Вопросы по заявкам и сброс пароля — по телефону или почте ниже. Нажмите на контакт, чтобы скопировать.
+          </p>
+          <button type="button" className={styles.contactValue} onClick={() => void handleCopy(ORGANIZER_CONTACTS.phone)}>
+            {ORGANIZER_CONTACTS.phone}
+          </button>
+          <button type="button" className={styles.contactValue} onClick={() => void handleCopy(ORGANIZER_CONTACTS.email)}>
+            {ORGANIZER_CONTACTS.email}
+          </button>
+        </div>
+
+        <div className={styles.profileActions}>
+          <Button variant="secondary" icon="logout" onClick={handleLogout}>
+            Выйти
+          </Button>
+        </div>
       </Container>
     </div>
   );

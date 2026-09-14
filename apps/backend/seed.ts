@@ -17,9 +17,9 @@ import { APPLICATION_STATUS_NAMES } from './lib/app-status';
 
 type StatusMap = Record<'draft' | 'submitted' | 'accepted' | 'rejected', number>;
 
-/** Базовые вердикты рецензий (редактируемый справочник). */
+/** Базовые вердикты экспертиз (редактируемый справочник). */
 const REVIEW_STATUS_SEED = [
-  { name: 'Черновик', tone: 'gray', is_default: true, description: 'Рецензия ещё не завершена' },
+  { name: 'На экспертизе', tone: 'gray', is_default: true, description: 'Экспертиза начата, вердикт ещё не выставлен' },
   { name: 'Рекомендую поддержать', tone: 'green', is_default: false, description: 'Эксперт рекомендует поддержать заявку' },
   { name: 'Не рекомендую поддержать', tone: 'red', is_default: false, description: 'Эксперт не рекомендует поддержку заявки' },
 ] as const;
@@ -29,7 +29,7 @@ async function ensureReviewStatuses(): Promise<(name: string) => number> {
   const existing = await prisma.review_statuses.findFirst({ select: { id: true } });
   if (!existing) {
     await prisma.review_statuses.createMany({ data: REVIEW_STATUS_SEED.map((row) => ({ ...row })) });
-    log.info('seed: созданы вердикты рецензий');
+    log.info('seed: созданы вердикты экспертиз');
   }
 
   const rows = await prisma.review_statuses.findMany({ where: { deleted_at: null }, select: { id: true, name: true } });
@@ -293,10 +293,18 @@ async function ensureReview(applicationId: number, expertId: number, seed: Revie
   });
 }
 
-async function ensurePost(title: string, content: string, published: boolean, authorId: number) {
+async function ensurePost(
+  title: string,
+  content: string,
+  published: boolean,
+  authorId: number,
+  hideAuthor = false,
+) {
   const existing = await prisma.posts.findFirst({ where: { title, deleted_at: null }, select: { id: true } });
   if (existing) return;
-  await prisma.posts.create({ data: { title, content, is_published: published, created_by: authorId } });
+  await prisma.posts.create({
+    data: { title, content, is_published: published, hide_author: hideAuthor, created_by: authorId },
+  });
 }
 
 async function seedDemo(statuses: StatusMap, adminId: number, reviewStatusByName: (name: string) => number): Promise<void> {
@@ -420,7 +428,7 @@ async function seedDemo(statuses: StatusMap, adminId: number, reviewStatusByName
     statusId: reviewStatusByName('Рекомендую поддержать'),
     text: 'Проект решает актуальную задачу, план и бюджет реалистичны, команда имеет опыт.',
   });
-  await ensureReview(submitted.id, expert2.id, { statusId: reviewStatusByName('Черновик') });
+  await ensureReview(submitted.id, expert2.id, { statusId: reviewStatusByName('На экспертизе') });
 
   // 3. Пустой черновик — демонстрация пустых состояний и подсказок.
   await ensureApplication({
@@ -455,6 +463,15 @@ async function seedDemo(statuses: StatusMap, adminId: number, reviewStatusByName
       '5. Не забудьте загрузить файлы согласий участников команды.',
     true,
     adminId,
+  );
+  // Публикация от лица организации: автор скрыт в ленте (демо флага hide_author).
+  await ensurePost(
+    'Итоги года: сколько проектов мы поддержали',
+    'За год фонд поддержал **12 проектов** в двух направлениях.\n\n' +
+      'Спасибо всем участникам и партнёрам — вместе мы сделали город чище и добрее.',
+    true,
+    adminId,
+    true,
   );
   await ensurePost(
     'Черновик: итоги прошлого сезона',

@@ -83,9 +83,9 @@ export function AppRouter() {
         <Route path="directions" element={<Navigate to="/admin/contests" replace />} />
         <Route path="expertise" element={<ExpertiseSettingsPage />} />
         <Route path="statuses" element={<Navigate to="/admin/expertise" replace />} />
-        <Route path="design-system" element={<DesignSystemPage />} />
       </Route>
 
+      <Route path="design-system" element={<DesignSystemPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

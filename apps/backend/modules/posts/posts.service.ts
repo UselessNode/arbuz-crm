@@ -30,12 +30,15 @@ export interface PostInput {
   title: string;
   content: string;
   is_published?: boolean;
+  /** Скрывать автора публикации в ленте. */
+  hide_author?: boolean;
 }
 
 function validateInput(input: Partial<PostInput> & { title?: string; content?: string }): {
   title: string;
   content: string;
   is_published: boolean;
+  hide_author: boolean;
 } {
   const title = String(input.title ?? '').trim();
   const content = String(input.content ?? '');
@@ -46,7 +49,12 @@ function validateInput(input: Partial<PostInput> & { title?: string; content?: s
   if (content.length > POST_CONTENT_MAX) {
     throw httpError(400, `Содержимое длиннее ${POST_CONTENT_MAX} символов`, 'CONTENT_TOO_LONG');
   }
-  return { title, content, is_published: Boolean(input.is_published) };
+  return {
+    title,
+    content,
+    is_published: Boolean(input.is_published),
+    hide_author: Boolean(input.hide_author),
+  };
 }
 
 export interface PostAttachment {
@@ -61,7 +69,9 @@ export interface PostData {
   content: string;
   contentHtml: string;
   is_published: boolean;
+  hideAuthor: boolean;
   createdBy: number | null;
+  /** Имя автора; `null`, если автор скрыт или удалён. */
   authorName: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -73,6 +83,7 @@ type PostWithAuthor = {
   title: string;
   content: string;
   is_published: boolean;
+  hide_author: boolean;
   created_by: number | null;
   created_at: Date;
   updated_at: Date;
@@ -82,7 +93,7 @@ type PostWithAuthor = {
 
 function serialize(post: PostWithAuthor): PostData {
   const authorName =
-    post.author && (post.author.name || post.author.surname)
+    !post.hide_author && post.author && (post.author.name || post.author.surname)
       ? [post.author.name, post.author.surname].filter(Boolean).join(' ')
       : null;
   return {
@@ -91,6 +102,7 @@ function serialize(post: PostWithAuthor): PostData {
     content: post.content,
     contentHtml: renderMarkdown(post.content),
     is_published: post.is_published,
+    hideAuthor: post.hide_author,
     createdBy: post.created_by,
     authorName,
     createdAt: post.created_at,
@@ -112,6 +124,7 @@ const postSelect = {
   title: true,
   content: true,
   is_published: true,
+  hide_author: true,
   created_by: true,
   created_at: true,
   updated_at: true,
@@ -164,7 +177,13 @@ export async function createPost(user: CurrentUser, input: Partial<PostInput>) {
   requireAdmin(user);
   const data = validateInput(input);
   const post = await prisma.posts.create({
-    data: { title: data.title, content: data.content, is_published: data.is_published, created_by: user.id },
+    data: {
+      title: data.title,
+      content: data.content,
+      is_published: data.is_published,
+      hide_author: data.hide_author,
+      created_by: user.id,
+    },
     select: postSelect,
   });
   return serialize(post);
@@ -178,7 +197,12 @@ export async function updatePost(user: CurrentUser, postId: number, input: Parti
   const data = validateInput(input);
   const post = await prisma.posts.update({
     where: { id: postId },
-    data: { title: data.title, content: data.content, is_published: data.is_published },
+    data: {
+      title: data.title,
+      content: data.content,
+      is_published: data.is_published,
+      hide_author: data.hide_author,
+    },
     select: postSelect,
   });
   return serialize(post);

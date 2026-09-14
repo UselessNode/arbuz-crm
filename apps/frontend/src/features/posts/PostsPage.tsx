@@ -1,4 +1,4 @@
-// Раздел «Посты»: CRUD, WYSIWYG-редактор (Markdown), вложения.
+// Раздел «Публикации»: CRUD, WYSIWYG-редактор (Markdown), вложения.
 import { lazy, Suspense, useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   Badge,
@@ -24,7 +24,7 @@ import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
 import styles from './PostsPage.module.css';
 
-// Тяжёлый WYSIWYG-редактор грузим отдельным чанком только при работе с постом.
+// Тяжёлый WYSIWYG-редактор грузим отдельным чанком только при работе с публикацией.
 const PostEditor = lazy(() => import('./PostEditor/PostEditor').then((module) => ({ default: module.PostEditor })));
 
 const POST_STATUS = { draft: 'draft', published: 'published' } as const;
@@ -32,21 +32,21 @@ const POST_STATUS = { draft: 'draft', published: 'published' } as const;
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 
 const POST_STATUS_OPTIONS: readonly StatusOption<string>[] = [
-  { value: POST_STATUS.draft, label: 'Черновик', tone: 'gray' },
+  { value: POST_STATUS.draft, label: 'Не опубликован', tone: 'gray' },
   { value: POST_STATUS.published, label: 'Опубликован', tone: 'green' },
 ];
 
 const POST_FILTER_OPTIONS: readonly SelectOption<string>[] = [
-  { value: POST_STATUS.draft, label: 'Черновики' },
+  { value: POST_STATUS.draft, label: 'Не опубликованные' },
   { value: POST_STATUS.published, label: 'Опубликованные' },
 ];
 
-function AttachmentsSection({ postId }: { postId: number }) {
+/** Список уже прикреплённых к публикации файлов (для сохранённого поста). */
+function AttachmentsList({ postId }: { postId: number }) {
   const toast = useToast();
   const [files, setFiles] = useState<PostFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,22 +64,6 @@ function AttachmentsSection({ postId }: { postId: number }) {
     void load();
   }, [load]);
 
-  const handleFiles = async (selected: File[]) => {
-    setError(null);
-    setBusy(true);
-    try {
-      for (const file of selected) {
-        await postsApi.files.upload(postId, file);
-      }
-      await load();
-      toast.showToast({ message: selected.length > 1 ? 'Вложения загружены' : 'Вложение загружено', tone: 'success' });
-    } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить файл');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const handleRemove = async (fileId: number) => {
     setError(null);
     try {
@@ -91,25 +75,22 @@ function AttachmentsSection({ postId }: { postId: number }) {
     }
   };
 
+  if (loading) return <StateMessage state="loading" />;
+  if (files.length === 0) return null;
+
   return (
-    <div className={styles.attachments}>
-      <span className={styles.sectionLabel}>Вложения</span>
-      <DragDrop onFiles={(selected) => void handleFiles(selected)} disabled={busy} hint="Перетащите файлы (PDF, DOCX, изображения, MP4)" />
+    <div className={styles.fileList}>
       {error ? <div className={styles.error}>{error}</div> : null}
-      {loading ? (
-        <StateMessage state="loading" />
-      ) : files.length > 0 ? (
-        <div className={styles.fileList}>
-          {files.map((file) => (
-            <span key={file.id} className={styles.fileItem}>
-              <Badge tone="blue" icon="document">
-                {file.name}
-              </Badge>
-              <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => void handleRemove(file.id)} />
+      {files.map((file) => (
+        <span key={file.id} className={styles.fileItem}>
+          <Badge tone="blue" icon="document">
+            <span className={styles.fileName} title={file.name}>
+              {file.name}
             </span>
-          ))}
-        </div>
-      ) : null}
+          </Badge>
+          <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить вложение" onClick={() => void handleRemove(file.id)} />
+        </span>
+      ))}
     </div>
   );
 }
@@ -129,17 +110,20 @@ function PostFormModal({
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isPublished, setIsPublished] = useState(false);
+  const [hideAuthor, setHideAuthor] = useState(false);
+  // Файлы, выбранные до сохранения: загружаем их сразу после создания/обновления.
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [savedPostId, setSavedPostId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setTitle(initial?.title ?? '');
     setContent(initial?.content ?? '');
     setIsPublished(initial?.is_published ?? false);
+    setHideAuthor(initial?.hideAuthor ?? false);
+    setPendingFiles([]);
     setError(null);
-    setSavedPostId(initial?.id ?? null);
   }, [open, initial]);
 
   const handleSubmit = async (event: FormEvent) => {
@@ -147,30 +131,45 @@ function PostFormModal({
     setError(null);
     setSaving(true);
     try {
-      const payload = { title: title.trim(), content, is_published: isPublished };
+      const payload = { title: title.trim(), content, is_published: isPublished, hide_author: hideAuthor };
+      let postId: number;
       if (initial) {
         await postsApi.update(initial.id, payload);
+        postId = initial.id;
       } else {
         const response = await postsApi.create(payload);
-        setSavedPostId(response.post.id);
+        postId = response.post.id;
       }
+
+      for (const file of pendingFiles) {
+        await postsApi.files.upload(postId, file);
+      }
+
       await onSaved();
-      toast.showToast({ message: 'Пост сохранён', tone: 'success' });
-      if (initial) onClose();
+      toast.showToast({
+        message: pendingFiles.length > 0 ? 'Публикация сохранена, вложения загружены' : 'Публикация сохранена',
+        tone: 'success',
+      });
+      // В обоих режимах закрываем окно: повторное «Сохранить» больше не создаёт дубликат.
+      onClose();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить пост');
+      setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить публикацию');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal open={open} title={initial ? 'Редактировать пост' : 'Новый пост'} onClose={onClose} width={880}>
+    <Modal open={open} title={initial ? 'Редактировать публикацию' : 'Новая публикация'} onClose={onClose} width={880}>
       <form className={styles.form} onSubmit={handleSubmit}>
         <div className={styles.formHeader}>
           <Input label="Заголовок" value={title} onChange={(e) => setTitle(e.target.value)} required fullWidth />
-          <Checkbox label="Опубликован" checked={isPublished} onChange={setIsPublished} />
         </div>
+        <div className={styles.formFlags}>
+          <Checkbox label="Опубликована" checked={isPublished} onChange={setIsPublished} />
+          <Checkbox label="Скрыть автора в ленте" checked={hideAuthor} onChange={setHideAuthor} />
+        </div>
+
         <div className={styles.editorWrap}>
           <span className={styles.sectionLabel}>Содержание публикации</span>
           <Suspense fallback={<StateMessage state="loading" />}>
@@ -178,7 +177,35 @@ function PostFormModal({
           </Suspense>
         </div>
 
-        {savedPostId !== null ? <AttachmentsSection postId={savedPostId} /> : null}
+        <div className={styles.attachments}>
+          <span className={styles.sectionLabel}>Вложения</span>
+          <DragDrop
+            onFiles={(selected) => setPendingFiles((prev) => [...prev, ...selected])}
+            disabled={saving}
+            hint="Перетащите файлы (PDF, DOCX, изображения, MP4) — они загрузятся при сохранении"
+          />
+          {pendingFiles.length > 0 ? (
+            <div className={styles.fileList}>
+              {pendingFiles.map((file, index) => (
+                <span key={`${file.name}-${index}`} className={styles.fileItem}>
+                  <Badge tone="blue" icon="document">
+                    <span className={styles.fileName} title={file.name}>
+                      {file.name}
+                    </span>
+                  </Badge>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon="close"
+                    aria-label="Убрать из списка"
+                    onClick={() => setPendingFiles((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
+                  />
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {initial ? <AttachmentsList postId={initial.id} /> : null}
+        </div>
 
         {error ? <div className={styles.error}>{error}</div> : null}
         <div className={styles.formActions}>
@@ -222,7 +249,7 @@ export function PostsPage() {
       setPosts(response.posts);
       setTotal(response.total);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить посты');
+      setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить публикации');
     } finally {
       setLoading(false);
     }
@@ -235,21 +262,23 @@ export function PostsPage() {
   const togglePublished = async (post: Post, published: boolean) => {
     setError(null);
     const previousPublished = post.is_published;
+    const payload = {
+      title: post.title,
+      content: post.content,
+      is_published: published,
+      hide_author: post.hideAuthor,
+    };
     try {
-      const response = await postsApi.update(post.id, {
-        title: post.title,
-        content: post.content,
-        is_published: published,
-      });
+      const response = await postsApi.update(post.id, payload);
       setPosts((prev) => prev.map((item) => (item.id === post.id ? response.post : item)));
       toast.showToast({
-        message: published ? 'Пост опубликован' : 'Снят с публикации',
+        message: published ? 'Публикация опубликована' : 'Снята с публикации',
         tone: 'success',
         action: {
           label: 'Отменить',
           onClick: () => {
             void postsApi
-              .update(post.id, { title: post.title, content: post.content, is_published: previousPublished })
+              .update(post.id, { ...payload, is_published: previousPublished })
               .then((reverted) => {
                 setPosts((prev) => prev.map((item) => (item.id === post.id ? reverted.post : item)));
               })
@@ -272,10 +301,10 @@ export function PostsPage() {
     try {
       await postsApi.remove(deleting.id);
       setDeleting(null);
-      toast.showToast({ message: 'Пост удалён', tone: 'success' });
+      toast.showToast({ message: 'Публикация удалена', tone: 'success' });
       await load();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить пост');
+      setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить публикацию');
     } finally {
       setDeleteSaving(false);
     }
@@ -294,8 +323,13 @@ export function PostsPage() {
         />
       ),
     },
-    { key: 'author', header: 'Автор', render: (post) => post.authorName ?? '—' },
-    { key: 'updated', header: 'Обновлён', render: (post) => formatDateTime(post.updatedAt) },
+    {
+      key: 'author',
+      header: 'Автор',
+      render: (post) =>
+        post.hideAuthor ? <Badge tone="gray">Скрыт</Badge> : post.authorName ?? <Badge tone="neutral">—</Badge>,
+    },
+    { key: 'updated', header: 'Обновлена', render: (post) => formatDateTime(post.updatedAt) },
     {
       key: 'actions',
       header: '',
@@ -311,7 +345,7 @@ export function PostsPage() {
 
   return (
     <Container
-      title="Посты"
+      title="Публикации"
       actions={
         <Button icon="add" onClick={() => setCreating(true)}>
           Добавить
@@ -328,7 +362,7 @@ export function PostsPage() {
         />
         <Select
           label="Статус"
-          placeholder="Все посты"
+          placeholder="Все публикации"
           value={statusFilter}
           onChange={(value) => {
             setStatusFilter(value);
@@ -343,7 +377,7 @@ export function PostsPage() {
       ) : error ? (
         <StateMessage state="error" message={error} onRetry={() => void load()} />
       ) : posts.length === 0 ? (
-        <StateMessage state="empty" message="Постов пока нет" />
+        <StateMessage state="empty" message="Публикаций пока нет" />
       ) : (
         <>
           <Table columns={columns} data={posts} rowKey={(post) => post.id} />
@@ -362,8 +396,8 @@ export function PostsPage() {
       <PostFormModal open={editing !== null} initial={editing} onClose={() => setEditing(null)} onSaved={load} />
       <ConfirmDialog
         open={deleting !== null}
-        title="Удаление поста"
-        message={`Удалить пост «${deleting?.title ?? ''}»?`}
+        title="Удаление публикации"
+        message={`Удалить публикацию «${deleting?.title ?? ''}»?`}
         confirmLabel="Удалить"
         danger
         loading={deleteSaving}

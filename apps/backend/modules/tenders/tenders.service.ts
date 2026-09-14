@@ -1,4 +1,4 @@
-// Бизнес-логика тендеров (конкурсов).
+// Бизнес-логика конкурсов
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 import { APPLICATION_STATUS_NAMES } from '../../lib/app-status';
@@ -126,12 +126,10 @@ async function requireDraftStatusId(): Promise<number> {
 
 /**
  * «Опасная зона»: сбрасывает заявки конкурса в «черновик» и снимает экспертизы.
- * Вызывается после изменения критериев или числа экспертов конкурса.
+ * Вызывается только явно (из настроек конкурса или кнопкой «сброс») — после
+ * изменения числа экспертов конкурса.
  */
-export async function resetTenderApplications(
-  tenderId: number,
-  actorId?: number,
-): Promise<{ applications: number; reviews: number }> {
+export async function resetTenderApplications(tenderId: number): Promise<{ applications: number; reviews: number }> {
   await getTenderOrThrow(tenderId);
   const draftStatusId = await requireDraftStatusId();
 
@@ -149,9 +147,6 @@ export async function resetTenderApplications(
   await prisma.applications.updateMany({
     where: { id: { in: ids } },
     data: { status_id: draftStatusId, submitted_at: null },
-  });
-  await prisma.evaluation_criteria_history.create({
-    data: { tender_id: tenderId, action: 'reset', name: 'Сброс заявок конкурса', changed_by: actorId ?? null },
   });
 
   return { applications: ids.length, reviews: reviews.count };

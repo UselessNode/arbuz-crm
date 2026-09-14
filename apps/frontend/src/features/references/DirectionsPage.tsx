@@ -67,7 +67,7 @@ function DirectionFormModal({
         <Input label="Название" value={name} onChange={(e) => setName(e.target.value)} required />
         <Input label="Описание" value={description} onChange={(e) => setDescription(e.target.value)} />
         <Select
-          label="Тендер"
+          label="Конкурс"
           placeholder="Без привязки"
           value={tenderId}
           onChange={setTenderId}
@@ -87,7 +87,12 @@ function DirectionFormModal({
   );
 }
 
-export function DirectionsPage() {
+interface DirectionsPageProps {
+  /** Меняется при создании/правке конкурса: направления перечитывают список и селект конкурсов. */
+  refreshToken?: number;
+}
+
+export function DirectionsPage({ refreshToken = 0 }: DirectionsPageProps = {}) {
   const toast = useToast();
   const [directions, setDirections] = useState<Direction[]>([]);
   const [tenders, setTenders] = useState<Tender[]>([]);
@@ -112,7 +117,8 @@ export function DirectionsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+    // refreshToken меняется при добавлении/правке конкурса — тогда список перечитывается.
+  }, [refreshToken]);
 
   useEffect(() => {
     void load();

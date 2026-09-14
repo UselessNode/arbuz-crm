@@ -55,15 +55,26 @@
   gap: var(--space-2);
   width: 100%;
   padding: var(--space-3) var(--space-4);
-  background: none;
   border: none;
+  background-color: transparent;
   cursor: pointer;
   color: var(--color-text);
   text-align: left;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .accordionTrigger:hover {
   background-color: var(--tone-neutral-bg);
+}
+
+/* Визуальный отклик на нажатие */
+.accordionTrigger:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.accordionTrigger:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .accordionTitle {
@@ -111,12 +122,25 @@
   color: var(--color-text);
   cursor: pointer;
   box-shadow: var(--shadow-sm);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .carouselArrowLeft:hover,
 .carouselArrowRight:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+/* Визуальный отклик на нажатие */
+.carouselArrowLeft:active,
+.carouselArrowRight:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.carouselArrowLeft:focus-visible,
+.carouselArrowRight:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .carouselArrowLeft {
@@ -145,6 +169,21 @@
   border-radius: 50%;
   background-color: var(--color-border);
   cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.carouselDot:hover {
+  transform: scale(1.2);
+}
+
+/* Визуальный отклик на нажатие: точка мелкая, поэтому сжимается. */
+.carouselDot:active {
+  transform: scale(0.8);
+}
+
+.carouselDot:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .carouselDotActive {

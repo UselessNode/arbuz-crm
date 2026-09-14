@@ -73,13 +73,14 @@ GET-эндпоинты (конкурсы, направления, статусы
 | GET/PATCH/DELETE | `/api/tenders/:id` | `{ name?, description?, experts_count? }` |
 | GET | `/api/tenders/:id/impact` | admin — `{ applications, reviews }` (последствия сброса) |
 | POST | `/api/tenders/:id/reset-applications` | admin — заявки → «Черновик», экспертизы снимаются |
-| GET | `/api/tenders/:id/criteria-history` | история изменений критериев |
 | GET/POST | `/api/tenders/:id/criteria` | `{ name, description?, min_value?, max_value?, weight?, config? }` |
 | PATCH/DELETE | `/api/tenders/:id/criteria/:criterionId` | те же поля частично |
 | GET/POST | `/api/directions` (`?tenderId=`) | `{ name, description?, tender_id? }` |
 | GET/PATCH/DELETE | `/api/directions/:id` | — |
 | GET/POST | `/api/application-statuses` | `{ name, description?, is_editable?, is_deletable? }` |
 | GET/PATCH/DELETE | `/api/application-statuses/:id` | — |
+| GET/POST | `/api/review-statuses` | вердикты экспертиз: `{ name, description?, tone?, is_default? }` |
+| PATCH/DELETE | `/api/review-statuses/:id` | вердикт по умолчанию и используемый в экспертизах удалить нельзя |
 
 ## Posts
 
@@ -87,11 +88,11 @@ GET-эндпоинты (конкурсы, направления, статусы
 |---|---|---|---|
 | GET | `/api/posts?limit=&offset=` | **публично** | admin видит все, остальные — только опубликованные; ответ `{ posts, total }` |
 | GET | `/api/posts/:id` | публично (по видимости) | черновик — только admin |
-| POST | `/api/posts` | admin | `{ title, content, is_published? }` (content — Markdown; WYSIWYG во фронтенде) |
+| POST | `/api/posts` | admin | `{ title, content, is_published?, hide_author? }` (content — Markdown; WYSIWYG во фронтенде) |
 | PATCH | `/api/posts/:id` | admin | частично |
 | DELETE | `/api/posts/:id` | admin | — |
 | POST/GET | `/api/posts/:id/files` | admin / по видимости | multipart `file` |
-| GET | `/api/posts/:id/files/:fileId/download` | по видимости | — |
+| GET | `/api/posts/:id/files/:fileId/download` | публично для опубликованных постов, иначе по видимости | — |
 | DELETE | `/api/posts/:id/files/:fileId` | admin | — |
 
 **Готово в части 2/3:** ответы постов содержат санитизированный HTML (`contentHtml`, собирается из Markdown на сервере `marked` + `sanitize-html`). Произвольный HTML от клиента не принимается. С 1.10.0 редактирование — через WYSIWYG (`@mdxeditor/editor`), серверный `/preview` не используется.
@@ -101,8 +102,8 @@ GET-эндпоинты (конкурсы, направления, статусы
 | Метод | Путь | Доступ | Запрос |
 |---|---|---|---|
 | GET | `/api/reviews` | admin — все; expert — свои; applicant — по своим заявкам | — |
-| POST | `/api/applications/:id/reviews` | admin (назначение) | `{ expert_id }` |
-| PATCH | `/api/reviews/:id` | автор-эксперт / admin | `{ review_status?, review_text?, rating? }` |
+| POST | `/api/applications/:id/reviews` | admin (назначение, не больше `tenders.experts_count`) | `{ expert_id }` |
+| PATCH | `/api/reviews/:id` | автор-эксперт / admin | `{ status_id?, review_text?, rating? }` |
 | DELETE | `/api/reviews/:id` | admin (снятие) | — |
 
 **Готово в части 3/3:** `GET /api/users/experts` — полный список экспертов (`{ id, email, name, surname, patronymic }`) для селекта «назначить эксперта», без пагинации. ✅

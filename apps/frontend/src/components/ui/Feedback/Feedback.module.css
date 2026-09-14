@@ -32,7 +32,8 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(31, 41, 51, 0.45);
+  /* Единственный полупрозрачный слой: токена нет, значение осознанно оставлено здесь. */
+  background-color: rgba(31, 41, 51, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -43,7 +44,7 @@
 .dialog {
   width: 100%;
   max-width: 560px;
-  background: var(--color-surface);
+  background-color: var(--color-surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   max-height: 90vh;
@@ -72,14 +73,25 @@
   height: 28px;
   border: none;
   border-radius: var(--radius-sm);
-  background: transparent;
+  background-color: transparent;
   color: var(--color-muted);
   cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .closeButton:hover {
-  background: var(--tone-neutral-bg);
+  background-color: var(--tone-neutral-bg);
   color: var(--color-text);
+}
+
+/* Визуальный отклик на нажатие */
+.closeButton:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .dialogBody {

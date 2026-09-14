@@ -1,10 +1,12 @@
 // Публичная домашняя страница: лента публикаций + контакты организации.
 import { useCallback, useEffect, useState } from 'react';
-import { Icon, Pagination, StateMessage } from '../../components/ui';
+import { Icon, Pagination, StateMessage, useToast } from '../../components/ui';
 import { postsApi, type Post } from '../../api/posts';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
 import { isImageFile } from '../../lib/files';
+import { copyToClipboard } from '../../lib/clipboard';
+import { ORGANIZER_CONTACTS } from '../../lib/contacts';
 import melonLogo from '../../assets/images/Melon.png';
 import styles from './HomePage.module.css';
 
@@ -38,7 +40,7 @@ export function HomePage() {
   return (
     <div className={styles.page}>
       <section className={styles.hero}>
-        <img src={melonLogo} alt="Арбузный грант" className={styles.heroLogo} />
+
         <div>
           <h1 className={styles.heroTitle}>Арбузный грант</h1>
           <p className={styles.heroLead}>
@@ -69,6 +71,7 @@ export function HomePage() {
                     <h3 className={styles.postTitle}>{post.title}</h3>
                     <div className={styles.postMeta}>
                       <time>{formatDateTime(post.createdAt)}</time>
+                      {/* Автор скрыт, если публикация помечена как обратная связь от организации. */}
                       {post.authorName ? <span> · {post.authorName}</span> : null}
                     </div>
                     {/* HTML санитизируется на сервере (contentHtml). */}
@@ -84,12 +87,38 @@ export function HomePage() {
 
         <aside className={styles.contacts} aria-label="Контакты организации">
           <h2 className={styles.sectionTitle}>Контакты</h2>
-          <p className={styles.contactsText} data-todo="contacts">
-            Контактная информация организации будет добавлена.
-          </p>
+          <ContactValue label="Телефон" value={ORGANIZER_CONTACTS.phone} />
+          <ContactValue label="Электронная почта" value={ORGANIZER_CONTACTS.email} />
+          <p className={styles.contactsHint}>Нажмите на контакт, чтобы скопировать его.</p>
+          <div className={styles.imgContainer}>
+            <img src={melonLogo} alt="Арбузный грант" className={styles.heroLogo} />
+          </div>
         </aside>
       </div>
     </div>
+  );
+}
+
+/** Контакт организаторов: клик копирует значение в буфер обмена. */
+function ContactValue({ label, value }: { label: string; value: string }) {
+  const toast = useToast();
+
+  const handleCopy = async () => {
+    const copied = await copyToClipboard(value);
+    toast.showToast({
+      message: copied ? 'Контакт скопирован в буфер обмена' : 'Не удалось скопировать',
+      tone: copied ? 'success' : 'error',
+    });
+  };
+
+  return (
+    <p className={styles.contactsText}>
+      {label}:
+      <br />
+      <button type="button" className={styles.contactValue} onClick={() => void handleCopy()} title="Скопировать">
+        {value}
+      </button>
+    </p>
   );
 }
 

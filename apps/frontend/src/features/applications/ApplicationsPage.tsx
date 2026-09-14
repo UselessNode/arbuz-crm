@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge, Button, Container, ListToolbar, Pagination, SearchInput, Select, StateMessage, StatusBadge, Table } from '../../components/ui';
+import { toneFromString } from '../../components/ui/Badge/Badge';
 import type { SelectOption, StatusOption, TableColumn } from '../../components/ui';
 import { applicationsApi, type ApplicationSummary } from '../../api/applications';
 import { statusesApi, tendersApi } from '../../api/references';
@@ -45,8 +46,19 @@ export function ApplicationsPage() {
       setApplications(response.applications);
       setTotal(response.total);
       // Статусы заявок — редактируемый справочник; метки и идентификаторы берём с сервера.
-      setStatusOptions(statuses.statuses.map((status) => ({ value: String(status.id), label: status.name, tone: 'blue' })));
-      setTenderOptions(tenders.tenders.map((tender) => ({ value: String(tender.id), label: tender.name })));
+      setStatusOptions(
+        statuses.statuses.map((status) => ({
+          value: String(status.id),
+          label: status.name,
+          tone: toneFromString(status.id.toString()), // Стабильный цвет по идентификатору статуса
+        })),
+      );
+      setTenderOptions(
+        tenders.tenders.map((tender) => ({
+          value: String(tender.id),
+          label: tender.name,
+        })),
+      );
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить заявки');
     } finally {
@@ -65,9 +77,11 @@ export function ApplicationsPage() {
       key: 'status',
       header: 'Статус',
       render: (a) =>
-        a.status ? <StatusBadge value={String(a.status.id)} options={statusOptions} /> : <Badge tone="neutral">—</Badge>,
+        a.status
+          ? <StatusBadge value={String(a.status.id)} options={statusOptions} />
+          : <Badge tone="neutral">—</Badge>,
     },
-    { key: 'tender', header: 'Тендер', render: (a) => a.tender ?? '—' },
+    { key: 'tender', header: 'Конкурс', render: (a) => a.tender ?? '—' },
     { key: 'updated', header: 'Обновлена', render: (a) => formatDateTime(a.updatedAt) },
     {
       key: 'actions',
@@ -140,7 +154,7 @@ export function ApplicationsPage() {
         </>
       )}
       <div className={styles.pageHint}>
-        Заявитель подаёт заявки самостоятельно; администратор может создать заявку за пользователя и модерировать существующие.
+        Заявитель подаёт заявки самостоятельно. При необходимости администратор может создать заявку за пользователя и модерировать существующие.
       </div>
 
       <ApplicationFormModal

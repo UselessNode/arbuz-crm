@@ -1,4 +1,4 @@
-// HTTP API тендеров (конкурсов). Чтение — всем авторизованным, изменения — администратору.
+// HTTP API конкурсов. Чтение — всем авторизованным, изменения — администратору.
 import { RoleType } from '@arbuz/shared';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
@@ -79,7 +79,7 @@ tendersRouter.post(
   requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const tenderId = parseId(req.params.tenderId);
-    const result = await resetTenderApplications(tenderId, (req.user as CurrentUser).id);
+    const result = await resetTenderApplications(tenderId);
     log.audit('tenders.reset_applications', { userId: (req.user as CurrentUser).id, tenderId, ...result });
     res.json({ ok: true, ...result });
   }),

@@ -9,6 +9,8 @@ export interface ApplicationSummary {
   ownerName: string;
   statusId: number;
   status: { id: number; name: string } | null;
+  /** Вердикт собственной экспертизы (заполняется только для эксперта). */
+  verdict: ReviewVerdictRef | null;
   tender: string | null;
   direction: string | null;
   submittedAt: string | null;

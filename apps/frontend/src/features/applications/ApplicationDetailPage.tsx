@@ -1,4 +1,4 @@
-// Карточка заявки: основные данные, состав, статус, рецензии.
+// Карточка заявки: основные данные, состав, статус, экспертизы.
 // Общая для администратора (`area="admin"`) и заявителя (`area="applicant"`).
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -286,15 +286,15 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
             <MaterialsSection applicationId={application.id} materials={application.materials} readOnly={!canEdit} onChanged={refresh} />
           </AccordionItem>
 
-          <AccordionItem itemKey="reviews" title={`Рецензии (${application.reviews.length})`}>
+          <AccordionItem itemKey="reviews" title={`Экспертизы (${application.reviews.length})`}>
             {isExpertArea ? <ExpertEvaluationSection application={application} onChanged={refresh} /> : null}
-            <ReviewsSection
+            {isAdmin ? <ReviewsSection
               applicationId={application.id}
               reviews={application.reviews}
               canManage={isAdmin}
               requiredExperts={application.tender?.expertsCount}
               onChanged={refresh}
-            />
+            /> : null}
           </AccordionItem>
         </Accordion>
       </Container>

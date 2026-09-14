@@ -14,7 +14,7 @@
   --color-success: #16a34a;
   --color-warning: #d97706;
 
-  /* Тона бейджей (фон/текст) */
+  /* Тона бейджей (Старые) */
   --tone-blue-bg: #dbeafe;
   --tone-blue-text: #1e40af;
   --tone-green-bg: #dcfce7;
@@ -29,6 +29,82 @@
   --tone-gray-text: #334155;
   --tone-neutral-bg: #f1f5f9;
   --tone-neutral-text: #475569;
+
+  /* Тона бейджей (новые) */
+  /* Для каждого тона — светлый / базовый / тёмный
+     вариант фона и текста. Базовые значения совместимы с прежними. */
+
+  /* neutral */
+  --tone-neutral-bg-light: #f8fafc;  --tone-neutral-bg: #f1f5f9;  --tone-neutral-bg-dark: #e2e8f0;
+  --tone-neutral-text-light: #64748b; --tone-neutral-text: #475569; --tone-neutral-text-dark: #1e293b;
+
+  /* gray */
+  --tone-gray-bg-light: #f9fafb;  --tone-gray-bg: #e5e7eb;  --tone-gray-bg-dark: #d1d5db;
+  --tone-gray-text-light: #6b7280; --tone-gray-text: #374151; --tone-gray-text-dark: #111827;
+
+  /* blue */
+  --tone-blue-bg-light: #eff6ff;  --tone-blue-bg: #dbeafe;  --tone-blue-bg-dark: #bfdbfe;
+  --tone-blue-text-light: #3b82f6; --tone-blue-text: #1e40af; --tone-blue-text-dark: #1e3a8a;
+
+  /* sky */
+  --tone-sky-bg-light: #f0f9ff;  --tone-sky-bg: #e0f2fe;  --tone-sky-bg-dark: #bae6fd;
+  --tone-sky-text-light: #0284c7; --tone-sky-text: #075985; --tone-sky-text-dark: #0c4a6e;
+
+  /* cyan */
+  --tone-cyan-bg-light: #ecfeff;  --tone-cyan-bg: #cffafe;  --tone-cyan-bg-dark: #a5f3fc;
+  --tone-cyan-text-light: #0891b2; --tone-cyan-text: #155e75; --tone-cyan-text-dark: #164e63;
+
+  /* teal */
+  --tone-teal-bg-light: #f0fdfa;  --tone-teal-bg: #ccfbf1;  --tone-teal-bg-dark: #99f6e4;
+  --tone-teal-text-light: #0d9488; --tone-teal-text: #115e59; --tone-teal-text-dark: #134e4a;
+
+  /* green */
+  --tone-green-bg-light: #f0fdf4;  --tone-green-bg: #dcfce7;  --tone-green-bg-dark: #bbf7d0;
+  --tone-green-text-light: #16a34a; --tone-green-text: #166534; --tone-green-text-dark: #14532d;
+
+  /* lime */
+  --tone-lime-bg-light: #f7fee7;  --tone-lime-bg: #ecfccb;  --tone-lime-bg-dark: #d9f99d;
+  --tone-lime-text-light: #65a30d; --tone-lime-text: #3f6212; --tone-lime-text-dark: #365314;
+
+  /* yellow */
+  --tone-yellow-bg-light: #fefce8;  --tone-yellow-bg: #fef9c3;  --tone-yellow-bg-dark: #fef08a;
+  --tone-yellow-text-light: #ca8a04; --tone-yellow-text: #854d0e; --tone-yellow-text-dark: #713f12;
+
+  /* amber */
+  --tone-amber-bg-light: #fffbeb;  --tone-amber-bg: #fef3c7;  --tone-amber-bg-dark: #fde68a;
+  --tone-amber-text-light: #d97706; --tone-amber-text: #92400e; --tone-amber-text-dark: #78350f;
+
+  /* orange */
+  --tone-orange-bg-light: #fff7ed;  --tone-orange-bg: #ffedd5;  --tone-orange-bg-dark: #fed7aa;
+  --tone-orange-text-light: #ea580c; --tone-orange-text: #9a3412; --tone-orange-text-dark: #7c2d12;
+
+  /* red */
+  --tone-red-bg-light: #fef2f2;  --tone-red-bg: #fee2e2;  --tone-red-bg-dark: #fecaca;
+  --tone-red-text-light: #dc2626; --tone-red-text: #991b1b; --tone-red-text-dark: #7f1d1d;
+
+  /* rose */
+  --tone-rose-bg-light: #fff1f2;  --tone-rose-bg: #ffe4e6;  --tone-rose-bg-dark: #fecdd3;
+  --tone-rose-text-light: #e11d48; --tone-rose-text: #9f1239; --tone-rose-text-dark: #881337;
+
+  /* pink */
+  --tone-pink-bg-light: #fdf2f8;  --tone-pink-bg: #fce7f3;  --tone-pink-bg-dark: #fbcfe8;
+  --tone-pink-text-light: #db2777; --tone-pink-text: #9d174d; --tone-pink-text-dark: #831843;
+
+  /* fuchsia */
+  --tone-fuchsia-bg-light: #fdf4ff;  --tone-fuchsia-bg: #fae8ff;  --tone-fuchsia-bg-dark: #f5d0fe;
+  --tone-fuchsia-text-light: #c026d3; --tone-fuchsia-text: #86198f; --tone-fuchsia-text-dark: #701a75;
+
+  /* purple */
+  --tone-purple-bg-light: #faf5ff;  --tone-purple-bg: #f3e8ff;  --tone-purple-bg-dark: #e9d5ff;
+  --tone-purple-text-light: #9333ea; --tone-purple-text: #6b21a8; --tone-purple-text-dark: #581c87;
+
+  /* violet */
+  --tone-violet-bg-light: #f5f3ff;  --tone-violet-bg: #ede9fe;  --tone-violet-bg-dark: #ddd6fe;
+  --tone-violet-text-light: #7c3aed; --tone-violet-text: #5b21b6; --tone-violet-text-dark: #4c1d95;
+
+  /* indigo */
+  --tone-indigo-bg-light: #eef2ff;  --tone-indigo-bg: #e0e7ff;  --tone-indigo-bg-dark: #c7d2fe;
+  --tone-indigo-text-light: #4f46e5; --tone-indigo-text: #3730a3; --tone-indigo-text-dark: #312e81;
 
   /* Отступы */
   --space-1: 4px;

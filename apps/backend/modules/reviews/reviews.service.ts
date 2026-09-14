@@ -1,4 +1,4 @@
-// Бизнес-логика рецензий: назначение экспертов администратором и оценка заявок.
+// Бизнес-логика экспертиз: назначение экспертов администратором и оценка заявок.
 import { RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
@@ -147,9 +147,9 @@ export async function updateReview(
     where: { id: reviewId },
     include: { applications: { select: { id: true, tender_id: true } } },
   });
-  if (!review || review.deleted_at) throw httpError(404, 'Рецензия не найдена', 'REVIEW_NOT_FOUND');
+  if (!review || review.deleted_at) throw httpError(404, 'Экспертиза не найдена', 'REVIEW_NOT_FOUND');
   if (user.role !== RoleType.admin && review.expert_id !== user.id) {
-    throw httpError(403, 'Можно редактировать только свои рецензии', 'FORBIDDEN');
+    throw httpError(403, 'Можно редактировать только свои экспертизы', 'FORBIDDEN');
   }
 
   const data: { status_id?: number; review_text?: string | null; rating?: object; total_score?: number } = {};
@@ -177,12 +177,12 @@ export async function updateReview(
 export async function deleteReview(actor: CurrentUser, reviewId: number): Promise<void> {
   if (actor.role !== RoleType.admin) throw httpError(403, 'Действие доступно только администратору', 'FORBIDDEN');
   const review = await prisma.application_reviews.findFirst({ where: { id: reviewId, deleted_at: null }, select: { id: true } });
-  if (!review) throw httpError(404, 'Рецензия не найдена', 'REVIEW_NOT_FOUND');
+  if (!review) throw httpError(404, 'Экспертиза не найдена', 'REVIEW_NOT_FOUND');
   await prisma.application_reviews.update({ where: { id: reviewId }, data: { deleted_at: new Date() } });
 }
 
 /**
- * Проверяет оценки по критериям тендера и считает итоговый балл (сумма value * weight).
+ * Проверяет оценки по критериям конкурса и считает итоговый балл (сумма value * weight).
  * Значения должны попадать в диапазон min_value..max_value критерия.
  */
 async function validateAndScore(

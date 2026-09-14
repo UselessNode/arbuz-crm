@@ -25,7 +25,7 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   pointer-events: auto;
-  animation: toast-in 160ms ease-out;
+  animation: toast-in 0.15s ease-out;
 }
 
 /* Полоса и иконка по тону уведомления. */
@@ -55,15 +55,26 @@
   padding: var(--space-1) var(--space-2);
   border: none;
   border-radius: var(--radius-sm);
-  background: transparent;
+  background-color: transparent;
   color: var(--color-primary);
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .action:hover {
   background-color: var(--tone-blue-bg);
+}
+
+/* Визуальный отклик на нажатие */
+.action:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .close {
@@ -75,9 +86,10 @@
   height: 24px;
   border: none;
   border-radius: var(--radius-sm);
-  background: transparent;
+  background-color: transparent;
   color: var(--color-muted);
   cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .close:hover {
@@ -85,8 +97,18 @@
   color: var(--color-text);
 }
 
+/* Визуальный отклик на нажатие */
+.close:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
 .closing {
-  animation: toast-out 160ms ease-in forwards;
+  animation: toast-out 0.15s ease-in forwards;
 }
 
 @keyframes toast-in {

@@ -1,4 +1,4 @@
-// Бизнес-логика критериев оценивания тендера.
+// Бизнес-логика критериев оценивания конкурса.
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 import { getTenderOrThrow, parseId } from './tenders.service';
@@ -65,73 +65,6 @@ function assertRange(minValue: number, maxValue: number, weight: number): void {
   }
 }
 
-type CriterionHistoryAction = 'created' | 'updated' | 'deleted' | 'reset';
-
-interface CriterionSnapshot {
-  id: number;
-  name: string;
-  description: string | null;
-  min_value: number;
-  max_value: number;
-  weight: number;
-  config: unknown;
-}
-
-/** Пишет снимок критерия в историю изменений по конкурсу. */
-async function recordHistory(
-  tenderId: number,
-  action: CriterionHistoryAction,
-  criterion: CriterionSnapshot,
-  actorId?: number,
-): Promise<void> {
-  await prisma.evaluation_criteria_history.create({
-    data: {
-      tender_id: tenderId,
-      criterion_id: criterion.id,
-      action,
-      name: criterion.name,
-      description: criterion.description,
-      min_value: criterion.min_value,
-      max_value: criterion.max_value,
-      weight: criterion.weight,
-      config: (criterion.config as object) ?? undefined,
-      changed_by: actorId ?? null,
-    },
-  });
-}
-
-/** История изменений критериев конкурса (от новых к старым). */
-export async function listCriteriaHistory(tenderId: number) {
-  await getTenderOrThrow(tenderId);
-  const rows = await prisma.evaluation_criteria_history.findMany({
-    where: { tender_id: tenderId },
-    orderBy: { id: 'desc' },
-    take: 100,
-    select: {
-      id: true,
-      criterion_id: true,
-      action: true,
-      name: true,
-      min_value: true,
-      max_value: true,
-      weight: true,
-      changed_by: true,
-      changed_at: true,
-    },
-  });
-  return rows.map((row) => ({
-    id: row.id,
-    criterionId: row.criterion_id,
-    action: row.action,
-    name: row.name,
-    minValue: row.min_value,
-    maxValue: row.max_value,
-    weight: row.weight,
-    changedBy: row.changed_by,
-    changedAt: row.changed_at,
-  }));
-}
-
 export async function listCriteria(tenderId: number) {
   await getTenderOrThrow(tenderId);
   const criteria = await prisma.evaluation_criteria.findMany({
@@ -144,7 +77,6 @@ export async function listCriteria(tenderId: number) {
 export async function createCriterion(
   tenderId: number,
   input: { name?: unknown; description?: unknown; min_value?: unknown; max_value?: unknown; weight?: unknown; config?: unknown },
-  actorId?: number,
 ) {
   await getTenderOrThrow(tenderId);
   const minValue = numberValue(input.min_value, 0, 'min_value');
@@ -163,7 +95,6 @@ export async function createCriterion(
       config: (jsonValue(input.config) as object) ?? undefined,
     },
   });
-  await recordHistory(tenderId, 'created', criterion, actorId);
   return serialize(criterion);
 }
 
@@ -171,7 +102,6 @@ export async function updateCriterion(
   tenderId: number,
   criterionId: number,
   patch: { name?: unknown; description?: unknown; min_value?: unknown; max_value?: unknown; weight?: unknown; config?: unknown },
-  actorId?: number,
 ) {
   await getTenderOrThrow(tenderId);
   const existing = await prisma.evaluation_criteria.findFirst({
@@ -193,18 +123,16 @@ export async function updateCriterion(
   assertRange(minValue, maxValue, weight);
 
   const criterion = await prisma.evaluation_criteria.update({ where: { id: criterionId }, data });
-  await recordHistory(tenderId, 'updated', criterion, actorId);
   return serialize(criterion);
 }
 
-export async function deleteCriterion(tenderId: number, criterionId: number, actorId?: number): Promise<void> {
+export async function deleteCriterion(tenderId: number, criterionId: number): Promise<void> {
   await getTenderOrThrow(tenderId);
   const existing = await prisma.evaluation_criteria.findFirst({
     where: { id: criterionId, tender_id: tenderId, deleted_at: null },
   });
   if (!existing) throw httpError(404, 'Критерий не найден', 'CRITERION_NOT_FOUND');
   await prisma.evaluation_criteria.update({ where: { id: criterionId }, data: { deleted_at: new Date() } });
-  await recordHistory(tenderId, 'deleted', existing, actorId);
 }
 
 export { parseId };

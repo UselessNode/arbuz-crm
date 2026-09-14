@@ -134,6 +134,8 @@ export async function listApplications(
       : {}),
   };
 
+  const isExpert = user.role === RoleType.expert;
+
   const [rows, total] = await Promise.all([
     prisma.applications.findMany({
       where,
@@ -154,6 +156,12 @@ export async function listApplications(
         tenders: { select: { id: true, name: true } },
         directions: { select: { id: true, name: true } },
         users: { select: { id: true, name: true, surname: true, patronymic: true } },
+        // Эксперту показываем вердикт его собственной экспертизы (чужие не раскрываем).
+        application_reviews: {
+          where: { expert_id: user.id, deleted_at: null },
+          take: 1,
+          select: { review_statuses: { select: { id: true, name: true, tone: true } } },
+        },
       },
     }),
     prisma.applications.count({ where }),
@@ -172,6 +180,7 @@ export async function listApplications(
       directionId: row.direction_id,
       statusId: row.status_id,
       status: row.application_statuses ? { id: row.application_statuses.id, name: row.application_statuses.name } : null,
+      verdict: isExpert ? (row.application_reviews[0]?.review_statuses ?? null) : null,
       tender: row.tenders?.name ?? null,
       direction: row.directions?.name ?? null,
       submittedAt: row.submitted_at,

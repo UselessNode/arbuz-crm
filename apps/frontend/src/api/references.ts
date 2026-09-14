@@ -59,18 +59,6 @@ export interface TenderPayload {
   experts_count?: number;
 }
 
-export interface CriterionHistoryEntry {
-  id: number;
-  criterionId: number | null;
-  action: string;
-  name: string;
-  minValue: number | null;
-  maxValue: number | null;
-  weight: number | null;
-  changedBy: number | null;
-  changedAt: string;
-}
-
 export interface CriterionPayload {
   name: string;
   description?: string | null;
@@ -106,7 +94,6 @@ export const tendersApi = {
 
 export const criteriaApi = {
   list: (tenderId: number) => api.get<{ criteria: Criterion[] }>(`/tenders/${tenderId}/criteria`),
-  history: (tenderId: number) => api.get<{ history: CriterionHistoryEntry[] }>(`/tenders/${tenderId}/criteria-history`),
   create: (tenderId: number, payload: CriterionPayload) =>
     api.post<{ criterion: Criterion }>(`/tenders/${tenderId}/criteria`, payload),
   update: (tenderId: number, id: number, payload: CriterionPayload) =>

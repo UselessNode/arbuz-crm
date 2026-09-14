@@ -19,7 +19,6 @@ const TABLES = [
   'applications',
   'files',
   'posts',
-  'evaluation_criteria_history',
   'evaluation_criteria',
   'directions',
   'tenders',

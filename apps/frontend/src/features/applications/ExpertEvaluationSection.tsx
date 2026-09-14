@@ -1,6 +1,6 @@
 // Секция эксперта: оценка назначенной заявки по критериям конкурса.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, NumberInput, Select, StateMessage, Textarea, useToast } from '../../components/ui';
+import { Badge, Button, NumberInput, Select, StateMessage, Textarea, useToast } from '../../components/ui';
 import type { SelectOption } from '../../components/ui';
 import { criteriaApi, reviewStatusesApi, type Criterion, type ReviewVerdict } from '../../api/references';
 import { reviewsApi } from '../../api/reviews';
@@ -55,7 +55,7 @@ export function ExpertEvaluationSection({ application, onChanged }: Props) {
     void loadCriteria();
   }, [loadCriteria]);
 
-  // Заполняем форму из своей рецензии и критериев конкурса.
+  // Заполняем форму из своей экспертизы и критериев конкурса.
   useEffect(() => {
     if (!myReview) return;
     setVerdictId(myReview.status ? String(myReview.status.id) : '');
@@ -69,6 +69,14 @@ export function ExpertEvaluationSection({ application, onChanged }: Props) {
     }
     setValues(next);
   }, [criteria, myReview]);
+
+  // Пустого варианта вердикта нет: если у экспертизы ещё нет статуса,
+  // подставляем вердикт по умолчанию из справочника.
+  useEffect(() => {
+    if (verdictId || verdicts.length === 0) return;
+    const fallback = verdicts.find((verdict) => verdict.isDefault) ?? verdicts[0];
+    setVerdictId(String(fallback.id));
+  }, [verdictId, verdicts]);
 
   const totalScore = useMemo(
     () => criteria.reduce((sum, criterion) => sum + (values[criterion.id] ?? criterion.minValue) * criterion.weight, 0),
@@ -97,9 +105,9 @@ export function ExpertEvaluationSection({ application, onChanged }: Props) {
         review_text: text || null,
       });
       await onChanged();
-      toast.showToast({ message: 'Рецензия сохранена', tone: 'success' });
+      toast.showToast({ message: 'Экспертиза сохранена', tone: 'success' });
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить рецензию');
+      setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить экспертизу');
     } finally {
       setSaving(false);
     }
@@ -107,11 +115,6 @@ export function ExpertEvaluationSection({ application, onChanged }: Props) {
 
   return (
     <div className={styles.evaluation}>
-      <div className={styles.sectionToolbar}>
-        <span className={styles.metaLabel}>Итоговый балл (с учётом весов):</span>
-        <strong>{totalScore.toLocaleString('ru-RU')}</strong>
-      </div>
-
       {loading ? (
         <StateMessage state="loading" />
       ) : criteria.length === 0 ? (
@@ -121,7 +124,7 @@ export function ExpertEvaluationSection({ application, onChanged }: Props) {
           {criteria.map((criterion) => (
             <NumberInput
               key={criterion.id}
-              label={`${criterion.name} (${criterion.minValue}–${criterion.maxValue}, вес ${criterion.weight})`}
+              label={`${criterion.name} (${criterion.minValue} – ${criterion.maxValue}, вес ${criterion.weight})`}
               value={values[criterion.id] ?? criterion.minValue}
               onChange={(value) => setValues((prev) => ({ ...prev, [criterion.id]: value }))}
               min={criterion.minValue}
@@ -132,19 +135,15 @@ export function ExpertEvaluationSection({ application, onChanged }: Props) {
         </div>
       )}
 
-      <Select
-        label="Вердикт"
-        placeholder="Выберите вердикт"
-        value={verdictId}
-        onChange={setVerdictId}
-        options={verdictOptions}
-      />
-      <Textarea label="Текст рецензии" value={text} onChange={(event) => setText(event.target.value)} />
-
+      <Badge>Итоговый балл: {totalScore.toLocaleString('ru-RU')}</Badge>
+      <Textarea label="Текст экспертизы" value={text} onChange={(event) => setText(event.target.value)} />
       {error ? <div className={styles.error}>{error}</div> : null}
       <div className={styles.formActions}>
+        {/* Вердикт — текущий статус экспертизы; подставляется по умолчанию, отдельного
+            пустого варианта нет (placeholder не нужен). */}
+        <Select label="Вердикт" value={verdictId} onChange={setVerdictId} options={verdictOptions} />
         <Button icon="check" loading={saving} onClick={() => void handleSave()} disabled={loading}>
-          Сохранить рецензию
+          Сохранить экспертизу
         </Button>
       </div>
     </div>

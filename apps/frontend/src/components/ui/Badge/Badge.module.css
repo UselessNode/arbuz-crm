@@ -1,8 +1,8 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
+  gap: var(--space-1);
+  padding: 3px var(--space-2);
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
@@ -15,16 +15,27 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
   border: 1px solid transparent;
+  border-radius: 999px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, filter 0.15s ease;
+}
+
+.selectWrap:hover {
+  /* Лёгкое затемнение тона — отклик на наведение (цвет задаётся классами тонов). */
+  filter: brightness(0.96);
+}
+
+/* Визуальный отклик на нажатие */
+.selectWrap:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .select {
   appearance: none;
-  padding: 3px 22px 3px 8px;
+  padding: 3px 22px 3px var(--space-2);
   border: none;
   border-radius: 999px;
-  background: transparent;
+  background-color: transparent;
   color: inherit;
   font-family: inherit;
   font-size: 12px;
@@ -46,11 +57,22 @@
   outline-offset: 1px;
 }
 
-/* Тона */
-.neutral { background-color: var(--tone-neutral-bg); color: var(--tone-neutral-text); }
-.blue { background-color: var(--tone-blue-bg); color: var(--tone-blue-text); }
-.green { background-color: var(--tone-green-bg); color: var(--tone-green-text); }
-.yellow { background-color: var(--tone-yellow-bg); color: var(--tone-yellow-text); }
-.red { background-color: var(--tone-red-bg); color: var(--tone-red-text); }
-.purple { background-color: var(--tone-purple-bg); color: var(--tone-purple-text); }
-.gray { background-color: var(--tone-gray-bg); color: var(--tone-gray-text); }
+/* Тона (единый список: фон — только background-color, чтобы не сбрасывать background-image). */
+.neutral  { background-color: var(--tone-neutral-bg);  color: var(--tone-neutral-text); }
+.gray     { background-color: var(--tone-gray-bg);     color: var(--tone-gray-text); }
+.blue     { background-color: var(--tone-blue-bg);     color: var(--tone-blue-text); }
+.sky      { background-color: var(--tone-sky-bg);      color: var(--tone-sky-text); }
+.cyan     { background-color: var(--tone-cyan-bg);     color: var(--tone-cyan-text); }
+.teal     { background-color: var(--tone-teal-bg);     color: var(--tone-teal-text); }
+.green    { background-color: var(--tone-green-bg);    color: var(--tone-green-text); }
+.lime     { background-color: var(--tone-lime-bg);     color: var(--tone-lime-text); }
+.yellow   { background-color: var(--tone-yellow-bg);   color: var(--tone-yellow-text); }
+.amber    { background-color: var(--tone-amber-bg);    color: var(--tone-amber-text); }
+.orange   { background-color: var(--tone-orange-bg);   color: var(--tone-orange-text); }
+.red      { background-color: var(--tone-red-bg);      color: var(--tone-red-text); }
+.rose     { background-color: var(--tone-rose-bg);     color: var(--tone-rose-text); }
+.pink     { background-color: var(--tone-pink-bg);     color: var(--tone-pink-text); }
+.fuchsia  { background-color: var(--tone-fuchsia-bg);  color: var(--tone-fuchsia-text); }
+.purple   { background-color: var(--tone-purple-bg);   color: var(--tone-purple-text); }
+.violet   { background-color: var(--tone-violet-bg);   color: var(--tone-violet-text); }
+.indigo   { background-color: var(--tone-indigo-bg);   color: var(--tone-indigo-text); }

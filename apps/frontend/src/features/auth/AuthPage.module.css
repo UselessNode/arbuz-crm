@@ -64,35 +64,48 @@
   align-items: center;
   padding-top: 1px;
   user-select: none;
+  cursor: pointer;
+  transition: filter 0.15s ease, opacity 0.15s ease;
+}
+
+/* Визуальный отклик на нажатие (удержание галочки) */
+.agreementCheck:active {
+  filter: brightness(0.85);
 }
 
 .agreementLink {
   flex: 1 1 auto;
   padding: 0;
   border: none;
-  background: none;
+  background-color: transparent;
   color: var(--color-primary);
   font: inherit;
   text-align: left;
   text-decoration: underline;
   cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .agreementLink:hover {
   color: var(--color-primary-hover);
 }
 
+.agreementLink:active {
+  color: var(--color-primary-hover);
+  opacity: 0.85;
+}
+
 .holdTrack {
   flex-basis: 100%;
   height: 4px;
   border-radius: var(--radius-sm);
-  background: var(--tone-neutral-bg);
+  background-color: var(--tone-neutral-bg);
   overflow: hidden;
 }
 
 .holdBar {
   height: 100%;
-  background: var(--color-success);
+  background-color: var(--color-success);
   border-radius: var(--radius-sm);
 }
 
@@ -107,8 +120,13 @@
   color: var(--color-primary);
   font-weight: 600;
   text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .footer a:hover {
   text-decoration: underline;
+}
+
+.footer a:active {
+  color: var(--color-primary-hover);
 }

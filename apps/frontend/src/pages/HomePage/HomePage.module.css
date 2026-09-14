@@ -15,8 +15,8 @@
 }
 
 .heroLogo {
-  width: 132px;
-  height: 132px;
+  width: 256px;
+  height: 256px;
   flex-shrink: 0;
   object-fit: contain;
 }
@@ -26,6 +26,11 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-3);
+  }
+
+  .imgContainer {
+      margin-top: var(--space-3); /* Уменьшаем отступ на мобильных */
+      padding: var(--space-2);
   }
 
   .heroLogo {
@@ -185,6 +190,17 @@
 .attachmentImageLink {
   display: block;
   line-height: 0;
+  border-radius: var(--radius-sm);
+  transition: box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.attachmentImageLink:hover {
+  opacity: 0.92;
+}
+
+/* Визуальный отклик на нажатие */
+.attachmentImageLink:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .attachmentImage {
@@ -200,7 +216,7 @@
   align-items: center;
   gap: var(--space-1);
   max-width: 100%;
-  padding: 6px 10px;
+  padding: 6px var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background-color: var(--tone-neutral-bg);
@@ -208,11 +224,22 @@
   font-size: 13px;
   text-decoration: none;
   overflow-wrap: anywhere;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .attachmentLink:hover {
   background-color: var(--tone-blue-bg);
   color: var(--color-primary);
+}
+
+/* Визуальный отклик на нажатие */
+.attachmentLink:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.attachmentLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 /* Боковая карточка контактов. */
@@ -231,8 +258,57 @@
 }
 
 .contactsText {
-  margin: 0;
+  margin: 0 0 var(--space-3);
   color: var(--color-muted);
   font-size: 14px;
   line-height: 1.5;
+}
+
+.contactsHint {
+  margin: var(--space-2) 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+/* Подложка под логотип в блоке контактов. */
+.imgContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+  background-color: var(--tone-neutral-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* Контакт: клик копирует значение в буфер обмена. */
+.contactValue {
+  display: inline-block;
+  margin-top: var(--space-1);
+  padding: 0;
+  border: none;
+  background-color: transparent;
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.contactValue:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+/* Визуальный отклик на нажатие */
+.contactValue:active {
+  opacity: 0.8;
+}
+
+.contactValue:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }

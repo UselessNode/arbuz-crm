@@ -36,7 +36,7 @@ const DEMO_STATUS_OPTIONS: readonly StatusOption<string>[] = [
 
 // Демонстрационные вердикты (на проде приходят из GET /api/review-statuses).
 const DEMO_VERDICT_OPTIONS: readonly StatusOption<string>[] = [
-  { value: '1', label: 'Черновик', tone: 'gray', icon: 'edit' },
+  { value: '1', label: 'На экспертизе', tone: 'gray', icon: 'edit' },
   { value: '2', label: 'Рекомендую поддержать', tone: 'green', icon: 'check' },
   { value: '3', label: 'Не рекомендую поддержать', tone: 'red', icon: 'close' },
 ];
@@ -243,7 +243,7 @@ export function DesignSystemPage() {
           <Input label="С ошибкой" value="некорректно" error="Поле заполнено неверно" />
           <Input label="С подсказкой" hint="Например, название организации" />
           <NumberInput label="Количество" value={numberValue} onChange={setNumberValue} min={0} max={20} />
-          <Slider label="Балл" value={sliderValue} onChange={setSliderValue} min={0} max={100} formatValue={(v) => `${v} из 100`} />
+          <Slider label="Балл" value={sliderValue} onChange={setSliderValue} min={0} max={100} />
           <DatePicker label="Дата" value={dateValue} onChange={setDateValue} />
         </div>
       </Section>

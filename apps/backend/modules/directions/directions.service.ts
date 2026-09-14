@@ -32,7 +32,7 @@ function optionalId(value: unknown): number | null {
 async function ensureTenderExists(tenderId: number | null): Promise<void> {
   if (tenderId === null) return;
   const tender = await prisma.tenders.findFirst({ where: { id: tenderId, deleted_at: null }, select: { id: true } });
-  if (!tender) throw httpError(404, 'Тендер не найден', 'TENDER_NOT_FOUND');
+  if (!tender) throw httpError(404, 'Конкурс не найден', 'TENDER_NOT_FOUND');
 }
 
 function serialize(direction: { id: number; name: string; description: string | null; tender_id: number | null }) {

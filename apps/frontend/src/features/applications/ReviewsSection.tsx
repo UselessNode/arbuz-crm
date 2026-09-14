@@ -1,4 +1,4 @@
-// Секция «Рецензии»: назначение экспертов, просмотр, снятие.
+// Секция «Экспертизы»: назначение экспертов, просмотр, снятие.
 import { useCallback, useEffect, useState } from 'react';
 import { Badge, Button, ConfirmDialog, Select, StateMessage, toBadgeTone } from '../../components/ui';
 import type { SelectOption } from '../../components/ui';
@@ -100,7 +100,7 @@ export function ReviewsSection({ applicationId, reviews, canManage = true, requi
       {error ? <div className={styles.error}>{error}</div> : null}
 
       {reviews.length === 0 ? (
-        <StateMessage state="empty" message={canManage ? 'Эксперты не назначены' : 'Рецензий пока нет'} />
+        <StateMessage state="empty" message={canManage ? 'Эксперты не назначены' : 'Экспертиз пока нет'} />
       ) : (
         <div className={styles.assignedExperts}>
           {reviews.map((review) => (
@@ -126,7 +126,7 @@ export function ReviewsSection({ applicationId, reviews, canManage = true, requi
       <ConfirmDialog
         open={removing !== null}
         title="Снятие эксперта"
-        message="Снять эксперта с заявки? Рецензия будет удалена."
+        message="Снять эксперта с заявки? Экспертиза будет удалена."
         confirmLabel="Снять"
         danger
         loading={removeSaving}

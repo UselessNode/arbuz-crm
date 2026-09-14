@@ -22,6 +22,13 @@
   gap: var(--space-4);
 }
 
+/* Флаги публикации (опубликована / скрыть автора). */
+.formFlags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
 .editorWrap {
   display: flex;
   flex-direction: column;
@@ -55,4 +62,14 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  max-width: 100%;
+}
+
+/* Длинные имена файлов обрезаются, а не ломают вёрстку блока вложений. */
+.fileName {
+  display: block;
+  max-width: min(360px, 40vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

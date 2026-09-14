@@ -1,5 +1,5 @@
-// Слайдер ввода значений с отображением текущего значения.
-import { useId, type ReactNode } from 'react';
+// Слайдер ввода значений: шкала + числовое поле для точного ввода.
+import { useId, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
 import styles from './Form.module.css';
 
 export interface SliderProps {
@@ -9,22 +9,46 @@ export interface SliderProps {
   min?: number;
   max?: number;
   step?: number;
-  /** Подпись единицы измерения/формат значения. */
-  formatValue?: (value: number) => string;
+  className?: string;
 }
 
-export function Slider({ label, value, onChange, min = 0, max = 100, step = 1, formatValue }: SliderProps) {
+export function Slider({ label, value, onChange, min = 0, max = 100, step = 1, className }: SliderProps) {
   const autoId = useId();
   const inputId = `slider-${autoId}`;
+  const labelId = `slider-label-${autoId}`;
+
+  // Процент заполнения шкалы — передаём в CSS-переменную --progress.
+  const progress = ((value - min) / (max - min)) * 100;
+
+  const handleNumberChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const next = Number(event.target.value);
+    if (Number.isNaN(next)) return;
+    onChange(Math.max(min, Math.min(max, next)));
+  };
 
   return (
-    <span className={styles.field}>
-      {label ? (
-        <span className={styles.sliderHeader}>
-          <span className={styles.label}>{label}</span>
-          <span className={styles.sliderValue}>{formatValue ? formatValue(value) : value}</span>
-        </span>
-      ) : null}
+    <div className={`${styles.field} ${className ?? ''}`}>
+      <div className={styles.sliderHeader}>
+        {label ? (
+          <label htmlFor={inputId} id={labelId} className={styles.label}>
+            {label}
+          </label>
+        ) : null}
+
+        <div className={styles.sliderInputWrapper}>
+          <input
+            type="number"
+            className={styles.sliderNumberInput}
+            value={value}
+            min={min}
+            max={max}
+            step={step}
+            onChange={handleNumberChange}
+          />
+          <span className={styles.sliderUnit}>из {max}</span>
+        </div>
+      </div>
+
       <input
         id={inputId}
         type="range"
@@ -33,8 +57,10 @@ export function Slider({ label, value, onChange, min = 0, max = 100, step = 1, f
         min={min}
         max={max}
         step={step}
+        aria-labelledby={label ? labelId : undefined}
+        style={{ '--progress': `${progress}%` } as CSSProperties}
         onChange={(event) => onChange(Number(event.target.value))}
       />
-    </span>
+    </div>
   );
 }

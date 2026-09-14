@@ -60,6 +60,7 @@ postsRouter.post(
       title: req.body?.title,
       content: req.body?.content,
       is_published: req.body?.is_published,
+      hide_author: req.body?.hide_author,
     });
     log.audit('posts.create', { userId: actor.id, postId: post.id, title: post.title });
     res.status(201).json({ post });
@@ -76,6 +77,7 @@ postsRouter.patch(
       title: req.body?.title,
       content: req.body?.content,
       is_published: req.body?.is_published,
+      hide_author: req.body?.hide_author,
     });
     log.audit('posts.update', { userId: actor.id, postId: post.id });
     res.json({ post });

@@ -80,27 +80,3 @@
   color: var(--color-muted);
   font-size: 13px;
 }
-
-.historyList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-top: var(--space-2);
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.historyRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 13px;
-  padding: var(--space-1) 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.historyMeta {
-  margin-left: auto;
-  color: var(--color-muted);
-  white-space: nowrap;
-}

@@ -8,28 +8,31 @@ export interface NavItem {
   to: string;
   label: string;
   icon: IconName;
+  hidden?: boolean;
 }
 
 const ADMIN_NAV: NavItem[] = [
-  { to: '/admin/users', label: 'Пользователи', icon: 'users' },
-  { to: '/admin/applications', label: 'Заявки', icon: 'document' },
-  { to: '/admin/reviews', label: 'Рецензии', icon: 'check' },
-  { to: '/admin/posts', label: 'Посты', icon: 'chat' },
-  { to: '/admin/contests', label: 'Настройки конкурсов и направлений', icon: 'briefcase' },
-  { to: '/admin/expertise', label: 'Настройки экспертизы', icon: 'filter' },
-  { to: '/admin/design-system', label: 'Дизайн-система', icon: 'settings' },
+  { to: '/admin/users',         label: 'Пользователи',            icon: 'users',      hidden: false },
+  { to: '/admin/applications',  label: 'Заявки',                  icon: 'document',   hidden: false },
+  { to: '/admin/reviews',       label: 'Экспертизы',              icon: 'check',      hidden: false },
+  { to: '/admin/posts',         label: 'Публикации',              icon: 'chat',       hidden: false },
+  { to: '/admin/contests',      label: 'Конкурсы и направления',  icon: 'briefcase',  hidden: false },
+  { to: '/admin/expertise',     label: 'Настройки экспертизы',    icon: 'filter',     hidden: false },
+  { to: '/design-system',       label: 'Дизайн-система',          icon: 'settings',   hidden: true  },
 ];
 
-const ACCOUNT_NAV: NavItem[] = [{ to: '/account', label: 'Профиль', icon: 'user' }];
+const ACCOUNT_NAV: NavItem[] = [
+  { to: '/account', label: 'Профиль', icon: 'user', hidden: false },
+];
 
 const APPLICANT_NAV: NavItem[] = [
-  { to: '/applications', label: 'Мои заявки', icon: 'document' },
-  { to: '/account', label: 'Профиль', icon: 'user' },
+  { to: '/applications',  label: 'Мои заявки',  icon: 'document', hidden: false },
+  { to: '/account',       label: 'Профиль',     icon: 'user',     hidden: false },
 ];
 
 const EXPERT_NAV: NavItem[] = [
-  { to: '/expert', label: 'Назначенные заявки', icon: 'check' },
-  { to: '/account', label: 'Профиль', icon: 'user' },
+  { to: '/expert',  label: 'Назначенные заявки', icon: 'check', hidden: false },
+  { to: '/account', label: 'Профиль',            icon: 'user',  hidden: false },
 ];
 
 export function navItemsForRole(role: RoleType): NavItem[] {

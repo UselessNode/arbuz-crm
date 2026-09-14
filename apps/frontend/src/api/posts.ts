@@ -12,7 +12,10 @@ export interface Post {
   content: string;
   contentHtml: string;
   is_published: boolean;
+  /** Автор скрыт в ленте (публикация от лица организации). */
+  hideAuthor: boolean;
   createdBy: number | null;
+  /** Имя автора; `null`, если автор скрыт. */
   authorName: string | null;
   createdAt: string;
   updatedAt: string;
@@ -31,6 +34,7 @@ export interface PostPayload {
   title: string;
   content: string;
   is_published: boolean;
+  hide_author: boolean;
 }
 
 export interface PostListParams {
