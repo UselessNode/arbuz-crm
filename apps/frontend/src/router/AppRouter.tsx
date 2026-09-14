@@ -11,6 +11,7 @@ import { ApplicationDetailPage } from '../features/applications/ApplicationDetai
 import { ExpertApplicationsPage } from '../features/expert/ExpertApplicationsPage';
 import { ReviewsPage } from '../features/reviews/ReviewsPage';
 import { PostsPage } from '../features/posts/PostsPage';
+import { PostEditorPage } from '../features/posts/PostEditorPage';
 import { ContestSettingsPage } from '../features/references/ContestSettingsPage';
 import { ExpertiseSettingsPage } from '../features/references/ExpertiseSettingsPage';
 import { DesignSystemPage } from '../pages/DesignSystemPage/DesignSystemPage';
@@ -78,6 +79,8 @@ export function AppRouter() {
         <Route path="applications/:applicationId" element={<ApplicationDetailPage area="admin" />} />
         <Route path="reviews" element={<ReviewsPage />} />
         <Route path="posts" element={<PostsPage />} />
+        <Route path="posts/new" element={<PostEditorPage />} />
+        <Route path="posts/:postId" element={<PostEditorPage />} />
         <Route path="contests" element={<ContestSettingsPage />} />
         <Route path="tenders" element={<Navigate to="/admin/contests" replace />} />
         <Route path="directions" element={<Navigate to="/admin/contests" replace />} />

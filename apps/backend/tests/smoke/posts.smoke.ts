@@ -62,14 +62,15 @@ async function main(): Promise<void> {
       feedBefore.posts.every((post) => post.status === PostStatus.published),
     );
 
-    // Демо-набор seed покрывает все четыре статуса — это нужно для ручной проверки UI.
-    const adminAll = await listPostsForAdmin(admin, { limit: 100, offset: 0 });
-    const statuses = new Set(adminAll.posts.map((post) => post.status));
-    smoke.ok(
-      'демо-набор содержит все статусы',
-      POST_STATUSES.every((status) => statuses.has(status)),
-      [...statuses],
-    );
+    // Фильтр по статусу возвращает только посты этого статуса.
+    for (const status of POST_STATUSES) {
+      const filtered = await listPostsForAdmin(admin, { limit: 100, offset: 0, status });
+      smoke.ok(
+        `админ-список: фильтр ${status} отдаёт только этот статус`,
+        filtered.posts.every((post) => post.status === status),
+        filtered.posts.map((post) => post.status),
+      );
+    }
 
     // Черновик: виден только администратору в разделе «Публикации».
     const created = await createPost(admin, { title, content: 'Текст проверки', is_published: false });

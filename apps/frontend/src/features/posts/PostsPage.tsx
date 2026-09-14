@@ -1,19 +1,14 @@
-// Раздел «Публикации»: жизненный цикл (черновик → запланирована → опубликована → архив),
-// WYSIWYG-редактор (Markdown), вложения.
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import type { PostStatus } from '@arbuz/shared';
-import { PostStatuses } from '../../lib/post-status';
+// Раздел «Публикации»: список со статусами и быстрыми действиями.
+// Создание и правка публикации — на отдельной странице (`/admin/posts/new`, `/admin/posts/:id`):
+// редактору нужна полная ширина и свободные всплывающие слои (см. `PostEditorPage`).
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Badge,
   Button,
-  Checkbox,
   ConfirmDialog,
   Container,
-  DatePicker,
-  DragDrop,
-  Input,
   ListToolbar,
-  Modal,
   Pagination,
   SearchInput,
   Select,
@@ -23,18 +18,17 @@ import {
   useToast,
 } from '../../components/ui';
 import type { SelectOption, StatusOption, TableColumn } from '../../components/ui';
-import { postsApi, type Post, type PostFile, type PostPayload } from '../../api/posts';
+import { PostStatuses } from '../../lib/post-status';
+import type { PostStatus } from '@arbuz/shared';
+import { postsApi, type Post, type PostPayload } from '../../api/posts';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
 import styles from './PostsPage.module.css';
 
-// Тяжёлый WYSIWYG-редактор грузим отдельным чанком только при работе с публикацией.
-// Импорт по файлу (а не по index) — чтобы чанк получил понятное имя `MarkdownEditor`.
-const MarkdownEditor = lazy(() =>
-  import('../../components/ui/MarkdownEditor/MarkdownEditor').then((module) => ({ default: module.MarkdownEditor })),
-);
-
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
+
+/** Базовый путь раздела: список и страница публикации. */
+const LIST_PATH = '/admin/posts';
 
 const POST_STATUS_OPTIONS: readonly StatusOption<PostStatus>[] = [
   { value: PostStatuses.draft, label: 'Черновик', tone: 'gray' },
@@ -47,38 +41,6 @@ const POST_FILTER_OPTIONS: readonly SelectOption<PostStatus>[] = POST_STATUS_OPT
   value: option.value,
   label: option.label,
 }));
-
-/** Режим публикации в форме: черновик / сразу / отложенно. */
-const PUBLISH_MODE = { draft: 'draft', now: 'now', scheduled: 'scheduled' } as const;
-type PublishMode = (typeof PUBLISH_MODE)[keyof typeof PUBLISH_MODE];
-
-const PUBLISH_MODE_OPTIONS: readonly SelectOption<PublishMode>[] = [
-  { value: PUBLISH_MODE.draft, label: 'Черновик — в ленте не показывать' },
-  { value: PUBLISH_MODE.now, label: 'Опубликовать сейчас' },
-  { value: PUBLISH_MODE.scheduled, label: 'Запланировать на дату' },
-];
-
-/** `yyyy-mm-dd` на завтра — минимальная дата для планирования. */
-function tomorrowInputValue(): string {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-/** ISO-строка с сервера → `yyyy-mm-dd` в локальной зоне (для DatePicker). */
-function isoToDateInput(iso: string | null): string {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-/** `yyyy-mm-dd` → ISO (полночь локального дня); пусто → null. */
-function dateInputToIso(value: string): string | null {
-  if (!value) return null;
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
-}
 
 /**
  * Полный payload публикации: PATCH заменяет документ целиком.
@@ -97,282 +59,9 @@ function buildPayload(post: Post, override: Partial<PostPayload> = {}): PostPayl
   };
 }
 
-/** Список уже прикреплённых к публикации файлов (для сохранённого поста). */
-function AttachmentsList({ postId }: { postId: number }) {
-  const toast = useToast();
-  const [files, setFiles] = useState<PostFile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await postsApi.files.list(postId);
-      setFiles(response.files);
-    } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить вложения');
-    } finally {
-      setLoading(false);
-    }
-  }, [postId]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const handleRemove = async (fileId: number) => {
-    setError(null);
-    try {
-      await postsApi.files.remove(postId, fileId);
-      await load();
-      toast.showToast({ message: 'Вложение удалено', tone: 'success' });
-    } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить файл');
-    }
-  };
-
-  if (loading) return <StateMessage state="loading" />;
-  if (files.length === 0) return null;
-
-  return (
-    <div className={styles.fileList}>
-      {error ? <div className={styles.error}>{error}</div> : null}
-      {files.map((file) => (
-        <span key={file.id} className={styles.fileItem}>
-          <Badge tone="blue" icon="document">
-            <span className={styles.fileName} title={file.name}>
-              {file.name}
-            </span>
-          </Badge>
-          <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить вложение" onClick={() => void handleRemove(file.id)} />
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function PostFormModal({
-  open,
-  initial,
-  preferredMode,
-  onClose,
-  onSaved,
-}: {
-  open: boolean;
-  initial: Post | null;
-  /** Предвыбранный режим (например, «Запланировать» из списка). */
-  preferredMode?: PublishMode;
-  onClose: () => void;
-  onSaved: () => Promise<void>;
-}) {
-  const toast = useToast();
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [mode, setMode] = useState<PublishMode>(PUBLISH_MODE.draft);
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [hideAuthor, setHideAuthor] = useState(false);
-  // Файлы, выбранные до сохранения: загружаем их сразу после создания/обновления.
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  /** id публикации: появляется сразу после создания (в т.ч. при загрузке картинки в текст). */
-  const [postId, setPostId] = useState<number | null>(null);
-  /** Публикация была создана из этого окна — при закрытии список нужно обновить. */
-  const createdRef = useRef(false);
-
-  const archived = initial?.status === PostStatuses.archived;
-
-  useEffect(() => {
-    if (!open) return;
-    setTitle(initial?.title ?? '');
-    setContent(initial?.content ?? '');
-    setMode(
-      preferredMode ??
-        (initial?.status === PostStatuses.scheduled
-          ? PUBLISH_MODE.scheduled
-          : initial && initial.status !== PostStatuses.draft
-            ? PUBLISH_MODE.now
-            : PUBLISH_MODE.draft),
-    );
-    setScheduledDate(isoToDateInput(initial?.scheduledAt ?? null));
-    setHideAuthor(initial?.hideAuthor ?? false);
-    setPendingFiles([]);
-    setPostId(initial?.id ?? null);
-    createdRef.current = false;
-    setError(null);
-  }, [open, initial, preferredMode]);
-
-  /** Текущие значения формы в виде payload. */
-  const formPayload = (): PostPayload => ({
-    title: title.trim(),
-    content,
-    is_published: mode !== PUBLISH_MODE.draft,
-    hide_author: hideAuthor,
-    scheduled_at: mode === PUBLISH_MODE.scheduled ? dateInputToIso(scheduledDate) : null,
-    // Архив — отдельное действие в списке: при правке статус архива сохраняем.
-    archived,
-  });
-
-  /**
-   * Файлы (вложения и картинки в тексте) привязываются к публикации, поэтому она должна
-   * существовать. Если её ещё нет — создаём черновик из текущих полей формы.
-   */
-  const ensurePost = async (): Promise<number> => {
-    if (postId !== null) return postId;
-    if (!title.trim()) {
-      toast.showToast({ message: 'Сначала укажите заголовок публикации', tone: 'error' });
-      throw new Error('Укажите заголовок публикации — без него нельзя загрузить файл');
-    }
-    const response = await postsApi.create(formPayload());
-    setPostId(response.post.id);
-    createdRef.current = true;
-    return response.post.id;
-  };
-
-  /** Загрузка картинки, вставленной прямо в текст: возвращает адрес для `src`. */
-  const uploadImage = async (file: File): Promise<string> => {
-    const id = await ensurePost();
-    const response = await postsApi.files.upload(id, file);
-    return postsApi.files.downloadUrl(id, response.file.id);
-  };
-
-  /** Закрытие окна: если публикацию успели создать (загрузка файла), обновляем список. */
-  const handleClose = () => {
-    if (createdRef.current) {
-      createdRef.current = false;
-      void onSaved();
-      toast.showToast({ message: 'Публикация сохранена как черновик', tone: 'info' });
-    }
-    onClose();
-  };
-
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    setError(null);
-    if (mode === PUBLISH_MODE.scheduled && !scheduledDate) {
-      setError('Выберите дату отложенной публикации');
-      return;
-    }
-    setSaving(true);
-    try {
-      // Всегда создаём (если ещё нет), затем обновляем — так повторное нажатие не делает дубликат.
-      const id = await ensurePost();
-      await postsApi.update(id, formPayload());
-
-      for (const file of pendingFiles) {
-        await postsApi.files.upload(id, file);
-      }
-
-      createdRef.current = false;
-      await onSaved();
-      toast.showToast({
-        message: pendingFiles.length > 0 ? 'Публикация сохранена, вложения загружены' : 'Публикация сохранена',
-        tone: 'success',
-      });
-      onClose();
-    } catch (caught) {
-      setError(
-        caught instanceof ApiError || caught instanceof Error
-          ? caught.message
-          : 'Не удалось сохранить публикацию',
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Modal open={open} title={initial ? 'Редактировать публикацию' : 'Новая публикация'} onClose={handleClose} width={880}>
-      <form className={styles.form} onSubmit={handleSubmit}>
-        <Input label="Заголовок" value={title} onChange={(e) => setTitle(e.target.value)} required fullWidth />
-
-        <div className={styles.formRow}>
-          {archived ? (
-            <p className={styles.note}>
-              Публикация в архиве: её не видно в ленте. Вернуть — кнопкой «Из архива» в списке.
-            </p>
-          ) : (
-            <>
-              <Select
-                label="Публикация"
-                value={mode}
-                onChange={(value) => setMode(value as PublishMode)}
-                options={PUBLISH_MODE_OPTIONS}
-              />
-              {mode === PUBLISH_MODE.scheduled ? (
-                <DatePicker
-                  label="Дата выхода"
-                  value={scheduledDate}
-                  onChange={setScheduledDate}
-                  min={tomorrowInputValue()}
-                />
-              ) : null}
-            </>
-          )}
-        </div>
-
-        <div className={styles.formFlags}>
-          <Checkbox label="Скрыть автора в ленте" checked={hideAuthor} onChange={setHideAuthor} />
-        </div>
-
-        <div className={styles.editorWrap}>
-          <span className={styles.sectionLabel}>Содержание публикации</span>
-          <Suspense fallback={<StateMessage state="loading" />}>
-            <MarkdownEditor
-              markdown={content}
-              onChange={setContent}
-              uploadImage={uploadImage}
-              placeholder="Начните печатать текст публикации…"
-            />
-          </Suspense>
-        </div>
-
-        <div className={styles.attachments}>
-          <span className={styles.sectionLabel}>Вложения</span>
-          <DragDrop
-            onFiles={(selected) => setPendingFiles((prev) => [...prev, ...selected])}
-            disabled={saving}
-            hint="Перетащите файлы (PDF, DOCX, изображения, MP4) — они загрузятся при сохранении"
-          />
-          {pendingFiles.length > 0 ? (
-            <div className={styles.fileList}>
-              {pendingFiles.map((file, index) => (
-                <span key={`${file.name}-${index}`} className={styles.fileItem}>
-                  <Badge tone="blue" icon="document">
-                    <span className={styles.fileName} title={file.name}>
-                      {file.name}
-                    </span>
-                  </Badge>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    icon="close"
-                    aria-label="Убрать из списка"
-                    onClick={() => setPendingFiles((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
-                  />
-                </span>
-              ))}
-            </div>
-          ) : null}
-          {postId !== null ? <AttachmentsList postId={postId} /> : null}
-        </div>
-
-        {error ? <div className={styles.error}>{error}</div> : null}
-        <div className={styles.formActions}>
-          <Button variant="secondary" type="button" onClick={handleClose} disabled={saving}>
-            Закрыть
-          </Button>
-          <Button type="submit" icon="check" loading={saving}>
-            Сохранить
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
 export function PostsPage() {
   const toast = useToast();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState<Post[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -381,9 +70,6 @@ export function PostsPage() {
   const [statusFilter, setStatusFilter] = useState<PostStatus | ''>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<Post | null>(null);
-  const [scheduling, setScheduling] = useState<Post | null>(null);
   const [deleting, setDeleting] = useState<Post | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
   /** Публикация, для которой выполняется действие: блокирует повторные клики. */
@@ -494,11 +180,15 @@ export function PostsPage() {
       render: (post) =>
         post.hideAuthor ? <Badge tone="gray">Скрыт</Badge> : post.authorName ?? <Badge tone="neutral">—</Badge>,
     },
-    { key: 'created', header: 'Создана', render: (post) => formatDateTime(post.createdAt) },
+    {
+      key: 'created',
+      header: 'Создана',
+      render: (post) => formatDateTime(post.createdAt),
+    },
     {
       key: 'actions',
       header: '',
-      width: '300px',
+      width: '320px',
       render: (post) => {
         const busy = busyId === post.id;
         return (
@@ -542,14 +232,21 @@ export function PostsPage() {
                     icon="calendar"
                     disabled={busy}
                     title="Выбрать дату выхода"
-                    onClick={() => setScheduling(post)}
+                    onClick={() => navigate(`${LIST_PATH}/${post.id}?mode=scheduled`)}
                   >
                     Запланировать
                   </Button>
                 ) : null}
               </>
             )}
-            <Button size="sm" variant="ghost" icon="edit" aria-label="Изменить" disabled={busy} onClick={() => setEditing(post)} />
+            <Button
+              size="sm"
+              variant="ghost"
+              icon="edit"
+              aria-label="Изменить"
+              disabled={busy}
+              onClick={() => navigate(`${LIST_PATH}/${post.id}`)}
+            />
             <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" disabled={busy} onClick={() => setDeleting(post)} />
           </div>
         );
@@ -561,7 +258,7 @@ export function PostsPage() {
     <Container
       title="Публикации"
       actions={
-        <Button icon="add" onClick={() => setCreating(true)}>
+        <Button icon="add" onClick={() => navigate(`${LIST_PATH}/new`)}>
           Добавить
         </Button>
       }
@@ -606,15 +303,6 @@ export function PostsPage() {
         </>
       )}
 
-      <PostFormModal open={creating} initial={null} onClose={() => setCreating(false)} onSaved={load} />
-      <PostFormModal open={editing !== null} initial={editing} onClose={() => setEditing(null)} onSaved={load} />
-      <PostFormModal
-        open={scheduling !== null}
-        initial={scheduling}
-        preferredMode={PUBLISH_MODE.scheduled}
-        onClose={() => setScheduling(null)}
-        onSaved={load}
-      />
       <ConfirmDialog
         open={deleting !== null}
         title="Удаление публикации"
