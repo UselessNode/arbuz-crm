@@ -6,7 +6,8 @@ import { readMultipartFile } from '../../lib/multipart';
 import type { CurrentUser } from '../files/files.service';
 import { safeOriginalName, validateUpload } from '../files/file-validation';
 import { openStored, removeStored, storeUpload } from '../files/file-storage';
-import { isAdmin } from './posts.service';
+import { isAdmin, computePostStatus } from './posts.service';
+import { PostStatus } from '@arbuz/shared';
 import type { Request } from 'express';
 
 export { applyDownloadHeaders } from '../files/download';
@@ -15,13 +16,13 @@ function requireAdmin(user: CurrentUser): void {
   if (!isAdmin(user)) throw httpError(403, 'Действие доступно только администратору', 'FORBIDDEN');
 }
 
-/** Проверка видимости поста: опубликован для всех (в т.ч. гостей), черновик — только админу. */
+/** Проверка видимости поста: опубликован для всех (в т.ч. гостей), остальные — только админу. */
 async function requireVisiblePost(user: CurrentUser | undefined, postId: number) {
   const post = await prisma.posts.findFirst({
     where: { id: postId, deleted_at: null },
-    select: { id: true, is_published: true },
+    select: { id: true, is_published: true, scheduled_at: true, archived_at: true },
   });
-  if (!post || (!post.is_published && !isAdmin(user))) {
+  if (!post || (!isAdmin(user) && computePostStatus(post) !== PostStatus.published)) {
     throw httpError(404, 'Пост не найден', 'POST_NOT_FOUND');
   }
   return post;

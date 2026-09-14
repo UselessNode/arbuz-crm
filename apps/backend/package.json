@@ -1,11 +1,12 @@
 {
   "name": "@arbuz/backend",
   "private": true,
-  "version": "1.17.1",
+  "version": "1.18.0",
   "type": "module",
   "scripts": {
     "dev": "bun --watch index.ts",
-    "seed": "bun seed.ts",
+    "seed": "bun seed/index.ts",
+    "test:smoke": "bun tests/run.ts",
     "db:reset": "bun scripts/reset-db.ts",
     "storage:cleanup": "bun scripts/cleanup-storage.ts",
     "build": "echo 'Бэкенд на Bun не требует сборки, запускается напрямую из TS'",

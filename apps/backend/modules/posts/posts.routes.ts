@@ -1,19 +1,22 @@
 // HTTP API модуля постов.
-// Чтение опубликованных постов доступно без авторизации (публичная лента);
-// создание/правка/удаление и вложения — только авторизованным (админ — в сервисе).
+// `GET /api/posts/feed` — публичная лента (только опубликованные);
+// `GET /api/posts` — список раздела «Публикации» (админ, все статусы).
+// Создание/правка/удаление и вложения — только авторизованным (админ — в сервисе).
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../lib/http';
 import { log } from '../../lib/logger';
-import { parseLimitOffset, parseOptionalBoolean, parseSearch } from '../../lib/query';
+import { parseLimitOffset, parseSearch } from '../../lib/query';
 import { optionalAuth, requireAuth } from '../auth/auth.middleware';
 import type { CurrentUser } from '../files/files.service';
 import {
   createPost,
   deletePost,
   getPostOrThrow,
-  listPosts,
+  listPostsForAdmin,
+  listPublishedPosts,
   parsePostId,
+  parsePostStatus,
   updatePost,
 } from './posts.service';
 import {
@@ -30,14 +33,27 @@ postsRouter.use(optionalAuth);
 // Предпросмотр Markdown больше не нужен: содержание редактируется WYSIWYG-редактором
 // во фронтенде, а HTML для показа рендерит и санитизирует сервис (contentHtml).
 
-// Публичная лента: гость видит только опубликованные посты.
+// Публичная лента: только опубликованные посты. Черновики, архив и отложенные
+// публикации здесь не показываются никому — даже администратору (они — в разделе «Публикации»).
 postsRouter.get(
-  '/',
+  '/feed',
   asyncHandler(async (req: Request, res: Response) => {
     const { limit, offset } = parseLimitOffset(req.query);
     const search = parseSearch(req.query);
-    const isPublished = parseOptionalBoolean(req.query.is_published);
-    const result = await listPosts(req.user as CurrentUser | undefined, { search, isPublished, limit, offset });
+    const result = await listPublishedPosts({ search, limit, offset });
+    res.json(result);
+  }),
+);
+
+// Список раздела «Публикации»: все статусы, фильтр ?status=. Доступ — администратору.
+postsRouter.get(
+  '/',
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { limit, offset } = parseLimitOffset(req.query);
+    const search = parseSearch(req.query);
+    const status = parsePostStatus(req.query.status);
+    const result = await listPostsForAdmin(req.user as CurrentUser, { search, status, limit, offset });
     res.json(result);
   }),
 );
@@ -61,6 +77,8 @@ postsRouter.post(
       content: req.body?.content,
       is_published: req.body?.is_published,
       hide_author: req.body?.hide_author,
+      scheduled_at: req.body?.scheduled_at,
+      archived: req.body?.archived,
     });
     log.audit('posts.create', { userId: actor.id, postId: post.id, title: post.title });
     res.status(201).json({ post });
@@ -78,6 +96,8 @@ postsRouter.patch(
       content: req.body?.content,
       is_published: req.body?.is_published,
       hide_author: req.body?.hide_author,
+      scheduled_at: req.body?.scheduled_at,
+      archived: req.body?.archived,
     });
     log.audit('posts.update', { userId: actor.id, postId: post.id });
     res.json({ post });

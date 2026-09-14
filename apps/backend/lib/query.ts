@@ -30,10 +30,3 @@ export function parseOptionalId(raw: unknown): number | undefined {
   const value = Number(raw);
   return Number.isInteger(value) && value > 0 ? value : undefined;
 }
-
-/** Булев фильтр из query (`true`/`false`); иное значение → undefined. */
-export function parseOptionalBoolean(raw: unknown): boolean | undefined {
-  if (raw === 'true') return true;
-  if (raw === 'false') return false;
-  return undefined;
-}

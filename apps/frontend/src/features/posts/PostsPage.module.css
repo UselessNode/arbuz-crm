@@ -1,6 +1,37 @@
 .actions {
   display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--space-1);
+}
+
+/* Ячейка «Заголовок»: название и пояснительные пометки под ним. */
+.cellMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.postTitle {
+  font-weight: 600;
+}
+
+.note {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+/* Поля формы в одну строку (режим публикации + дата). */
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+
+.formRow > * {
+  flex: 1 1 240px;
 }
 
 .error {
@@ -15,14 +46,7 @@
   gap: var(--space-4);
 }
 
-.formHeader {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-/* Флаги публикации (опубликована / скрыть автора). */
+/* Флаги публикации (скрыть автора). */
 .formFlags {
   display: flex;
   flex-wrap: wrap;

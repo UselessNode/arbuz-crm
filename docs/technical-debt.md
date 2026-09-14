@@ -37,8 +37,11 @@
 - **Критерии оценки.** ✅ Закрыто в 1.14.0: проверка `min_value <= max_value` и `weight > 0`.
   История правок критериев удалена в 1.17.1 (таблица `evaluation_criteria_history`, API и UI).
 - **`consent_file_path`.** Пустая строка как плейсхолдер в NOT NULL-колонке
-  (`team-members.service.ts`, `files.service.ts`, `seed.ts`). Чисто — сделать колонку
+  (`team-members.service.ts`, `files.service.ts`, `seed/applications.ts`). Чисто — сделать колонку
   nullable (правка схемы) либо гарантировать наличие согласия.
+- **`PATCH /api/posts/:id` заменяет документ целиком** (клиент присылает `title`/`content`/
+  статус целиком). Для одного администратора этого достаточно; при совместном редактировании
+  перейти на частичный патч с проверкой `updated_at`.
 - **Рецензии.** `reviews.service.ts` — нестрогий тип `rating`; `listReviews` без пагинации.
 - **`DocNode = any`.** `pdf-document.ts` — обход типизации pdfmake (единственный `any`).
 
@@ -53,6 +56,12 @@
   `ReviewListItem.expert`, `ApplicationReview.expert`, `ExpertItem`, `owner`.
 - **`Select`** возвращает `onChange(value: string)`, из-за чего в `UsersPage` есть касты
   `value as RoleType`. Типизировать обобщённо.
+- **Рантайм-импорт из `@arbuz/shared` во фронтенде запрещён** — только `import type`.
+  `packages/shared/index.ts` реэкспортирует сгенерированный Prisma-клиент (CommonJS), поэтому
+  импорт значений тянет его в браузерный бандл и dev-сервер падает с `exports is not defined`
+  (белая страница). Рантайм-значения зеркалятся локально: `lib/roles.ts`, `lib/post-status.ts`,
+  `api/pdf-export.ts`; следит смоук-тест `frontend-shared-imports.smoke.ts`. Правильно решить —
+  вынести константы в отдельную точку входа пакета (`@arbuz/shared/constants`) через `exports`.
 - **Carousel.** `aria-hidden` слайды сохраняют фокусируемые элементы (нужен `inert`).
 - **Неиспользуемая обёртка API.** `postsApi.get` не вызывается (страница отдельной публикации
   не нужна — посты показываются лентой). Удалить или задействовать при появлении страницы поста.
@@ -92,6 +101,7 @@
 
 - **Антивирус**: ClamAV не внедряем (слабый сервер; строгий allowlist + проверка
   содержимого + UUID + запрет исполнения). При желании позже — on-demand `clamscan`.
-- **Автотесты**: запланированы (unit + интеграционные, Newman) — см. `AGENTS.md`/`PLANS.md`.
+- **Автотесты**: с 1.18.0 есть смоук-тесты backend (`bun test:smoke`, `apps/backend/tests/`);
+  коллекция Postman и прогон через Newman — по-прежнему в планах (`docs/api-testing-postman.md`).
 - **Очистка старых файлов** — `bun storage:cleanup`, повесить в cron на проде.
 - **Пагинация `/api/reviews`** — сейчас список без ограничения; добавить при росте данных.

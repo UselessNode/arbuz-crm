@@ -1,3 +1,4 @@
+import type { PostStatus } from '@arbuz/shared';
 import { api } from './client';
 
 export interface PostAttachment {
@@ -11,9 +12,16 @@ export interface Post {
   title: string;
   content: string;
   contentHtml: string;
-  is_published: boolean;
+  /** Вычисляемый статус: draft | scheduled | published | archived. */
+  status: PostStatus;
   /** Автор скрыт в ленте (публикация от лица организации). */
   hideAuthor: boolean;
+  /** Дата отложенной публикации (null — не запланирована). */
+  scheduledAt: string | null;
+  /** Дата архивации (null — не в архиве). */
+  archivedAt: string | null;
+  /** Когда менялось содержимое — для пометки «Отредактировано». */
+  editedAt: string | null;
   createdBy: number | null;
   /** Имя автора; `null`, если автор скрыт. */
   authorName: string | null;
@@ -35,24 +43,37 @@ export interface PostPayload {
   content: string;
   is_published: boolean;
   hide_author: boolean;
+  /** ISO-дата отложенной публикации; null — публикация не отложена. */
+  scheduled_at: string | null;
+  /** Поместить в архив (true) или вернуть из архива (false). */
+  archived: boolean;
 }
 
 export interface PostListParams {
   limit?: number;
   offset?: number;
-  /** Поиск по заголовку (админ). */
+  /** Поиск по заголовку (раздел «Публикации»). */
   search?: string;
-  /** Фильтр по статусу публикации (админ). */
-  isPublished?: boolean;
+  /** Фильтр по вычисляемому статусу (раздел «Публикации»). */
+  status?: PostStatus;
 }
 
 export const postsApi = {
+  /** Публичная лента: только опубликованные публикации. */
+  feed: (params?: { limit?: number; offset?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit !== undefined) query.set('limit', String(params.limit));
+    if (params?.offset !== undefined) query.set('offset', String(params.offset));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return api.get<{ posts: Post[]; total: number }>(`/posts/feed${suffix}`);
+  },
+  /** Список раздела «Публикации» (админ): все статусы. */
   list: (params?: PostListParams) => {
     const query = new URLSearchParams();
     if (params?.limit !== undefined) query.set('limit', String(params.limit));
     if (params?.offset !== undefined) query.set('offset', String(params.offset));
     if (params?.search) query.set('q', params.search);
-    if (params?.isPublished !== undefined) query.set('is_published', String(params.isPublished));
+    if (params?.status) query.set('status', params.status);
     const suffix = query.toString() ? `?${query.toString()}` : '';
     return api.get<{ posts: Post[]; total: number }>(`/posts${suffix}`);
   },

@@ -343,6 +343,13 @@ model posts {
   is_published Boolean  @default(false)
   /// Скрывать автора публикации в ленте (для обратной связи от организации).
   hide_author  Boolean  @default(false)
+  /// Планируемая дата публикации: до её наступления публикация — «Запланирована»,
+  /// после — считается опубликованной (без фонового воркера).
+  scheduled_at DateTime? @db.Timestamptz(6)
+  /// Дата архивации: публикация скрыта с домашней страницы.
+  archived_at  DateTime? @db.Timestamptz(6)
+  /// Когда последний раз менялось содержимое (заголовок/текст) — для отметки «Отредактировано».
+  edited_at    DateTime? @db.Timestamptz(6)
   created_by   Int?
   category_id  Int?
   created_at   DateTime @default(now()) @db.Timestamptz(6)

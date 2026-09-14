@@ -10,3 +10,4 @@
  * под именем @arbuz/shared.
  */
 export * from './src/generated/prisma/index.js';
+export * from './src/constants/posts.js';

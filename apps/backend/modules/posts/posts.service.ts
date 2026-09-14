@@ -1,5 +1,11 @@
 // Бизнес-логика модуля постов (лента новостей).
-import { RoleType } from '@arbuz/shared';
+//
+// Жизненный цикл публикации (статусы вычисляются, а не хранятся — см. PostStatus):
+//   draft      — черновик: виден только администратору;
+//   scheduled  — отложенная: is_published = true, scheduled_at в будущем;
+//   published  — опубликована: видна в публичной ленте;
+//   archived   — в архиве: скрыта из ленты, но доступна администратору.
+import { PostStatus, RoleType, isPostStatus } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 import type { CurrentUser } from '../files/files.service';
@@ -26,20 +32,44 @@ export function parsePostId(raw: string | undefined): number {
   return value;
 }
 
+/** Фильтр `?status=` админского списка (неизвестное значение → undefined = без фильтра). */
+export function parsePostStatus(raw: unknown): PostStatus | undefined {
+  if (typeof raw !== 'string' || !raw) return undefined;
+  return isPostStatus(raw) ? raw : undefined;
+}
+
 export interface PostInput {
   title: string;
   content: string;
   is_published?: boolean;
   /** Скрывать автора публикации в ленте. */
   hide_author?: boolean;
+  /** ISO-дата отложенной публикации; задана → публикация «Запланирована». */
+  scheduled_at?: string | null;
+  /** Поместить публикацию в архив (`true`) или вернуть из архива (`false`). */
+  archived?: boolean;
 }
 
-function validateInput(input: Partial<PostInput> & { title?: string; content?: string }): {
+interface ValidatedPostInput {
   title: string;
   content: string;
   is_published: boolean;
   hide_author: boolean;
-} {
+  scheduled_at: Date | null;
+  archived: boolean;
+}
+
+/** Разбор даты отложенной публикации (пусто → null). */
+function parseScheduledAt(raw: unknown): Date | null {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const date = new Date(String(raw));
+  if (Number.isNaN(date.getTime())) {
+    throw httpError(400, 'Некорректная дата отложенной публикации', 'INVALID_SCHEDULED_AT');
+  }
+  return date;
+}
+
+function validateInput(input: Partial<PostInput> & { title?: string; content?: string }): ValidatedPostInput {
   const title = String(input.title ?? '').trim();
   const content = String(input.content ?? '');
   if (!title || !content) throw httpError(400, 'Укажите title и content поста', 'INVALID_BODY');
@@ -49,12 +79,53 @@ function validateInput(input: Partial<PostInput> & { title?: string; content?: s
   if (content.length > POST_CONTENT_MAX) {
     throw httpError(400, `Содержимое длиннее ${POST_CONTENT_MAX} символов`, 'CONTENT_TOO_LONG');
   }
+  const scheduledAt = parseScheduledAt(input.scheduled_at);
   return {
     title,
     content,
-    is_published: Boolean(input.is_published),
+    // Отложенная публикация всегда помечена опубликованной: до наступления даты
+    // статус вычисляется как «Запланирована», после — как «Опубликована».
+    is_published: scheduledAt ? true : Boolean(input.is_published),
     hide_author: Boolean(input.hide_author),
+    scheduled_at: scheduledAt,
+    archived: Boolean(input.archived),
   };
+}
+
+type PostStatusSource = {
+  is_published: boolean;
+  scheduled_at: Date | null;
+  archived_at: Date | null;
+};
+
+/** Вычисляет статус публикации по её полям (без фонового воркера). */
+export function computePostStatus(post: PostStatusSource, now: Date = new Date()): PostStatus {
+  if (post.archived_at) return PostStatus.archived;
+  if (post.scheduled_at && post.scheduled_at > now) return PostStatus.scheduled;
+  return post.is_published ? PostStatus.published : PostStatus.draft;
+}
+
+/** Условие выборки для публичной ленты: опубликованные, не архив, не отложенные. */
+function publishedWhere(now: Date) {
+  return {
+    is_published: true,
+    archived_at: null,
+    OR: [{ scheduled_at: null }, { scheduled_at: { lte: now } }],
+  };
+}
+
+/** Условие выборки по вычисляемому статусу (админский список). */
+function statusWhere(status: PostStatus, now: Date) {
+  switch (status) {
+    case PostStatus.draft:
+      return { is_published: false, archived_at: null };
+    case PostStatus.scheduled:
+      return { is_published: true, archived_at: null, scheduled_at: { gt: now } };
+    case PostStatus.published:
+      return publishedWhere(now);
+    case PostStatus.archived:
+      return { archived_at: { not: null } };
+  }
 }
 
 export interface PostAttachment {
@@ -68,8 +139,15 @@ export interface PostData {
   title: string;
   content: string;
   contentHtml: string;
-  is_published: boolean;
+  /** Вычисляемый статус: draft | scheduled | published | archived. */
+  status: PostStatus;
   hideAuthor: boolean;
+  /** Дата отложенной публикации. */
+  scheduledAt: Date | null;
+  /** Дата архивации (null — не в архиве). */
+  archivedAt: Date | null;
+  /** Когда менялось содержимое (заголовок/текст) — для пометки «Отредактировано». */
+  editedAt: Date | null;
   createdBy: number | null;
   /** Имя автора; `null`, если автор скрыт или удалён. */
   authorName: string | null;
@@ -78,12 +156,12 @@ export interface PostData {
   attachments: PostAttachment[];
 }
 
-type PostWithAuthor = {
+type PostWithAuthor = PostStatusSource & {
   id: number;
   title: string;
   content: string;
-  is_published: boolean;
   hide_author: boolean;
+  edited_at: Date | null;
   created_by: number | null;
   created_at: Date;
   updated_at: Date;
@@ -101,8 +179,11 @@ function serialize(post: PostWithAuthor): PostData {
     title: post.title,
     content: post.content,
     contentHtml: renderMarkdown(post.content),
-    is_published: post.is_published,
+    status: computePostStatus(post),
     hideAuthor: post.hide_author,
+    scheduledAt: post.scheduled_at,
+    archivedAt: post.archived_at,
+    editedAt: post.edited_at,
     createdBy: post.created_by,
     authorName,
     createdAt: post.created_at,
@@ -125,6 +206,9 @@ const postSelect = {
   content: true,
   is_published: true,
   hide_author: true,
+  scheduled_at: true,
+  archived_at: true,
+  edited_at: true,
   created_by: true,
   created_at: true,
   updated_at: true,
@@ -136,16 +220,48 @@ const postSelect = {
   },
 } as const;
 
-export async function listPosts(
-  user: CurrentUser | undefined,
-  filter: { limit: number; offset: number; search?: string; isPublished?: boolean },
-): Promise<{ posts: PostData[]; total: number }> {
-  const admin = isAdmin(user);
+export interface PostPage {
+  posts: PostData[];
+  total: number;
+}
+
+/**
+ * Публичная лента: только опубликованные посты.
+ * Черновики, архив и отложенные не отдаются никому — в том числе администратору
+ * (они доступны только в разделе «Публикации»).
+ */
+export async function listPublishedPosts(filter: {
+  limit: number;
+  offset: number;
+  search?: string;
+}): Promise<PostPage> {
   const where = {
     deleted_at: null,
-    ...(admin ? {} : { is_published: true }),
-    // Фильтр по статусу публикации доступен только администратору.
-    ...(admin && filter.isPublished !== undefined ? { is_published: filter.isPublished } : {}),
+    ...publishedWhere(new Date()),
+    ...(filter.search ? { title: { contains: filter.search, mode: 'insensitive' as const } } : {}),
+  };
+  const [posts, total] = await Promise.all([
+    prisma.posts.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      skip: filter.offset,
+      take: filter.limit,
+      select: postSelect,
+    }),
+    prisma.posts.count({ where }),
+  ]);
+  return { posts: posts.map(serialize), total };
+}
+
+/** Список для раздела «Публикации»: все статусы, с фильтром по статусу. Доступ — админ. */
+export async function listPostsForAdmin(
+  user: CurrentUser,
+  filter: { limit: number; offset: number; search?: string; status?: PostStatus },
+): Promise<PostPage> {
+  requireAdmin(user);
+  const where = {
+    deleted_at: null,
+    ...(filter.status ? statusWhere(filter.status, new Date()) : {}),
     ...(filter.search ? { title: { contains: filter.search, mode: 'insensitive' as const } } : {}),
   };
   const [posts, total] = await Promise.all([
@@ -167,7 +283,8 @@ export async function getPostOrThrow(user: CurrentUser | undefined, postId: numb
     where: { id: postId },
     select: { ...postSelect, deleted_at: true },
   });
-  if (!post || post.deleted_at || (!post.is_published && !isAdmin(user))) {
+  const visible = post && !post.deleted_at && (isAdmin(user) || computePostStatus(post) === PostStatus.published);
+  if (!post || !visible) {
     throw httpError(404, 'Пост не найден', 'POST_NOT_FOUND');
   }
   return serialize(post);
@@ -182,6 +299,8 @@ export async function createPost(user: CurrentUser, input: Partial<PostInput>) {
       content: data.content,
       is_published: data.is_published,
       hide_author: data.hide_author,
+      scheduled_at: data.scheduled_at,
+      archived_at: data.archived ? new Date() : null,
       created_by: user.id,
     },
     select: postSelect,
@@ -191,10 +310,15 @@ export async function createPost(user: CurrentUser, input: Partial<PostInput>) {
 
 export async function updatePost(user: CurrentUser, postId: number, input: Partial<PostInput>) {
   requireAdmin(user);
-  const existing = await prisma.posts.findFirst({ where: { id: postId, deleted_at: null }, select: { id: true } });
+  const existing = await prisma.posts.findFirst({
+    where: { id: postId, deleted_at: null },
+    select: { id: true, title: true, content: true, archived_at: true },
+  });
   if (!existing) throw httpError(404, 'Пост не найден', 'POST_NOT_FOUND');
 
   const data = validateInput(input);
+  // Пометка «Отредактировано» — только при изменении содержимого, не флагов/статуса.
+  const contentChanged = existing.title !== data.title || existing.content !== data.content;
   const post = await prisma.posts.update({
     where: { id: postId },
     data: {
@@ -202,6 +326,10 @@ export async function updatePost(user: CurrentUser, postId: number, input: Parti
       content: data.content,
       is_published: data.is_published,
       hide_author: data.hide_author,
+      scheduled_at: data.scheduled_at,
+      // Повторная архивация сохраняет исходную дату.
+      archived_at: data.archived ? existing.archived_at ?? new Date() : null,
+      ...(contentChanged ? { edited_at: new Date() } : {}),
     },
     select: postSelect,
   });

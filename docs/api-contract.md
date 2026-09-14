@@ -86,14 +86,20 @@ GET-эндпоинты (конкурсы, направления, статусы
 
 | Метод | Путь | Доступ | Запрос |
 |---|---|---|---|
-| GET | `/api/posts?limit=&offset=` | **публично** | admin видит все, остальные — только опубликованные; ответ `{ posts, total }` |
-| GET | `/api/posts/:id` | публично (по видимости) | черновик — только admin |
-| POST | `/api/posts` | admin | `{ title, content, is_published?, hide_author? }` (content — Markdown; WYSIWYG во фронтенде) |
-| PATCH | `/api/posts/:id` | admin | частично |
+| GET | `/api/posts/feed?limit=&offset=&q=` | **публично** | публичная лента: только `published` (черновики, отложенные и архив не отдаются никому); ответ `{ posts, total }` |
+| GET | `/api/posts?limit=&offset=&q=&status=` | admin | список раздела «Публикации»: все статусы, `status` = `draft\|scheduled\|published\|archived` |
+| GET | `/api/posts/:id` | публично (по видимости) | не-админ видит только опубликованный пост |
+| POST | `/api/posts` | admin | `{ title, content, is_published?, hide_author?, scheduled_at?, archived? }` (content — Markdown; WYSIWYG во фронтенде) |
+| PATCH | `/api/posts/:id` | admin | полный набор полей (документ заменяется целиком) |
 | DELETE | `/api/posts/:id` | admin | — |
 | POST/GET | `/api/posts/:id/files` | admin / по видимости | multipart `file` |
 | GET | `/api/posts/:id/files/:fileId/download` | публично для опубликованных постов, иначе по видимости | — |
 | DELETE | `/api/posts/:id/files/:fileId` | admin | — |
+
+Статус поста (`PostStatus` из `@arbuz/shared`) вычисляется из полей `posts`:
+`archived` (задан `archived_at`) → `scheduled` (`scheduled_at` в будущем) → `published`
+(`is_published = true`) → `draft`. Отложенная публикация появляется в ленте сама по наступлении
+`scheduled_at` — без фонового воркера. `edited_at` проставляется при правке заголовка/текста.
 
 **Готово в части 2/3:** ответы постов содержат санитизированный HTML (`contentHtml`, собирается из Markdown на сервере `marked` + `sanitize-html`). Произвольный HTML от клиента не принимается. С 1.10.0 редактирование — через WYSIWYG (`@mdxeditor/editor`), серверный `/preview` не используется.
 
@@ -130,6 +136,16 @@ GET-эндпоинты (конкурсы, направления, статусы
 ## Изменения 1.11.0 (MVP-1.1)
 
 - Публикации редактируются в WYSIWYG (`@mdxeditor/editor`); серверный `POST /api/posts/preview` удалён.
+
+## Изменения 1.18.0 (жизненный цикл публикаций)
+
+- **Публичная лента вынесена в `GET /api/posts/feed`** — отдаёт только опубликованные посты
+  независимо от роли: черновики, отложенные и архив не видны на главной никому.
+- `GET /api/posts` — список раздела «Публикации» (admin), фильтр `?status=`.
+- `PATCH /api/posts/:id` принимает `scheduled_at` (ISO) и `archived` (boolean);
+  отложка подразумевает `is_published = true`; `edited_at` — только при правке содержимого.
+- Ответ поста: `status`, `scheduledAt`, `archivedAt`, `editedAt` (вместо `is_published`).
+- Добавлены смоук-тесты backend: `bun test:smoke` (см. `apps/backend/tests/README.md`).
 
 ## Изменения 1.14.0 (MVP-3.1 + MVP-4)
 

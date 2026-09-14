@@ -23,7 +23,7 @@ export function HomePage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await postsApi.list({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
+      const response = await postsApi.feed({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
       setPosts(response.posts);
       setTotal(response.total);
     } catch (caught) {
