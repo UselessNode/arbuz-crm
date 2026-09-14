@@ -17,7 +17,7 @@ export function Container({ title, actions, children, tone = 'default', classNam
     <section className={classes}>
       {(title || actions) && (
         <header className={styles.header}>
-          <div className={styles.title}>{title}</div>
+          {title ? <div className={styles.title}>{title}</div> : null}
           {actions ? <div className={styles.actions}>{actions}</div> : null}
         </header>
       )}

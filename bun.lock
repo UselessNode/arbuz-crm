@@ -14,7 +14,7 @@
     },
     "apps/backend": {
       "name": "@arbuz/backend",
-      "version": "1.20.1",
+      "version": "1.20.2",
       "dependencies": {
         "@arbuz/shared": "workspace:*",
         "@prisma/adapter-pg": "7.10.0",
@@ -37,7 +37,7 @@
     },
     "apps/frontend": {
       "name": "@arbuz/frontend",
-      "version": "1.20.1",
+      "version": "1.20.2",
       "dependencies": {
         "@arbuz/shared": "workspace:*",
         "@mdxeditor/editor": "^4.2.4",
@@ -55,7 +55,7 @@
     },
     "packages/shared": {
       "name": "@arbuz/shared",
-      "version": "1.20.1",
+      "version": "1.20.2",
       "dependencies": {
         "@prisma/client": "7",
         "@prisma/client-runtime-utils": "7.10.0",
