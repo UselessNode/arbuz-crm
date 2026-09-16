@@ -1,180 +1,334 @@
 # 🍉 Arbuz CRM
 
-Монорепозиторий CRM-системы для некоммерческой организации: цифровизация приёма и
-рассмотрения грантовых заявок. Основной объект системы — **заявка** (`applications`):
-направления и конкурсы, состав команды, план работ и бюджет, материалы и файлы
-согласий, экспертизы, статусы и публикации.
+CRM-система для некоммерческой организации: цифровизация приёма и рассмотрения грантовых
+заявок. Основной объект — **заявка** (`applications`): конкурс и направление, состав команды
+с файлами согласий, план мероприятий, бюджет, материалы, экспертизы, статусы и публикации.
+
+Монорепозиторий на Bun workspaces. Текущая версия — **1.21.0**
+(см. [`CHANGELOG.md`](CHANGELOG.md)); MVP собран, идёт подготовка к деплою
+(план — [`PLANS.md`](PLANS.md)).
+
+## Содержание
+
+- [Роли и основной сценарий](#роли-и-основной-сценарий)
+- [Технологический стек](#технологический-стек)
+- [Требования](#требования)
+- [Быстрый старт](#быстрый-старт)
+- [Переменные окружения](#переменные-окружения)
+- [Скрипты](#скрипты)
+- [Структура репозитория](#структура-репозитория)
+- [Конвенции проекта](#конвенции-проекта)
+- [База данных](#база-данных)
+- [API](#api)
+- [Frontend](#frontend)
+- [Тестирование](#тестирование)
+- [Ручной E2E-прогон](#ручной-e2e-прогон)
+- [Документация в репозитории](#документация-в-репозитории)
+- [Известные особенности](#известные-особенности)
+
+## Роли и основной сценарий
+
+| Роль        | Что делает                                                                                        |
+| ----------- | ------------------------------------------------------------------------------------------------- |
+| `applicant` | Регистрируется, создаёт и заполняет заявку (команда, план, бюджет, материалы, согласия), отправляет на проверку, видит статус и экспертизы |
+| `expert`    | Видит только назначенные ему заявки, оценивает их по критериям конкурса и пишет **свою** экспертизу (чужие не видит) |
+| `admin`     | Управляет пользователями, заявками и справочниками; назначает экспертов (не больше `tenders.experts_count`), ставит финальный статус заявки; ведёт публикации; формирует отчёты |
+
+Сквозной сценарий: заявитель подаёт заявку → администратор назначает экспертов → эксперты
+выставляют оценки и вердикты (вердикт — **рекомендация**) → администратор ставит финальный
+статус → заявитель видит результат. PDF-отчёт доступен всем ролям, которые видят заявку.
+
+> **Терминология UI.** Сущность `tenders` на фронтенде называется **«Конкурс»**,
+> `application_reviews` — **«Экспертиза»** (раздел админки «Экспертизы»). В коде и БД
+> остаются `tender(s)` и `review(s)`.
 
 ## Технологический стек
 
-| Слой              | Технология                                                        |
-| ----------------- | ----------------------------------------------------------------- |
-| Пакетный менеджер | [Bun](https://bun.sh) `1.4.2` (workspaces + рантайм для бэкенда)  |
-| Язык              | TypeScript                                                        |
-| Backend           | Express (`apps/backend`), Bun как рантайм                         |
-| Frontend          | React 18 + Vite (`apps/frontend`)                                 |
-| Общий пакет       | `@arbuz/shared` — Prisma Client и общие типы/перечисления для воркспейсов |
-| БД / ORM          | PostgreSQL + [Prisma](https://www.prisma.io) `7` + driver adapter `@prisma/adapter-pg` |
-| Хранилище файлов  | Локальный диск (`./uploads`), без облачных/коммерческих сервисов  |
+| Слой              | Технология                                                                 |
+| ----------------- | -------------------------------------------------------------------------- |
+| Пакетный менеджер | [Bun](https://bun.sh) `1.4.2` — workspaces + рантайм бэкенда               |
+| Язык              | TypeScript (strict)                                                        |
+| Backend           | Express 4 (`apps/backend`), запускается Bun напрямую из TS без сборки      |
+| Frontend          | React 18 + Vite 5 (`apps/frontend`)                                        |
+| Общий пакет       | `@arbuz/shared` — Prisma Client, общие типы, перечисления и константы      |
+| БД / ORM          | PostgreSQL + [Prisma](https://www.prisma.io) 7 + драйвер `@prisma/adapter-pg` |
+| Хранилище файлов  | Локальный диск (`UPLOAD_DIR`), без облачных сервисов                       |
+| PDF               | `pdfmake` (комплектный Roboto с кириллицей), генерация в отдельном процессе |
+| Редактор текстов  | `@mdxeditor/editor` (только для публикаций, ленивый чанк)                  |
 
-## Структура монорепозитория
+## Требования
+
+- **Bun `1.4.2`** — установить и добавить в `PATH` (проверка: `bun --version`).
+- **PostgreSQL** — доступный сервер и пустая база для разработки.
+- Свободные порты **3000** (backend) и **5173** (frontend).
+- ОС: Windows, Linux или macOS. Проект ведётся на Windows — см. «Известные особенности».
+
+## Быстрый старт
+
+```sh
+# 1. Клонировать и установить зависимости
+git clone https://github.com/UselessNode/arbuz-crm.git
+cd arbuz-crm
+bun install
+
+# 2. Создать .env в корне по образцу .env.example и заполнить значения
+#    (DATABASE_URL, JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD — см. ниже)
+
+# 3. Сгенерировать Prisma Client (папка не коммитится — шаг обязателен)
+bun db:generate
+
+# 4. Создать схему в БД
+bun db:push
+
+# 5. Наполнить тестовыми данными (админ + демо-набор)
+bun seed
+
+# 6. Запустить frontend и backend одной командой
+bun dev
+```
+
+Открывать **http://127.0.0.1:5173/** — Vite проксирует `/api` и `/health` на backend (порт 3000).
+
+### Проверка, что всё поднялось
+
+| Что                | Как проверить                                                        |
+| ------------------ | -------------------------------------------------------------------- |
+| Backend жив        | `curl http://127.0.0.1:3000/health` → `{"status":"ok","database":"connected"}` |
+| Версия API         | `curl http://127.0.0.1:3000/` → `{"name":"Arbuz CRM API",...}`        |
+| Frontend жив       | открыть http://127.0.0.1:5173/ (публичная лента)                     |
+| Вход работает      | войти админом (`ADMIN_EMAIL` / `ADMIN_PASSWORD` из `.env`)            |
+| Демо-данные на месте | `bun seed` → в админке есть заявки, конкурс с критериями, публикации |
+
+### Учётные записи демо-набора
+
+Демо-пользователи создаются командой `bun seed` (только dev):
+
+| Роль      | Email                 | Пароль         |
+| --------- | --------------------- | -------------- |
+| applicant | `demo@arbuz.local`    | `demo12345`    |
+| expert    | `expert@arbuz.local`  | `expert12345`  |
+| expert    | `expert2@arbuz.local` | `expert12345`  |
+
+Email и пароли переопределяются через `.env`: `DEMO_EMAIL`/`DEMO_PASSWORD`,
+`EXPERT_EMAIL`/`EXPERT_PASSWORD`, `EXPERT2_EMAIL`/`EXPERT2_PASSWORD`.
+
+**Администратор `seed` не создаёт из демо-набора** — он берётся из `ADMIN_EMAIL` и
+`ADMIN_PASSWORD` вашего `.env` (в текущем dev-окружении это `admin@arbuz.local` / `admin12345`).
+Пароли — только для локальной разработки; на проде `SEED_DEMO=false` и другие значения.
+
+## Переменные окружения
+
+Все переменные читаются из **корневого** `.env`. Образец — [`.env.example`](.env.example).
+
+| Переменная       | Обязательна | Назначение                                                                 |
+| ---------------- | ----------- | -------------------------------------------------------------------------- |
+| `DATABASE_URL`   | да          | Строка подключения PostgreSQL: `postgresql://user:password@host:5432/arbuz_crm` |
+| `JWT_SECRET`     | да (в prod) | Подпись сессионного JWT. В dev при отсутствии генерируется на время запуска; **в production сервер без него не стартует** |
+| `ADMIN_EMAIL`    | да          | Email администратора: вход и создание учётки командой `bun seed`            |
+| `ADMIN_PASSWORD` | да          | Пароль администратора                                                      |
+| `UPLOAD_DIR`     | нет         | Каталог файлов; по умолчанию `./uploads` относительно пакета `apps/backend` |
+| `PORT`           | нет         | Порт backend, по умолчанию `3000`                                          |
+| `NODE_ENV`       | нет         | `production` включает строгие проверки и отключает демо-данные в `seed`      |
+| `SEED_DEMO`      | нет         | `false` — сидировать только админа, статусы и вердикты                      |
+
+Дополнительно `seed` понимает `DEMO_EMAIL`/`DEMO_PASSWORD`, `EXPERT_EMAIL`/`EXPERT_PASSWORD`,
+`EXPERT2_EMAIL`/`EXPERT2_PASSWORD` — переопределение демо-пользователей.
+
+> `.env` в `.gitignore` и в истории репозитория отсутствует. Никогда не коммитьте его.
+
+## Скрипты
+
+Все команды выполняются из корня монорепозитория.
+
+### Разработка
+
+| Команда             | Что делает                                                          |
+| ------------------- | ------------------------------------------------------------------- |
+| `bun dev`           | Frontend и backend параллельно (`concurrently`)                     |
+| `bun dev:backend`   | Backend в watch-режиме, `.env` подхватывается через `dotenv-cli`    |
+| `bun dev:frontend`  | Vite dev-сервер на `127.0.0.1:5173`                                 |
+
+### Проверки
+
+| Команда                  | Что делает                                                   |
+| ------------------------ | ------------------------------------------------------------ |
+| `bun typecheck`          | Типы всех воркспейсов по порядку: shared → backend → frontend |
+| `bun typecheck:shared`   | Типы только `packages/shared`                                 |
+| `bun typecheck:backend`  | Типы только `apps/backend`                                    |
+| `bun typecheck:frontend` | Типы только `apps/frontend`                                   |
+| `bun test:smoke`         | Смоук-тесты backend (см. «Тестирование»)                      |
+| `bun run build`          | `typecheck` + сборка frontend в `apps/frontend/dist`          |
+
+> Именно `bun run build`: `bun build` — встроенный bundler Bun, имя конфликтует.
+
+### База данных
+
+| Команда             | Что делает                                                                 |
+| ------------------- | -------------------------------------------------------------------------- |
+| `bun db:generate`   | Генерирует Prisma Client в `packages/shared/src/generated/prisma`           |
+| `bun db:push`       | Применяет схему к БД напрямую, без файлов миграций                          |
+| `bun db:update`     | `db:push` + `db:generate`                                                   |
+| `bun db:migrate`    | `prisma migrate dev` — создать/применить миграции                           |
+| `bun db:push:dev`   | `db:push --accept-data-loss` — **только dev**, если данные не нужны         |
+| `bun db:reset`      | Полная очистка данных (только dev; не путать с удалением схемы)             |
+| `bun seed`          | Тестовые данные; `SEED_DEMO=false` — только админ, статусы и вердикты       |
+| `bun storage:cleanup` | Удаление осиротевших файлов из `uploads/` (рассчитан на cron)             |
+
+### Типовой цикл работы
+
+```sh
+bun db:reset && bun seed     # чистая dev-база с демо-данными
+bun typecheck                # перед коммитом
+bun test:smoke               # смоук-тесты (нужны данные из seed)
+bun run build                # проверка прод-сборки
+```
+
+## Структура репозитория
 
 ```
 arbuz-crm/
 ├── apps/
-│   ├── backend/                      # @arbuz/backend — API-сервер (Express + Prisma)
-│   │   ├── app.ts                    # Сборка Express-приложения (без запуска)
-│   │   ├── index.ts                  # Точка входа: слушает порт, graceful shutdown
-│   │   ├── seed/                     # Наполнение БД: data.ts (значения) + модули создания
-│   │   ├── tests/                    # Смоук-тесты backend (`bun test:smoke`)
-│   │   ├── lib/                      # config, prisma, http, logger, multipart, query, parse
-│   │   ├── modules/                  # Доменные модули (*.routes.ts + *.service.ts)
-│   │   │   ├── auth/                 # Вход/выход, сессия (JWT-cookie), регистрация
-│   │   │   ├── users/                # Пользователи и роли (admin)
-│   │   │   ├── applications/         # Заявки + состав (team-members/plans/budget)
-│   │   │   ├── files/                # Хранилище, валидация, материалы и согласия
-│   │   │   ├── tenders/              # Конкурсы и критерии оценки
-│   │   │   ├── directions/           # Направления конкурсов
-│   │   │   ├── statuses/             # Статусы заявок
-│   │   │   ├── reviews/              # Экспертизы (рецензии) и справочник вердиктов
-│   │   │   ├── posts/                # Публикации (Markdown) + вложения
-│   │   │   └── pdf-export/           # Асинхронная PDF-выгрузка заявки
-│   │   ├── scripts/                  # pdf-worker, cleanup-storage
-│   │   └── uploads/                  # Файлы (не коммитится)
-│   └── frontend/                     # @arbuz/frontend — веб-клиент (React + Vite)
-│       ├── public/                   # favicon и статика
+│   ├── backend/                        # @arbuz/backend — API-сервер
+│   │   ├── app.ts                      # Сборка Express-приложения (без listen) — используется и тестами
+│   │   ├── index.ts                    # Точка входа: listen, graceful shutdown, восстановление PDF-заданий
+│   │   ├── lib/                        # Общее для всех модулей
+│   │   │   ├── config.ts               # Чтение окружения, лимиты, обязательность JWT_SECRET в prod
+│   │   │   ├── prisma.ts               # Единственный экземпляр PrismaClient
+│   │   │   ├── http.ts                 # HttpError, asyncHandler, обработчики 404/ошибок
+│   │   │   ├── logger.ts               # JSON-лог в stdout + журнал аудита logs/audit.log
+│   │   │   ├── multipart.ts            # Разбор multipart (файл + поля), UTF-8 имена файлов
+│   │   │   ├── parse.ts                # Примитивы разбора тела запроса (parseId, requiredText…)
+│   │   │   ├── query.ts                # Разбор параметров списков (пагинация, поиск)
+│   │   │   ├── paths.ts                # Корень пакета backend
+│   │   │   └── app-status.ts           # Системные статусы заявок по именам (без хардкода id)
+│   │   ├── modules/                    # Доменные модули: <имя>.routes.ts (HTTP) + <имя>.service.ts (логика)
+│   │   │   ├── auth/                   # Вход/выход/регистрация, JWT-cookie, middleware ролей
+│   │   │   ├── users/                  # Пользователи и роли (только admin)
+│   │   │   ├── applications/           # Заявки, состав: team-members / project-plans / project-budget
+│   │   │   ├── files/                  # Хранилище, валидация, материалы и согласия, скачивание
+│   │   │   ├── tenders/                # Конкурсы и критерии оценки
+│   │   │   ├── directions/             # Направления конкурсов
+│   │   │   ├── statuses/               # Справочник статусов заявок
+│   │   │   ├── reviews/                # Экспертизы, вердикты, сводка по экспертизам
+│   │   │   ├── posts/                  # Публикации: CRUD, вложения, Markdown → безопасный HTML
+│   │   │   └── pdf-export/             # Задания PDF: сервис, роуты, шаблоны документов
+│   │   ├── scripts/                    # Отдельные процессы: pdf-worker, cleanup-storage, reset-db
+│   │   ├── seed/                       # Наполнение БД: data.ts (значения) + модули создания записей
+│   │   ├── tests/                      # Смоук-тесты: run.ts, helpers/, smoke/*.smoke.ts
+│   │   └── uploads/                    # Файлы пользователей (не коммитится, создаётся сам)
+│   └── frontend/                       # @arbuz/frontend — веб-клиент
+│       ├── public/                     # favicon
+│       ├── dist/                       # Прод-сборка (не коммитится)
+│       ├── vite.config.ts              # host 127.0.0.1 + прокси /api и /health на backend
 │       └── src/
-│           ├── api/                  # Типизированный клиент и вызовы эндпоинтов
-│           ├── auth/                 # Контекст аутентификации (восстановление сессии)
-│           ├── components/ui/        # Дизайн-система (единый импорт из './ui')
-│           ├── features/             # Разделы: auth, users, applications, reviews, posts, references
-│           ├── layouts/              # AppLayout (сайдбар + ролевая шапка), PublicLayout, Footer
-│           ├── pages/                # HomePage, AboutPage, PrivacyPolicyPage, DesignSystemPage, …
-│           ├── router/               # AppRouter, ProtectedRoute
-│           ├── styles/               # Дизайн-токены (tokens.css)
-│           └── assets/               # Иконки (SVG), изображения
+│           ├── api/                    # Типизированный клиент и вызовы эндпоинтов по модулям
+│           ├── auth/                   # AuthContext: восстановление сессии, вход, выход
+│           ├── components/ui/          # Дизайн-система, единый barrel-импорт из './ui'
+│           ├── features/               # Разделы: auth, users, applications, reviews, posts, references, expert, legal
+│           ├── layouts/                # AppLayout (сайдбар + ролевая шапка), PublicLayout, Footer
+│           ├── lib/                    # Чистые помощники: format, budget, review-grouping, date-mask…
+│           ├── pages/                  # Публичные и служебные страницы
+│           ├── router/                 # AppRouter, ProtectedRoute
+│           ├── styles/                 # Дизайн-токены (tokens.css)
+│           └── assets/                 # Иконки (SVG) и изображения
 ├── packages/
-│   └── shared/                       # @arbuz/shared
+│   └── shared/                         # @arbuz/shared — общий пакет воркспейсов
 │       ├── prisma/
-│       │   ├── schema.prisma         # SSOT схемы БД
-│       │   └── migrations/           # Миграции Prisma
-│       ├── src/generated/prisma/     # Сгенерированный Prisma Client (не коммитится)
-│       ├── src/constants/            # Общие константы backend/frontend (статусы публикаций)
-│       └── index.ts                  # Реэкспорт клиента, перечислений и констант
+│       │   ├── schema.prisma           # SSOT схемы БД
+│       │   └── migrations/             # Миграции (см. «База данных» — есть не для всех изменений)
+│       ├── src/constants/              # Общие константы backend/frontend (статусы публикаций, типы PDF-отчётов)
+│       ├── src/generated/prisma/       # Сгенерированный Prisma Client (не коммитится)
+│       └── index.ts                    # Реэкспорт клиента, перечислений и констант
 ├── docs/
-│   ├── api-contract.md               # Контракт API текущей сессии
-│   ├── api-testing-postman.md        # Гайд по проверке API через Postman
-│   └── technical-debt.md             # Осознанные «хвосты» и отложенные решения
-├── postman/                          # Коллекция запросов
-├── prisma.config.ts                  # Конфигурация Prisma 7 (schema/migrations)
-├── AGENTS.md                         # Рабочий контекст для агента
-├── PLANS.md                          # Дорожная карта и заметки по сессиям
-├── CHANGELOG.md                      # История версий
-└── package.json                      # Скрипты корня монорепозитория
+│   ├── api-contract.md                 # История изменений API по сессиям (см. оговорку в «Документации»)
+│   ├── api-testing-postman.md          # Как проверить API в Postman
+│   └── technical-debt.md               # Осознанные «хвосты» и отложенные решения
+├── postman/                            # Коллекция запросов для Postman
+├── prisma.config.ts                    # Конфигурация Prisma 7 (пути к схеме и миграциям)
+├── AGENTS.md                           # Рабочий контекст для ИИ-агента (краткая сводка и договорённости)
+├── PLANS.md                            # Активный план работ и статус блоков
+├── COMPLETED_PLANS.md                  # Архив: дорожная карта MVP и заметки по прошедшим сессиям
+├── NOTES.md                            # Замечания по ручному E2E (что правилось и почему)
+├── CHANGELOG.md                        # История версий
+└── package.json                        # Скрипты и dev-зависимости корня
 ```
 
-Воркспейсы: `apps/*` и `packages/*`. Внутренняя зависимость — `@arbuz/shared`
+Воркспейсы — `apps/*` и `packages/*`. Внутренняя зависимость одна: `@arbuz/shared`
 (`workspace:*`), в `tsconfig` подключается через paths.
 
-## Требования
+## Конвенции проекта
 
-- [Bun](https://bun.sh) `1.4.2` — установить и добавить в `PATH`.
-- PostgreSQL и `DATABASE_URL` в `.env` в корне репозитория (см. `.env.example`).
+Соблюдаются во всём коде — при доработках лучше не отступать, иначе логика расползается.
 
-## Установка и запуск
-
-```sh
-# 0. Клонировать репозиторий
-git clone <...>
-cd ./arbuz-crm/
-
-# 1. Установить зависимости
-bun install
-
-# 2. Настроить `.env` в корне (по образцу `.env.example`)
-#    DATABASE_URL="postgresql://user:password@localhost:5432/arbuz_crm"
-#    JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD (для входа и seed)
-
-# 3. Сгенерировать Prisma Client (папка gitignored)
-bun db:generate
-
-# 4. Применить схему к БД (создаст таблицы)
-bun db:push
-
-# 4.1. Тестовые данные (админ, заявитель, 2 эксперта, конкурс с критериями, заявки, публикации)
-bun seed                    # SEED_DEMO=false — только админ, статусы и вердикты
-
-# 4.2. При необходимости полностью очистить данные (только dev) и заполнить заново
-bun db:reset && bun seed
-
-# 5. Запустить frontend и backend одновременно
-bun dev
-
-# либо по отдельности
-bun dev:backend    # http://127.0.0.1:3000
-bun dev:frontend   # http://127.0.0.1:5173
-```
-
-> Vite явно слушает `127.0.0.1` (IPv4), чтобы страница открывалась в браузере по `localhost`.
-> Примечание: `bun run build` (а не `bun build`) — имя скрипта конфликтует со встроенной командой bundler'а.
-
-## Скрипты (корень `package.json`)
-
-| Команда                | Назначение                                             |
-| ---------------------- | ------------------------------------------------------ |
-| `bun dev`              | Запуск frontend и backend параллельно (concurrently)   |
-| `bun dev:backend`      | Backend в watch-режиме (env из `.env` через dotenv-cli)|
-| `bun dev:frontend`     | Vite dev-сервер                                        |
-| `bun typecheck`        | Проверка типов: shared → backend → frontend            |
-| `bun typecheck:*`      | Проверка типов отдельного воркспейса                   |
-| `bun run build`        | typecheck + сборка frontend                            |
-| `bun db:push`          | Применить схему Prisma к БД (без миграций)             |
-| `bun db:generate`      | Сгенерировать Prisma Client                            |
-| `bun db:update`        | `db:push` + `db:generate`                              |
-| `bun db:migrate`       | Создать/применить миграции (`prisma migrate dev`)      |
-| `bun db:push:dev`      | `db:push` с `--accept-data-loss` (только dev, если данные не нужны) |
-| `bun db:reset`         | Полная очистка данных БД (только dev)            |
-| `bun seed`             | Тестовые данные: админ, статусы, вердикты, демо-набор (`SEED_DEMO=false` — только админ) |
-| `bun test:smoke`       | Смоук-тесты backend (dev-база, после `bun seed`; см. `apps/backend/tests/README.md`) |
-| `bun storage:cleanup`  | Очистка удалённых/осиротевших файлов (для cron)       |
+- **Модуль = папка** `modules/<имя>/` с `*.routes.ts` (только HTTP) и `*.service.ts`
+  (бизнес-логика). Общее для модулей — в `lib/`.
+- **Никаких магических строк** вместо перечислений. Роли и статусы PDF — из `@arbuz/shared`
+  (`RoleType`, `PdfExportStatus`), сравнение через константы, а не `user.role !== 'admin'`.
+  Статусы заявок и вердикты — редактируемые справочники в БД: их id и названия приходят из API
+  (`/api/application-statuses`, `/api/review-statuses`), хардкодить нельзя ни на фронте, ни в сервисах.
+- **Схема БД — SSOT**: `packages/shared/prisma/schema.prisma`. Меняется осознанно.
+- **Frontend:** всё переиспользуемое — только из `components/ui` (единая точка правки).
+- **Из `@arbuz/shared` во фронтенде — только `import type`.** Пакет реэкспортирует
+  сгенерированный Prisma-клиент (CommonJS): рантайм-импорт тянет его в бандл и оставляет
+  страницу белой (`exports is not defined`). Рантайм-значения зеркалятся локально
+  (`lib/roles.ts`, `lib/post-status.ts`, `api/pdf-export.ts`); инвариант сторожит тест.
+- **Модальные окна** по умолчанию не закрываются кликом мимо и по Esc (`Modal` + `dismissable`):
+  форма не должна терять введённое. `dismissable` — только информационным диалогам.
+- **Проверяемая логика выносится в чистый модуль** (без React и DOM) и покрывается смоук-тестом:
+  `budget.ts`, `review-grouping.ts`, `date-mask.ts`, `accordion-state.ts`, `calendar-state.ts`.
+  Компоненты `.tsx` импортируют CSS и в тестах не поднимаются — поэтому логика живёт отдельно.
+- **Версионирование:** `X.0.0` — мажор, `1.X.0` — фича, `1.4.X` — патч. Значимое изменение
+  поднимает версию всех воркспейсов синхронно и попадает в `CHANGELOG.md`.
 
 ## База данных
 
-- Схема: `packages/shared/prisma/schema.prisma` (PostgreSQL) — **единственный источник истины**.
-- Конфигурация Prisma 7 — в `prisma.config.ts` в корне (пути к схеме и миграциям, URL из `process.env.DATABASE_URL`).
-- Генератор выводит клиент в `packages/shared/src/generated/prisma`; оттуда его реэкспортирует `packages/shared/index.ts` под именем `@arbuz/shared`.
-- Сгенерированный клиент не хранится в git (см. `.gitignore`): после клонирования обязателен `bun db:generate`.
-- Основные домены схемы:
-  - **Пользователи и роли** — `users` (роли `admin`, `expert`, `applicant`).
-  - **Конкурсы и направления** — `tenders`, `directions`, критерии оценки `evaluation_criteria`.
-  - **Заявки** — `applications`, статусы `application_statuses`, экспертизы `application_reviews` + справочник вердиктов `review_statuses`.
-  - **Содержимое заявки** — `project_plans`, `project_budget`, `team_members` + `consent_files`, материалы `additional_materials`.
-  - **Прочее** — `files`/`file_categories`, `posts`/`posts_files`, `pdf_export_jobs`, журнал `change_logs`.
-- Конвенции: `snake_case`, мягкое удаление через `deleted_at`, частичные индексы `(deleted_at IS NULL)`.
+- Схема — `packages/shared/prisma/schema.prisma` (PostgreSQL), **единственный источник истины**.
+- Конфигурация Prisma 7 — `prisma.config.ts` в корне (пути к схеме и миграциям, URL из `DATABASE_URL`).
+- Генератор кладёт клиент в `packages/shared/src/generated/prisma`; оттуда его реэкспортирует
+  `packages/shared/index.ts` под именем `@arbuz/shared`. **Папка не коммитится** — после
+  клонирования обязателен `bun db:generate`.
+- Конвенции: `snake_case`, мягкое удаление через `deleted_at`, частичные индексы
+  `(deleted_at IS NULL)`.
 
-## Роли и модель доступа
+### Домены схемы
 
-| Роль      | Возможности                                                                                   |
-| --------- | --------------------------------------------------------------------------------------------- |
-| `admin`   | Полный доступ: пользователи и роли, заявки, справочники и вердикты, публикации, назначение экспертов, модерация |
-| `expert`  | Только назначенные ему заявки и **собственная** экспертиза (чужие не видны)              |
-| `applicant` | Свои заявки (создание/отправка), опубликованные публикации, свой вердикт/статус                  |
+| Домен                    | Таблицы                                                                 |
+| ------------------------ | ----------------------------------------------------------------------- |
+| Пользователи и роли      | `users` (роли `admin`, `expert`, `applicant`)                           |
+| Конкурсы и направления   | `tenders`, `directions`, `evaluation_criteria` (критерии с весами)      |
+| Заявки                   | `applications`, `application_statuses`, `application_reviews`, `review_statuses` |
+| Содержимое заявки        | `project_plans`, `project_budget`, `team_members`, `consent_files`, `additional_materials` |
+| Файлы и отчёты           | `files`, `file_categories`*, `pdf_export_jobs`                          |
+| Публикации               | `posts`, `posts_files`                                                  |
+| Не используется          | `change_logs`*                                                          |
 
-Все проверки доступа выполняются **на бэкенде** (`requireAuth`/`requireRole` и проверки
-владения в сервисах); фронтенд лишь скрывает недоступные действия. Роли сравниваются через
-перечисления из `@arbuz/shared` (`RoleType`, `PdfExportStatus`) — без строковых литералов;
-статусы заявок и вердикты — редактируемые справочники, фронтенд использует их id/названия из API.
+\* `change_logs` — зарезервированная таблица, аудит правок решено не вести.
+`file_categories` — заготовка реестра файлов, кодом не используется (только очистка в `db:reset`).
+
+### Миграции — важно для деплоя
+
+В `packages/shared/prisma/migrations/` есть только **две ранние миграции** (`init` и
+`session2_modules`). Начиная с 1.9.0 схема менялась через `bun db:push`, поэтому файлов
+миграций для поздних изменений нет — то есть **`prisma migrate deploy` на чистой базе даст
+устаревшую схему**. Варианты перед деплоем (задача D4 в `PLANS.md`):
+
+1. завести «догоняющую» миграцию из текущей схемы и дальше деплоить `migrate deploy`;
+2. разворачивать прод через `bun db:push` и не вести историю миграций.
+
+Решение не принято — обсуждается вместе с остальной подготовкой к деплою.
 
 ## API
 
-Контракт по сессиям зафиксирован в [`docs/api-contract.md`](docs/api-contract.md).
+Базовый путь — `/api`. Все проверки доступа выполняются **на бэкенде** (`requireAuth`,
+`requireRole` и проверки владения в сервисах); фронтенд лишь скрывает недоступные действия.
 
 ### Аутентификация
 
 - `POST /api/auth/login` — вход по email/паролю, выдаёт JWT в httpOnly-cookie `arbuz_session`.
 - `POST /api/auth/register` — публичная саморегистрация (роль жёстко `applicant`).
 - `POST /api/auth/logout`, `GET /api/auth/me` — выход и текущий пользователь.
-- Пароли: argon2id (`Bun.password`). В будущем возможны внешние провайдеры (Госуслуги/ВК) без изменения схемы.
+- Пароли — argon2id (`Bun.password`). Внешние провайдеры (Госуслуги/ВК) добавить можно
+  без изменения схемы: токен не зависит от способа входа.
 
 ### Пользователи (только admin)
 
@@ -187,165 +341,263 @@ bun dev:frontend   # http://127.0.0.1:5173
 `POST /api/applications/:id/submit`.
 Состав: `GET/POST/PATCH/DELETE /api/applications/:id/team-members|project-plans|project-budget`.
 
-### Справочники (чтение — авторизованным, изменения — admin)
+### Справочники
 
-Конкурсы `/api/tenders`, критерии `/api/tenders/:id/criteria`, направления `/api/directions`,
-статусы заявок `/api/application-statuses`, вердикты экспертиз `/api/review-statuses`.
-Вердикт, помеченный `is_default`, выставляется новой экспертизе; вердикт по умолчанию и используемый
+Чтение — авторизованным, изменения — admin: конкурсы `/api/tenders`,
+критерии `/api/tenders/:id/criteria`, направления `/api/directions`,
+статусы заявок `/api/application-statuses`, вердикты `/api/review-statuses`.
+Вердикт с `is_default` выставляется новой экспертизе; вердикт по умолчанию и используемый
 в экспертизах удалить нельзя.
 
 ### Экспертизы
 
-Назначение эксперта `POST /api/applications/:id/reviews` (admin) — не больше, чем
-`tenders.experts_count`; список `GET /api/reviews` (по ролям), оценка `PATCH /api/reviews/:id`,
-снятие `DELETE /api/reviews/:id`. Итоговый балл (`total_score`) считается на сервере по критериям
-конкурса. Эксперт видит только свою экспертизу (и в списке, и в карточке заявки); в списке
-назначенных заявок ему показывается вердикт собственной экспертизы.
+`POST /api/applications/:id/reviews` — назначение эксперта (admin), не больше
+`tenders.experts_count`; `GET /api/reviews` — список по ролям; `PATCH /api/reviews/:id` —
+оценка; `DELETE /api/reviews/:id` — снятие. Итоговый балл (`total_score`) считает сервер
+по критериям конкурса. Эксперт видит только свою экспертизу — и в списке, и в карточке заявки.
 
 ### Сводки по экспертизам (только admin)
 
-`GET /api/reviews/summary` — агрегат по критерию отбора, ровно один критерий на запрос:
-`?expert_id=`, `?status_id=`, `?application_id=`, `?review_ids=1,2,3` или `?all=1` (вся база).
-Отдаёт заголовок (тип выборки выводится из состава: заявка / эксперт / вердикт / произвольный набор),
-строки экспертиз, итоги (число экспертиз, заявок, экспертов, средний балл, распределение вердиктов)
-и средние по критериям. Тот же сервис (`modules/reviews/summary.service.ts`) питает и PDF-отчёт,
-поэтому экран и документ не расходятся. Эксперту сводка недоступна: агрегат пересекает заявки.
+`GET /api/reviews/summary` — агрегат, ровно один критерий отбора на запрос:
+`?expert_id=`, `?status_id=`, `?application_id=`, `?review_ids=1,2,3` или `?all=1`.
+Отдаёт заголовок (тип выборки выводится из состава), строки экспертиз, итоги (экспертизы,
+заявки, эксперты, средний балл, распределение вердиктов) и средние по критериям.
+Тот же сервис (`modules/reviews/summary.service.ts`) питает PDF-отчёт — экран и документ
+не расходятся. Эксперту сводка недоступна: агрегат пересекает заявки.
 
 ### Публикации (лента новостей)
 
 `GET /api/posts/feed` — публичная лента: отдаёт **только опубликованные** посты (черновики,
-отложенные и архив не показываются никому, в том числе администратору). `GET /api/posts` — список
-раздела «Публикации» (admin, все статусы, фильтр `?status=`), создание/правка/удаление — admin.
+отложенные и архив не показываются никому, включая администратора). `GET /api/posts` — список
+раздела «Публикации» (admin, все статусы, фильтр `?status=`); создание, правка и удаление — admin.
 
-Статусы не хранятся в БД, а вычисляются из полей `posts` (общие значения — `PostStatus` из `@arbuz/shared`):
+Статусы не хранятся в БД, а вычисляются из полей `posts` (`PostStatus` из `@arbuz/shared`):
 
-| Статус | Условие | В ленте |
-|---|---|---|
-| `draft` | `is_published = false` | нет |
-| `scheduled` | `scheduled_at` в будущем | нет (появится сама при наступлении даты, без воркера) |
-| `published` | `is_published = true`, архив/отложка не заданы | да |
-| `archived` | `archived_at` задан | нет |
+| Статус       | Условие                                          | В ленте |
+| ------------ | ------------------------------------------------ | ------- |
+| `draft`      | `is_published = false`                           | нет     |
+| `scheduled`  | `scheduled_at` в будущем                          | нет (появится сама по дате, без воркера) |
+| `published`  | `is_published = true`, архив и отложка не заданы  | да      |
+| `archived`   | `archived_at` задан                               | нет     |
 
-Содержимое — Markdown; HTML рендерится и санитизируется на сервере (`contentHtml`).
-Флаг `hide_author` скрывает автора в ленте (публикация от лица организации), `edited_at`
-проставляется при правке заголовка/текста (пометка «Отредактировано от …»).
-Вложения — `POST/GET/DELETE /api/posts/:id/files[/:fileId]`,
-скачивание `GET /api/posts/:id/files/:fileId/download` (для опубликованного поста доступно
-и гостям — вложения показываются в публичной ленте).
+Содержимое — Markdown; HTML рендерит и санитизирует сервер (`contentHtml`).
+`hide_author` скрывает автора в ленте, `edited_at` проставляется при правке заголовка или
+текста (пометка «Отредактировано от …»). Несколько изображений, вставленных подряд,
+превращаются в галерею-карусель.
+Вложения: `POST/GET/DELETE /api/posts/:id/files[/:fileId]`, скачивание
+`GET /api/posts/:id/files/:fileId/download` (для опубликованного поста — в том числе гостям).
 
-### PDF-экспорт
+### PDF-отчёты
 
-Асинхронная генерация, статус хранится в `pdf_export_jobs`; тип отчёта — `kind`
-(`application` | `reviews`), параметры отбора — `params`, подпись — `label`.
+Асинхронная генерация, состояние — в `pdf_export_jobs`; тип отчёта — `kind`
+(`application` | `reviews`), критерий отбора — `params`, подпись — `label`.
 
-- **Отчёт по заявке:** `POST /api/applications/:id/pdf-export` — доступен владельцу,
-  администратору и назначенному эксперту. Шаблон: 9 секций, таблица бюджета, материалы.
+- **Отчёт по заявке:** `POST /api/applications/:id/pdf-export` — владельцу, администратору
+  и назначенному эксперту. Шаблон: 9 секций, таблица бюджета, список материалов.
 - **Отчёт по экспертизам:** `POST /api/reviews/pdf-export` — только admin; тело:
-  `{ expert_id }` | `{ status_id }` | `{ application_id }` | `{ review_ids: [...] }` | `{ all: true }`,
-  плюс необязательный `label` (подпись в тосте и списке).
+  `{ expert_id }` | `{ status_id }` | `{ application_id }` | `{ review_ids: [...] }` | `{ all: true }`
+  и необязательный `label`.
 
-`GET /api/pdf-export-jobs/:jobId`, `GET /api/pdf-export-jobs/:jobId/download` — статус и файл.
-Готовый PDF не открывается сам: фронтенд показывает тост с кнопкой «Скачать», потому что после
-поллинга открытие вкладки уже не является действием пользователя и блокируется браузером.
+Статус и файл: `GET /api/pdf-export-jobs/:jobId`, `GET /api/pdf-export-jobs/:jobId/download`.
+Готовый PDF не открывается сам: фронтенд показывает тост с кнопкой «Скачать» — после поллинга
+открытие вкладки уже не является действием пользователя и блокируется браузером.
 Задания, застрявшие в `pending`/`processing` из-за перезапуска сервера, помечаются ошибкой
 при старте (`recoverStaleJobs`).
 
 ### Файлы заявок
 
-- Хранение: диск (`UPLOAD_DIR`, по умолчанию `./uploads` относительно корня пакета `apps/backend`, не зависит от рабочего каталога запуска).
-  Папка заявки — `<owner_id>-<application_id>-<время>`; согласия — в подпапке `consents/`.
-- В БД хранятся относительные пути; разрешены PDF, DOCX, JPEG, PNG, MP4 (проверка содержимого + расширения). Имена на диске — UUID.
+- Хранение — диск (`UPLOAD_DIR`, по умолчанию `./uploads` относительно пакета `apps/backend`,
+  не зависит от рабочего каталога запуска). Папка заявки — `<owner_id>-<application_id>-<время>`,
+  согласия — в подпапке `consents/`.
+- В БД — относительные пути. Разрешены PDF, DOCX, JPEG, PNG, MP4 (проверка содержимого **и**
+  расширения). Имена на диске — UUID.
 - Лимиты: 10 МБ на файл, 25 МБ на все файлы заявки.
-- Доступ: владелец заявки или администратор; файлы отдаются только через API.
-- Материалы заявки (`additional_materials`): `POST/GET /api/applications/:id/files`, `GET .../files/:fileId/download`, `DELETE .../files/:fileId`.
-- Согласия участников (`consent_files`): `GET/POST /api/applications/:id/team-members/:memberId/consents`, `GET .../consents/:consentId/download`, `DELETE .../consents/:consentId`.
-- Аудит действий (вход, загрузка/скачивание/удаление) пишется в `logs/audit.log`.
-- Очистка: `bun storage:cleanup` (например, в cron).
+- Доступ: владелец заявки, администратор или назначенный эксперт; файлы отдаются только через API.
+- Материалы: `POST/GET /api/applications/:id/files`, `GET .../files/:fileId/download`,
+  `DELETE .../files/:fileId`.
+- Согласия: `GET/POST /api/applications/:id/team-members/:memberId/consents`,
+  `GET .../consents/:consentId/download`, `DELETE .../consents/:consentId`.
+- Действия (вход, загрузка, скачивание, удаление) пишутся в `logs/audit.log`.
+- Очистка осиротевших файлов — `bun storage:cleanup` (рассчитано на cron).
 
 ## Frontend
 
-- **Дизайн-система** — `src/components/ui` с единым barrel-импортом:
-  `Icon`, `Button`, `Badge`/`StatusBadge` (+ `ROLE_OPTIONS`, `toBadgeTone`),
-  `Container`/`Accordion`/`Carousel`, `DragDrop`, `Input`/`NumberInput`/`Slider`/`RangeSlider`/
-  `DatePicker`/`DateInput`/`RangeDatePicker`/`DateRangeInput`/`Select`/`Textarea`/`Checkbox`,
-  `Table`, `ListToolbar`/`SearchInput` (поиск и фильтры списков),
-  `StateMessage`/`Modal`/`ConfirmDialog`, `SectionHint` (подсказки разделов), `Pagination`.
-  Тяжёлый `MarkdownEditor` (MDXEditor) живёт в `components/ui`, но в barrel намеренно не входит —
-  подключается только лениво, чтобы не тянуть редактор в основной чанк.
-- **Даты и диапазоны:** календарь один на все поля (`CalendarPanel`) — показывает один или
-  несколько месяцев сразу, а по клику на месяц открывается выбор года с переходами по
-  десятилетиям и столетиям. Способы ввода:
-  - `DatePicker` — дата кнопкой; `DateInput` — та же дата вручную, маска `дд.мм.гггг`;
-  - `RangeDatePicker` — период кнопкой; `DateRangeInput` — период двумя полями с маской и
-    кнопкой календаря между ними (в карточке заявки в «Плане мероприятий»);
-  - `RangeSlider` — числовой диапазон двумя бегунками (наложенные нативные
-    `input[type=range]`, каждый доступен с клавиатуры).
-  В разделе «Экспертизы» поля диапазонов скрыты и появляются только в своей группировке:
-  оценка — при группировке «по оценке», период — «по дате».
-- **Таблица с выбором строк** — пропс `selection` (`isSelected` + `onToggle`): решение
-  «строка выбрана» принимает страница, поэтому ключи не могут разойтись. Сортировка —
-  клик по заголовку по кругу (`asc → desc → без сортировки`) с `aria-sort`.
-- **Модальные окна** по умолчанию закрываются только крестиком и кнопками; клик мимо окна
-  и Esc закрывают лишь информационные диалоги (`Modal dismissable`).
-- Иконки — кастомные SVG из `src/assets/icons/*.svg`, подхватываются через `import.meta.glob`; цвет наследуется через `currentColor`.
-- Демонстрация всех компонентов — страница `/design-system` (включая прототип поиска и фильтров).
-- **Публикации**: список — `/admin/posts` (статусы, быстрые действия), а **создание и редактирование —
-  отдельная страница** `/admin/posts/new` и `/admin/posts/:postId`. Редактор `@mdxeditor/editor`
-  (ленивый чанк, русский интерфейс через словарь переводов): форматирование текста, списки
-  (в т.ч. чек-листы), стили блока, таблицы, ссылки, изображения прямо в тексте и выноски
-  GitHub-стиля (`> [!NOTE]`). Несколько изображений, вставленных подряд, показываются в ленте
-  каруселью — отдельного синтаксиса для галереи нет. На выходе Markdown, HTML формирует
-  и санитизирует сервер; вложения выбираются до сохранения и загружаются вместе с публикацией;
-  можно скрыть автора в ленте; вложения в ленте — кликабельное название файла.
-- **Уведомления**: тосты (`useToast`) с тонами и кнопкой «Отменить» для обратимых действий;
-  готовый PDF предлагается тостом со ссылкой «Скачать» (открытие вкладки после поллинга
-  блокируется браузером; см. `lib/use-pdf-export.ts`).
-- **Разделы админки** (`/admin`): Пользователи, Заявки, **Экспертизы**, **Публикации**, **Конкурсы и направления** (конкурсы, критерии, число экспертов, «опасная зона», направления) и **Настройки экспертизы** (статусы заявок, вердикты). Поиск и фильтры — на всех списочных страницах.
-- **Раздел «Экспертизы»** (`/admin/reviews`) — рабочее место для отчётности: поиск, фильтр по вердикту
-  и **группировка** (без группировки / по эксперту / по вердикту / по оценке (диапазоны по 5 баллов) /
-  по дате (месяц)) в одной панели. Столбец чекбоксов набирает строки в отчёт: одна строка-группа —
-  отчёт по всей группе, несколько — точный список экспертиз. Клик по заголовку сортирует
-  (`asc → desc → исходный порядок`). Данные сводки берутся с сервера — тот же источник, что и у PDF.
-  У каждой строки есть «Сводка» — страница `/admin/reviews/summary` (ссылка шарится, F5 не теряет состояние).
-  В режиме с группировкой над таблицей показываются итоги (экспертиз, заявок, экспертов, средний балл,
-  распределение вердиктов).
-- **Область заявителя**: `/applications` — «Мои заявки», создание и заполнение (команда, план, бюджет, материалы, согласия), отправка на проверку; владелец может редактировать заявку. Заявитель видит статус и экспертизы. Карточка заявки: разделы-аккордеоны (раскрыты по умолчанию) с подсказками, секция «Основные данные», кнопка «Назад»; бюджет показывает расчётную стоимость и финансирование с проверкой расхождений.
-- **Область эксперта**: `/expert` — назначенные заявки со статусом заявки и вердиктом эксперта (чтение + оценка по критериям конкурса, вердикт и текст экспертизы).
-- **Личный кабинет**: `/account` — профиль и контакты организаторов (клик копирует телефон/почту — например, для запроса сброса пароля).
-- **Публичные страницы**: домашняя `/` (лента публикаций + контакты с копированием по клику), `/about`, `/privacy`, вход `/login`, регистрация `/register` (с обязательным соглашением). Шапка авторизованной зоны окрашена по роли (админ — серый, эксперт — зелёный, заявитель — синий).
+### Маршруты
+
+| Путь                                        | Кому        | Что это                                       |
+| ------------------------------------------- | ----------- | --------------------------------------------- |
+| `/`, `/about`, `/privacy`                   | всем        | Публичные страницы (лента публикаций, контакты) |
+| `/login`, `/register`                       | гостям      | Вход и регистрация (с обязательным соглашением) |
+| `/account`                                  | авториз.    | Личный кабинет: профиль и контакты организаторов |
+| `/applications`, `/applications/:id`         | applicant   | «Мои заявки» и карточка заявки                 |
+| `/expert`, `/expert/applications/:id`        | expert      | Назначенные заявки и карточка (оценка по критериям) |
+| `/admin/users`                              | admin       | Пользователи и роли                           |
+| `/admin/applications`, `/admin/applications/:id` | admin   | Заявки: список, карточка, эксперты, статус     |
+| `/admin/reviews`                            | admin       | Экспертизы: группировка, отчёты               |
+| `/admin/reviews/summary`                    | admin       | Сводка по экспертизам (отдельная страница)     |
+| `/admin/posts`, `/admin/posts/new`, `/admin/posts/:postId` | admin | Публикации: список и редактор |
+| `/admin/contests`                           | admin       | Конкурсы, критерии, число экспертов, направления |
+| `/admin/expertise`                          | admin       | Настройки экспертизы: статусы заявок, вердикты |
+| `/design-system`                            | всем        | Демонстрация всех компонентов дизайн-системы  |
+
+Старые пути `/admin/tenders`, `/admin/directions`, `/admin/statuses` редиректят на актуальные.
+
+### Дизайн-система
+
+`src/components/ui` с единым barrel-импортом: `Icon`, `Button`, `Badge`/`StatusBadge`
+(+ `ROLE_OPTIONS`, `toBadgeTone`), `Container`/`Accordion`/`Carousel`, `DragDrop`,
+`Input`/`NumberInput`/`Slider`/`RangeSlider`/`DatePicker`/`DateInput`/`RangeDatePicker`/
+`DateRangeInput`/`Select`/`Textarea`/`Checkbox`, `Table`, `ListToolbar`/`SearchInput`,
+`StateMessage`/`Modal`/`ConfirmDialog`, `SectionHint`, `Pagination`, `KebabMenu`.
+
+Тяжёлый `MarkdownEditor` (MDXEditor) лежит в `components/ui`, но **в barrel намеренно не входит**
+и подключается только через `lazy` — иначе ~750 КБ редактора уезжают в основной чанк.
+
+**Даты и диапазоны.** Календарь один на все поля (`CalendarPanel`): показывает один или несколько
+месяцев сразу, по клику на название месяца открывается выбор года с переходами по десятилетиям
+(±10 лет) и столетиям (±100 лет).
+
+- `DatePicker` — дата кнопкой; `DateInput` — та же дата вручную, маска `дд.мм.гггг`;
+- `RangeDatePicker` — период кнопкой; `DateRangeInput` — период двумя полями с маской и кнопкой
+  календаря между ними (используется в «Плане мероприятий» карточки заявки);
+- `RangeSlider` — числовой диапазон двумя бегунками (наложенные нативные `input[type=range]`,
+  оба доступны с клавиатуры).
+
+**Таблица с выбором строк** — пропс `selection` (`isSelected` + `onToggle`): решение «строка
+выбрана» принимает страница, поэтому ключи не могут разойтись. Сортировка — клик по заголовку
+по кругу (`asc → desc → без сортировки`) с `aria-sort`.
+
+Иконки — кастомные SVG в `src/assets/icons/*.svg`, подхватываются через `import.meta.glob`,
+цвет наследуется через `currentColor`.
+
+### Раздел «Экспертизы» (`/admin/reviews`)
+
+Рабочее место для отчётности: поиск, фильтр по вердикту и **группировка** в одной панели
+(без группировки / по эксперту / по вердикту / по оценке / по дате). Столбец чекбоксов набирает
+строки в отчёт: одна строка-группа — отчёт по всей группе, несколько — точный список экспертиз.
+Сортировка — по клику на заголовок. Данные сводки берутся с сервера (тот же источник, что и PDF).
+У каждой строки есть «Сводка» — страница `/admin/reviews/summary` (ссылка шарится, F5 не теряет
+состояние). В режиме с группировкой над таблицей показываются итоги.
+
+### Публикации
+
+Список — `/admin/posts` (статусы, быстрые действия), **создание и правка — на отдельной
+странице** (`/admin/posts/new`, `/admin/posts/:postId`), а не в модалке: MDXEditor портирует
+всплывающие слои в `body` с `z-index` до 52, и под нашим оверлеем (`100`) они становятся
+некликабельными. Редактор с русским интерфейсом (словарь переводов): форматирование, списки
+(включая чек-листы), таблицы, ссылки, изображения в тексте, выноски GitHub-стиля (`> [!NOTE]`).
+На выходе Markdown, HTML формирует и санитизирует сервер.
 
 ## Тестирование
 
-- **Смоук-тесты backend**: `bun test:smoke` — сервисные сценарии на dev-базе (после `bun seed`):
-  жизненный цикл публикаций и гарантии публичной ленты, лимит экспертов и приватность экспертиз,
-  сводка по экспертизам (отбор, итоги, доступ только админу), группировка таблицы экспертиз,
-  проверка загружаемых файлов, правила бюджета, рендер Markdown и галереи публикаций,
-  состояние аккордеона и карусели, инвариант импортов фронтенда. Состав и правила —
-  [`apps/backend/tests/README.md`](apps/backend/tests/README.md).
-- Коллекция Postman: `postman/arbuz-crm.postman_collection.json`, инструкция — [`docs/api-testing-postman.md`](docs/api-testing-postman.md).
-- Планируется: прогон коллекции через Postman Runner / Newman (возможно в CI).
+### Смоук-тесты
 
-## Заметки для деплоя
+```sh
+bun seed          # тесты работают на dev-базе, демо-данные должны быть на месте
+bun test:smoke
+```
 
-- Каталог `uploads/` держать вне статики веб-сервера (файлы раздаёт только API): nginx не должен обслуживать его.
-- Права на сервере: файлы `640`, каталоги `750`; запрет исполнения в `uploads/`.
-- `JWT_SECRET` — длинная случайная строка; в production без него сервер не стартует.
-- Резервное копирование: БД + `uploads/` (+ `logs/` при необходимости).
+`apps/backend/tests/run.ts` запускает по очереди все `smoke/*.smoke.ts`; каждый файл —
+самостоятельный скрипт, который печатает проверки и выходит с кодом 1 при провале.
+
+| Файл                                   | Что проверяет                                                        |
+| -------------------------------------- | -------------------------------------------------------------------- |
+| `smoke/posts.smoke.ts`                 | Жизненный цикл публикаций, фильтры раздела, гарантии публичной ленты  |
+| `smoke/reviews.smoke.ts`               | Лимит экспертов из настроек конкурса, приватность экспертиз           |
+| `smoke/reviews-summary.smoke.ts`       | Сводка: отбор по критерию, итоги, доступ только админу, чтение чужого задания |
+| `smoke/files.smoke.ts`                 | Санитизация имени файла, определение типа по содержимому и расширению |
+| `smoke/markdown.smoke.ts`              | Рендер Markdown: подсветка, выноски, чек-листы, галерея, защита от опасного ввода |
+| `smoke/budget.smoke.ts`                | Правила бюджета: расчётная стоимость против финансирования            |
+| `smoke/review-grouping.smoke.ts`       | Режимы таблицы экспертиз: группировка, диапазоны, критерий отчёта     |
+| `smoke/post-content.smoke.ts`          | Разбор HTML публикации на блоки (текст + галереи)                     |
+| `smoke/accordion.smoke.ts`             | Состояние раскрытия аккордеона (идемпотентность `defaultOpen`)        |
+| `smoke/carousel.smoke.ts`              | Переключение слайдов карусели (закольцовывание, пустой набор)         |
+| `smoke/range-slider.smoke.ts`          | Двойной ползунок: границы и шаг, границы не перескакивают друг друга  |
+| `smoke/date-range.smoke.ts`            | Выбор периода и сетка календаря                                      |
+| `smoke/date-mask.smoke.ts`             | Маска даты `дд.мм.гггг`: подстановка, отсев несуществующих дат        |
+| `smoke/frontend-shared-imports.smoke.ts` | Инвариант: во фронтенде `@arbuz/shared` — только `import type`        |
+
+Правила и состав подробно описаны в [`apps/backend/tests/README.md`](apps/backend/tests/README.md).
+Коротко: тесты не поднимают HTTP-сервер, а вызывают сервисы напрямую (loopback-запросы из
+терминала агента недоступны); каждый сценарий убирает за собой данные; чистая логика проверяется
+без БД; никаких магических строк для ролей и справочников.
+
+### Проверка API вручную
+
+Коллекция — `postman/arbuz-crm.postman_collection.json`, пошаговая инструкция —
+[`docs/api-testing-postman.md`](docs/api-testing-postman.md). Планируется прогон через
+Postman Runner / Newman, в том числе в CI.
+
+### Типы и сборка
+
+Перед любым коммитом: `bun typecheck` (или точечно по воркспейсу). Для проверки прод-сборки —
+`bun run build`.
+
+## Ручной E2E-прогон
+
+Обязательный пункт приёмки MVP — пройти сценарий в трёх ролях на свежих данных
+(`bun db:reset && bun seed`).
+
+**Заявитель**
+1. Регистрация: соглашение обязательно — без галочки submit заблокирован.
+2. Создать заявку, заполнить основные поля, команду (согласия — файлом), план мероприятий, бюджет, материалы.
+3. Проверить живые подсказки бюджета (нехватка и переизбыток финансирования).
+4. Отправить на проверку: если у участника нет согласия — диалог с подтверждением, после
+   подтверждения участник без согласия удаляется и проверка повторяется.
+5. Убедиться, что после отправки правка заявки недоступна, видны статус и экспертизы.
+
+**Администратор**
+6. Назначить экспертов на отправленную заявку — не больше `tenders.experts_count`
+   (при превышении — понятная ошибка, селект блокируется).
+7. Сменить статус заявки (финальный статус ставит только админ).
+8. В `/admin/reviews` проверить группировку (по эксперту / вердикту / оценке / дате),
+   диапазоны, сортировку по заголовку, отметку строк чекбоксами.
+9. Сформировать PDF: отчёт по заявке и отчёт по экспертизам (тост с кнопкой «Скачать»).
+10. Открыть `/admin/reviews/summary`, обновить страницу (состояние сохраняется).
+11. Проверить справочники: статусы, вердикты (в том числе «по умолчанию»), конкурсы и критерии.
+12. Публикации: создать с несколькими изображениями подряд (в ленте — карусель),
+    проверить черновик, отложенную, архив.
+
+**Эксперт**
+13. Открыть назначенную заявку, проставить оценки по критериям, вердикт и комментарий.
+14. Убедиться, что чужие экспертизы не видны и что итоговый балл считает сервер.
+
+## Документация в репозитории
+
+| Файл                          | Зачем                                                          |
+| ----------------------------- | -------------------------------------------------------------- |
+| `README.md`                   | Эта страница: запуск, структура, конвенции                     |
+| `CHANGELOG.md`                | Что изменилось в каждой версии (по нему удобно искать «почему так») |
+| `PLANS.md`                    | Активный план работ и статус блоков                            |
+| `COMPLETED_PLANS.md`          | Архив: дорожная карта MVP, продуктовые решения, заметки по сессиям |
+| `NOTES.md`                    | Замечания заказчика по ручному E2E и что по ним сделано        |
+| `AGENTS.md`                   | Сжатая сводка проекта и договорённости (вход для ИИ-агента)     |
+| `docs/technical-debt.md`      | Осознанные упрощения и отложенные решения                      |
+| `docs/api-testing-postman.md` | Как проверить API через Postman                                |
+| `apps/backend/tests/README.md`| Состав и правила смоук-тестов                                  |
+
+> `docs/api-contract.md` — исторический документ: подробный контракт Session 4 с дописками по
+> 1.18.0. Эндпоинты 1.19–1.21 в нём не отражены, актуальное описание API — в этом README и в коде.
 
 ## Известные особенности
 
-- `bun --watch` из `apps/backend` следит только за файлами пакета; правки в `packages/shared`
-  требуют ручного перезапуска dev-сервера.
-- `.env` читается только через `bun run`-скрипты (dotenv-cli); при прямом запуске из
-  `apps/backend` переменные не подхватываются.
-- Каталог `uploads/` создаётся автоматически при первой загрузке.
+- **Разработка ведётся на Windows.** `bun --watch` из `apps/backend` следит только за файлами
+  пакета: правки в `packages/shared` требуют ручного перезапуска dev-сервера.
+- `.env` подхватывается только через `bun run`-скрипты (`dotenv-cli`). При прямом запуске
+  из `apps/backend` переменные не читаются — используйте команды из корня.
+- Vite намеренно слушает `127.0.0.1` (IPv4): иначе `localhost` не открывается в браузере.
+- Каталог `uploads/` создаётся автоматически при первой загрузке файла.
+- **Заменить заглушки контактов**: телефон и почта организаторов в
+  `apps/frontend/src/lib/contacts.ts` — плейсхолдеры (поиск по метке `TODO(contacts)`).
 
-## Версионирование
+## Заметки для деплоя
 
-- Семантика версий: **X.0.0** — мажорный апдейт, **1.X.0** — обычный апдейт (фича),
-  **1.4.X** — минорный апдейт (патч/фикс).
-- Значимые изменения поднимают версию всех воркспейсов синхронно (`apps/backend`,
-  `apps/frontend`, `packages/shared`); версия указывается в сообщении git-коммита.
-- Все изменения фиксируются в [`CHANGELOG.md`](CHANGELOG.md).
-- Дорожная карта и заметки — в [`PLANS.md`](PLANS.md); технический долг — в
-  [`docs/technical-debt.md`](docs/technical-debt.md); рабочий контекст агента — в [`AGENTS.md`](AGENTS.md).
+Полный чек-лист — блок D в [`PLANS.md`](PLANS.md). Ключевое:
+
+- `uploads/` держать **вне статики** веб-сервера: файлы раздаёт только API.
+- Права: файлы `640`, каталоги `750`; запрет исполнения в `uploads/`.
+- `JWT_SECRET` — длинная случайная строка; без неё в production сервер не стартует.
+- Перед первым запуском на сервере: `bun db:push` (или миграции — см. «База данных»),
+  затем `bun seed` для создания администратора.
+- Резервное копирование: БД + `uploads/` (+ `logs/` при необходимости).
+- Вопрос открыт: миграции Prisma или `db:push` на проде (см. «Миграции — важно для деплоя»).

@@ -1,0 +1,43 @@
+# Нормализация концов строк.
+#
+# Проект разрабатывается на Windows, а деплой — на Linux. Без этих правил git
+# переписывает концы строк при checkout, и любой коммит из другой ОС выглядит как
+# «изменён весь файл». Поэтому в репозитории и в рабочей копии — всегда LF.
+* text=auto eol=lf
+
+# Явно текстовые файлы (на случай, если автоопределение ошибётся).
+*.ts    text
+*.tsx   text
+*.js    text
+*.json  text
+*.jsonc text
+*.css   text
+*.md    text
+*.yml   text
+*.yaml  text
+*.sql   text
+*.sh    text eol=lf
+
+# Скрипты Windows должны сохранять CRLF, иначе cmd/powershell их не выполнят.
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Бинарные файлы: git не должен пытаться их сливать или менять.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.svg   text
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.pdf   binary
+*.mp4   binary
+*.docx  binary
+*.xlsx  binary
+*.zip   binary
+
+# Скриншоты и дампы не нужны в diff-выводе.
+*.screenshot.png -diff

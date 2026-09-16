@@ -1,31 +1,63 @@
-# Зависимости
-node_modules/
-
-# Сборка
-dist/
-build/
-*.tsbuildinfo
-
-# Prisma: сгенерированный клиент
-packages/shared/src/generated/
-
-# Локальное окружение и секреты
+# --- Секреты и локальное окружение ---
+# `.env` никогда не коммитится; в репозитории живёт только образец `.env.example`.
 .env
 .env.*
 !.env.example
 
-# Загруженные пользователями файлы (локальное хранилище)
+# --- Зависимости ---
+node_modules/
+.bun/
+.pnp/
+.pnp.js
+
+# --- Сборка и кеши ---
+dist/
+build/
+.cache/
+.vite/
+.turbo/
+*.tsbuildinfo
+
+# --- Prisma: сгенерированный клиент ---
+# Восстанавливается командой `bun db:generate` (обязательна после клонирования).
+packages/shared/src/generated/
+
+# --- Пользовательские файлы и логи (данные, не код) ---
 uploads/
-
-# Файловые логи аудита
 logs/
-
-# Логи и файлы ОС
 *.log
-.DS_Store
-Thumbs.db
 
-# Редакторы / IDE
+# --- Покрытие тестов ---
+coverage/
+*.lcov
+
+# --- Временные и служебные файлы ---
+*.pid
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+*.swp
+*~
+*.local
+
+# --- Логи и файлы ОС ---
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
+
+# --- Редакторы и IDE ---
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# --- Инструменты ИИ-агентов (локальные настройки, не часть проекта) ---
+.claude/
+.cursor/
+.zed/
+.agents/
+.aider*
+CLAUDE.md
