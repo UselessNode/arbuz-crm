@@ -24,8 +24,20 @@ export { NumberInput } from './Form';
 export type { NumberInputProps } from './Form';
 export { Slider } from './Form';
 export type { SliderProps } from './Form';
+export { RangeSlider } from './Form';
+export type { RangeSliderProps } from './Form';
 export { DatePicker } from './Form';
 export type { DatePickerProps } from './Form';
+export { DateInput } from './Form';
+export type { DateInputProps } from './Form';
+export { RangeDatePicker } from './Form';
+export type { RangeDatePickerProps } from './Form';
+export { DateRangeInput } from './Form';
+export type { DateRangeInputProps } from './Form';
+export { EMPTY_DATE_RANGE, isDateRangeEmpty, stepDateRange } from './Form';
+export type { DateRange } from './Form';
+export { moveRangeHandle } from './Form';
+export type { NumericRange } from './Form';
 export { Select } from './Form';
 export type { SelectProps, SelectOption } from './Form';
 export { Textarea } from './Form';
@@ -51,6 +63,9 @@ export type { PaginationProps } from './Pagination';
 
 export { SectionHint } from './SectionHint';
 export type { SectionHintProps } from './SectionHint';
+
+export { KebabMenu } from './Menu/KebabMenu';
+export type { KebabMenuProps, KebabMenuItem } from './Menu/KebabMenu';
 
 // `MarkdownEditor` намеренно не реэкспортируется: он тянет MDXEditor (~700 КБ).
 // Статический реэкспорт из barrel втянул бы редактор в основной чанк для всех страниц.

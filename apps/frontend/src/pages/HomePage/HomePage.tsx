@@ -6,6 +6,7 @@ import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
 import { copyToClipboard } from '../../lib/clipboard';
 import { ORGANIZER_CONTACTS } from '../../lib/contacts';
+import { PostContent } from '../../features/posts/PostContent';
 import melonLogo from '../../assets/images/Melon.png';
 import styles from './HomePage.module.css';
 
@@ -73,8 +74,9 @@ export function HomePage() {
                       {/* Автор скрыт, если публикация помечена как обратная связь от организации. */}
                       {post.authorName ? <span> · {post.authorName}</span> : null}
                     </div>
-                    {/* HTML санитизируется на сервере (contentHtml). */}
-                    <div className={styles.postContent} dangerouslySetInnerHTML={{ __html: post.contentHtml }} />
+                    {/* HTML санитизируется на сервере (contentHtml); подряд идущие
+                        картинки показываются каруселью (PostContent). */}
+                    <PostContent html={post.contentHtml} className={styles.postContent} />
                     <PostAttachments post={post} />
                   </article>
                 ))}
@@ -88,7 +90,6 @@ export function HomePage() {
           <h2 className={styles.sectionTitle}>Контакты</h2>
           <ContactValue label="Телефон" value={ORGANIZER_CONTACTS.phone} />
           <ContactValue label="Электронная почта" value={ORGANIZER_CONTACTS.email} />
-          <p className={styles.contactsHint}>Нажмите на контакт, чтобы скопировать его.</p>
           <div className={styles.imgContainer}>
             <img src={melonLogo} alt="Арбузный грант" className={styles.heroLogo} />
           </div>

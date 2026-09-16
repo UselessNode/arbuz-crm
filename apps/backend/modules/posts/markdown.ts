@@ -5,7 +5,10 @@
 // Редактор (MDXEditor) пишет Markdown расширенного набора, поэтому здесь есть:
 //   • подсветка `==текст==` (GFM-совместимого синтаксиса нет — расширение marked);
 //   • выноски GitHub-стиля `> [!NOTE]` … — блокquote с классом callout-*;
-//   • строчный HTML `<u>`, `<sup>`, `<sub>` (так редактор сохраняет эти форматы).
+//   • строчный HTML `<u>`, `<sup>`, `<sub>` (так редактор сохраняет эти форматы);
+//   • галерея: несколько подряд идущих картинок собираются в блок `post-gallery`,
+//     который фронтенд показывает каруселью (отдельный синтаксис автору не нужен —
+//     достаточно вставить несколько изображений подряд).
 import {
   marked,
   type RendererExtension,
@@ -14,6 +17,9 @@ import {
   type Tokens,
 } from 'marked';
 import sanitizeHtml from 'sanitize-html';
+
+/** Класс блока галереи: используется фронтендом для сборки карусели. */
+export const POST_GALLERY_CLASS = 'post-gallery';
 
 const ALLOWED_TAGS = [
   'p', 'br', 'hr', 'strong', 'b', 'em', 'i', 'del', 's',
@@ -74,7 +80,7 @@ marked.use({
 /** Рендер Markdown → безопасный HTML для публичной ленты. */
 export function renderMarkdown(content: string): string {
   const raw = marked.parse(content ?? '', { async: false }) as string;
-  return sanitizeHtml(raw, {
+  const safe = sanitizeHtml(raw, {
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: {
       // `rel` нужен: его добавляет transformTags ниже, а атрибуты фильтруются после трансформации.
@@ -89,4 +95,48 @@ export function renderMarkdown(content: string): string {
       a: sanitizeHtml.simpleTransform('a', { rel: 'noopener noreferrer' }),
     },
   });
+  // Обёртка галереи добавляется ПОСЛЕ санитайзера: это наш собственный тег,
+  // а не пользовательский HTML, поэтому разрешать `div` целиком не требуется.
+  return groupImageParagraphs(safe);
+}
+
+/**
+ * Собирает подряд идущие абзацы, состоящие только из картинок, в один блок галереи.
+ * Одиночная картинка остаётся как есть — галерея появляется от двух изображений.
+ */
+export function groupImageParagraphs(html: string): string {
+  const imageParagraph = /<p>\s*((?:<img\b[^>]*>\s*)+)<\/p>/g;
+  const imageTag = /<img\b[^>]*>/g;
+
+  const matches: Array<{ start: number; end: number; images: string[] }> = [];
+  for (let match = imageParagraph.exec(html); match; match = imageParagraph.exec(html)) {
+    matches.push({
+      start: match.index,
+      end: match.index + match[0].length,
+      images: match[1].match(imageTag) ?? [],
+    });
+  }
+  if (matches.length === 0) return html;
+
+  // Соседние абзацы считаем одной галереей, если между ними только пробельные символы.
+  const runs: Array<{ start: number; end: number; images: string[] }> = [];
+  for (const item of matches) {
+    const previous = runs[runs.length - 1];
+    if (previous && html.slice(previous.end, item.start).trim() === '') {
+      previous.end = item.end;
+      previous.images.push(...item.images);
+    } else {
+      runs.push({ start: item.start, end: item.end, images: [...item.images] });
+    }
+  }
+
+  let result = '';
+  let cursor = 0;
+  for (const run of runs) {
+    if (run.images.length < 2) continue;
+    result += html.slice(cursor, run.start);
+    result += `<div class="${POST_GALLERY_CLASS}">${run.images.join('')}</div>`;
+    cursor = run.end;
+  }
+  return result + html.slice(cursor);
 }

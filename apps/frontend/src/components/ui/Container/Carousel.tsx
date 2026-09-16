@@ -1,7 +1,8 @@
-// Карусель: слайды — любые элементы (кнопки, контейнеры, бейджи).
+// Карусель: слайды — любые элементы (кнопки, контейнеры, бейджи, картинки).
 // Каждый ребёнок считается отдельным слайдом.
 import { Children, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '../Icon';
+import { wrapIndex } from './carousel-state';
 import styles from './Container.module.css';
 
 export interface CarouselProps {
@@ -17,6 +18,7 @@ export function Carousel({ children, showDots = true, autoPlayMs = 0, className 
   const slides = Children.toArray(children);
   const [index, setIndex] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (autoPlayMs > 0 && slides.length > 1) {
@@ -29,16 +31,31 @@ export function Carousel({ children, showDots = true, autoPlayMs = 0, className 
     };
   }, [autoPlayMs, slides.length]);
 
+  /**
+   * Неактивные слайды остаются в DOM (иначе поехала бы разметка трека),
+   * поэтому их нужно явно вывести из навигации: `inert` не только скрывает
+   * содержимое от читалок, но и убирает кнопки/ссылки из обхода по Tab.
+   * Эффект, а не callback-ref: тот с постоянной ссылкой вызывается только
+   * при монтировании и не обновил бы состояние при переключении слайда.
+   */
+  useEffect(() => {
+    const nodes = trackRef.current?.children;
+    if (!nodes) return;
+    Array.from(nodes).forEach((node, i) => {
+      if (node instanceof HTMLElement) node.inert = i !== index;
+    });
+  }, [index, slides.length]);
+
   const goTo = (next: number) => {
     if (slides.length === 0) return;
-    setIndex(((next % slides.length) + slides.length) % slides.length);
+    setIndex(wrapIndex(next, slides.length));
   };
 
   if (slides.length === 0) return null;
 
   return (
     <div className={`${styles.carousel} ${className ?? ''}`}>
-      <div className={styles.carouselTrack} style={{ transform: `translateX(-${index * 100}%)` }}>
+      <div className={styles.carouselTrack} ref={trackRef} style={{ transform: `translateX(-${index * 100}%)` }}>
         {slides.map((slide, i) => (
           <div className={styles.carouselSlide} key={i} aria-hidden={i !== index}>
             {slide}

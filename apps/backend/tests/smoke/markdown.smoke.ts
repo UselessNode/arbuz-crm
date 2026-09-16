@@ -1,8 +1,9 @@
 // Смоук: рендер Markdown публикаций → безопасный HTML.
 //
 // Проверяет расширения, которые нужны редактору (подсветка `==…==`, выноски
-// `> [!NOTE]`, строчный HTML `<u>/<sup>/<sub>`, чек-листы) и то, что опасный
-// ввод вычищается санитайзером. Чистая функция — без БД.
+// `> [!NOTE]`, строчный HTML `<u>/<sup>/<sub>`, чек-листы), сборку галереи
+// из подряд идущих картинок и то, что опасный ввод вычищается санитайзером.
+// Чистая функция — без БД.
 import { renderMarkdown } from '../../modules/posts/markdown';
 import { createSmoke } from '../helpers/smoke';
 
@@ -38,6 +39,42 @@ function main(): void {
   smoke.ok('выноска: текст сохранён', warn.includes('Проверьте данные'), warn);
   smoke.ok('обычная цитата без класса', !renderMarkdown('> просто цитата').includes('callout'));
   smoke.ok('выноска не ломает обычную цитату', renderMarkdown('> просто цитата').includes('<blockquote>'));
+
+  // Галерея: несколько картинок подряд собираются в один блок для карусели.
+  const galleryImages = renderMarkdown('![раз](https://example.com/1.png)\n\n![два](https://example.com/2.png)');
+  smoke.ok('галерея: блок создан', galleryImages.includes('<div class="post-gallery">'), galleryImages);
+  smoke.ok(
+    'галерея: обе картинки внутри блока',
+    galleryImages.includes('1.png') && galleryImages.includes('2.png'),
+    galleryImages,
+  );
+  smoke.ok('галерея: тег p больше не оборачивает картинки', !galleryImages.includes('<p><img'), galleryImages);
+
+  const inlineImages = renderMarkdown('![a](https://example.com/a.png)\n![b](https://example.com/b.png)');
+  smoke.ok('галерея: картинки в одном абзаце тоже собираются', inlineImages.includes('<div class="post-gallery">'), inlineImages);
+
+  // Одиночная картинка галереей не становится.
+  const singleImage = renderMarkdown('![одна](https://example.com/solo.png)');
+  smoke.ok('одиночная картинка: без галереи', !singleImage.includes('post-gallery'), singleImage);
+  smoke.ok('одиночная картинка: тег img на месте', singleImage.includes('solo.png'), singleImage);
+
+  // Картинка в тексте абзаца — не галерея.
+  const imageWithText = renderMarkdown('Текст ![фото](https://example.com/1.png) и продолжение');
+  smoke.ok('картинка внутри текста: без галереи', !imageWithText.includes('post-gallery'), imageWithText);
+
+  // Галереи разделяются обычным текстом, а не сливаются в одну.
+  const twoGalleries = renderMarkdown(
+    '![a](https://example.com/a.png)\n\n![b](https://example.com/b.png)\n\nМежду ними текст\n\n![c](https://example.com/c.png)\n\n![d](https://example.com/d.png)',
+  );
+  smoke.eq('две галереи разделены текстом', (twoGalleries.match(/post-gallery/g) ?? []).length, 2);
+
+  // Порядок в галерее не меняется.
+  const ordered = renderMarkdown('![1](https://example.com/1.png)\n\n![2](https://example.com/2.png)\n\n![3](https://example.com/3.png)');
+  smoke.ok(
+    'галерея: порядок картинок сохранён',
+    ordered.indexOf('1.png') < ordered.indexOf('2.png') && ordered.indexOf('2.png') < ordered.indexOf('3.png'),
+    ordered,
+  );
 
   // Безопасность: скрипты, опасные схемы и обработчики вычищаются.
   smoke.ok('script вырезан', !renderMarkdown('<script>alert(1)</script>').includes('<script'));

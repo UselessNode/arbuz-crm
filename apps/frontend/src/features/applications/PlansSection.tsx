@@ -1,7 +1,7 @@
 // Секция «План мероприятий» в карточке заявки.
 import { useState, type FormEvent } from 'react';
-import { Button, ConfirmDialog, DatePicker, Input, Modal, StateMessage, Table } from '../../components/ui';
-import type { TableColumn } from '../../components/ui';
+import { Button, ConfirmDialog, DateRangeInput, Input, Modal, StateMessage, Table } from '../../components/ui';
+import type { DateRange, TableColumn } from '../../components/ui';
 import { applicationsApi, type PlanPayload, type ProjectPlan } from '../../api/applications';
 import { ApiError } from '../../api/client';
 import { formatDate, toDateInputValue } from '../../lib/format';
@@ -124,31 +124,20 @@ export function PlansSection({ applicationId, plans, readOnly = false, onChanged
             value={form.event_description ?? ''}
             onChange={(e) => setForm({ ...form, event_description: e.target.value })}
           />
-          <div className={styles.grid2}>
-            <DatePicker
-              label="Начало"
-              value={form.start_date ?? ''}
-              onChange={(value) =>
+          {/* Период мероприятия: даты можно ввести руками (маска) или отметить в календаре. */}
+          <DateRangeInput
+            label="Период мероприятия"
+            value={{ from: form.start_date ?? '', to: form.end_date ?? '' }}
+            onChange={(range: DateRange) =>
+              setForm((prev) => ({
+                ...prev,
+                start_date: range.from,
                 // Окончание не может быть раньше начала: подтягиваем его за началом.
-                setForm((prev) => ({
-                  ...prev,
-                  start_date: value,
-                  end_date: prev.end_date && value && prev.end_date < value ? value : prev.end_date,
-                }))
-              }
-              rangeStart={form.start_date ?? undefined}
-              rangeEnd={form.end_date ?? undefined}
-            />
-            <DatePicker
-              label="Окончание"
-              value={form.end_date ?? ''}
-              onChange={(value) => setForm({ ...form, end_date: value })}
-              min={form.start_date ?? undefined}
-              rangeStart={form.start_date ?? undefined}
-              rangeEnd={form.end_date ?? undefined}
-              error={form.start_date && form.end_date && form.end_date < form.start_date ? 'Раньше даты начала' : undefined}
-            />
-          </div>
+                end_date: range.to && range.from && range.to < range.from ? range.from : range.to,
+              }))
+            }
+            hint="Можно ввести даты вручную или выбрать период в календаре"
+          />
           {error ? <div className={styles.error}>{error}</div> : null}
           <div className={styles.formActions}>
             <Button variant="secondary" type="button" onClick={() => setOpen(false)} disabled={saving}>

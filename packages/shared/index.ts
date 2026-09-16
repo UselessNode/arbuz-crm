@@ -11,3 +11,6 @@
  */
 export * from './src/generated/prisma/index.js';
 export * from './src/constants/posts.js';
+// `PdfReportKind` уже экспортирует сгенерированный Prisma-клиент (enum из схемы),
+// поэтому из констант берём только значения-строки и проверку.
+export { PdfReportKinds, PDF_REPORT_KINDS, isPdfReportKind } from './src/constants/pdf-export.js';

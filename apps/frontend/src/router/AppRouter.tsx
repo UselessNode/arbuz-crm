@@ -10,6 +10,7 @@ import { ApplicantApplicationsPage } from '../features/applications/ApplicantApp
 import { ApplicationDetailPage } from '../features/applications/ApplicationDetailPage';
 import { ExpertApplicationsPage } from '../features/expert/ExpertApplicationsPage';
 import { ReviewsPage } from '../features/reviews/ReviewsPage';
+import { ReviewsSummaryPage } from '../features/reviews/ReviewsSummaryPage';
 import { PostsPage } from '../features/posts/PostsPage';
 import { PostEditorPage } from '../features/posts/PostEditorPage';
 import { ContestSettingsPage } from '../features/references/ContestSettingsPage';
@@ -78,6 +79,7 @@ export function AppRouter() {
         <Route path="applications" element={<ApplicationsPage />} />
         <Route path="applications/:applicationId" element={<ApplicationDetailPage area="admin" />} />
         <Route path="reviews" element={<ReviewsPage />} />
+        <Route path="reviews/summary" element={<ReviewsSummaryPage />} />
         <Route path="posts" element={<PostsPage />} />
         <Route path="posts/new" element={<PostEditorPage />} />
         <Route path="posts/:postId" element={<PostEditorPage />} />

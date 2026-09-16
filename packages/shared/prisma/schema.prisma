@@ -38,6 +38,12 @@ enum PdfExportStatus {
   error
 }
 
+/// Тип PDF-отчёта (совпадает с PdfReportKind из packages/shared/src/constants/pdf-export.ts).
+enum PdfReportKind {
+  application
+  reviews
+}
+
 model additional_materials {
   id              Int          @id @default(autoincrement())
   application_id  Int
@@ -365,21 +371,30 @@ model posts {
   @@index([deleted_at], map: "idx_posts_deleted", where: raw("(deleted_at IS NULL)"))
 }
 
-// Задачи асинхронной генерации PDF-экспорта заявки.
+// Задачи асинхронной генерации PDF-отчётов.
 model pdf_export_jobs {
   id             Int             @id @default(autoincrement())
-  application_id Int
+  /// Что выгружается: отчёт по заявке (application) или по набору экспертиз (reviews).
+  kind           PdfReportKind   @default(application)
+  /// Отбор экспертиз для kind = reviews: { expert_id } | { status_id } |
+  /// { application_id } | { review_ids: number[] }. Для kind = application не используется.
+  params         Json?
+  /// Подпись отчёта для списка и тостов («Отчёт по эксперту: Иванов И. И.»).
+  label          String?         @db.VarChar(255)
+  /// Заполняется только для kind = application.
+  application_id Int?
   status         PdfExportStatus @default(pending)
   file_id        Int? // файл с готовым PDF (строки из tables files), заполняется после генерации
   error          String?         @db.Text
   created_at     DateTime        @default(now()) @db.Timestamptz(6)
   updated_at     DateTime        @default(now()) @db.Timestamptz(6)
-  applications   applications    @relation(fields: [application_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  applications   applications?   @relation(fields: [application_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   files          files?          @relation(fields: [file_id], references: [id], onUpdate: NoAction, onDelete: SetNull)
 
   @@index([application_id], map: "idx_pdf_export_jobs_application")
   @@index([status], map: "idx_pdf_export_jobs_status")
   @@index([file_id], map: "idx_pdf_export_jobs_file")
+  @@index([kind, created_at], map: "idx_pdf_export_jobs_kind_created")
 }
 
 // Связь поста со вложениями (файлы модуля files).

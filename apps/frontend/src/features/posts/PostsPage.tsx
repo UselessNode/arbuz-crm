@@ -8,6 +8,7 @@ import {
   Button,
   ConfirmDialog,
   Container,
+  KebabMenu,
   ListToolbar,
   Pagination,
   SearchInput,
@@ -17,7 +18,13 @@ import {
   Table,
   useToast,
 } from '../../components/ui';
-import type { SelectOption, StatusOption, TableColumn } from '../../components/ui';
+import type {
+  ButtonVariant,
+  IconName,
+  SelectOption,
+  StatusOption,
+  TableColumn,
+} from '../../components/ui';
 import { PostStatuses } from '../../lib/post-status';
 import type { PostStatus } from '@arbuz/shared';
 import { postsApi, type Post, type PostPayload } from '../../api/posts';
@@ -29,6 +36,9 @@ const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 
 /** Базовый путь раздела: список и страница публикации. */
 const LIST_PATH = '/admin/posts';
+
+/** Точка переключения на мобильную раскладку действий. */
+const MOBILE_BREAKPOINT = 768;
 
 const POST_STATUS_OPTIONS: readonly StatusOption<PostStatus>[] = [
   { value: PostStatuses.draft, label: 'Черновик', tone: 'gray' },
@@ -59,9 +69,45 @@ function buildPayload(post: Post, override: Partial<PostPayload> = {}): PostPayl
   };
 }
 
+/**
+ * Описание быстрого действия над публикацией.
+ * Один и тот же список используется для сетки кнопок и для kebab-меню.
+ */
+type RowAction = {
+  key: string;
+  label: string;
+  icon: IconName;
+  variant: ButtonVariant;
+  disabled: boolean;
+  title?: string;
+  onSelect: () => void;
+};
+
+/**
+ * Отслеживает мобильный вьюпорт, чтобы не рендерить одновременно
+ * сетку кнопок и kebab-меню (иначе действия дублировались бы в DOM).
+ */
+function useIsMobile(breakpoint: number = MOBILE_BREAKPOINT): boolean {
+  const query = `(max-width: ${breakpoint - 1}px)`;
+  const [isMobile, setIsMobile] = useState<boolean>(() =>
+    typeof window === 'undefined' ? false : window.matchMedia(query).matches,
+  );
+
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const handle = (event: MediaQueryListEvent) => setIsMobile(event.matches);
+    mql.addEventListener('change', handle);
+    return () => mql.removeEventListener('change', handle);
+  }, [query]);
+
+  return isMobile;
+}
+
 export function PostsPage() {
   const toast = useToast();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -153,10 +199,90 @@ export function PostsPage() {
     }
   };
 
+  /**
+   * Фиксированный набор из 4 действий — раскладка 2×2 на десктопе:
+   *   [Опубликовать] [Запланировать | В архив | Из архива]
+   *   [Изменить]     [Удалить]
+   * Недоступные для текущего статуса кнопки остаются в разметке, но `disabled`.
+   */
+  const buildRowActions = (post: Post): RowAction[] => {
+    const busy = busyId === post.id;
+    const isDraft = post.status === PostStatuses.draft;
+    const isPublished = post.status === PostStatuses.published;
+    const isArchived = post.status === PostStatuses.archived;
+
+    const publish: RowAction = {
+      key: 'publish',
+      label: 'Опубликовать',
+      icon: 'check',
+      variant: 'primary',
+      disabled: busy || isPublished || isArchived,
+      title: isPublished || isArchived ? 'Публикация уже в ленте' : 'Опубликовать сейчас',
+      onSelect: () => void publishNow(post),
+    };
+
+    let secondary: RowAction;
+    if (isArchived) {
+      secondary = {
+        key: 'restore',
+        label: 'Из архива',
+        icon: 'undo',
+        variant: 'secondary',
+        disabled: busy,
+        title: 'Вернуть публикацию в ленту',
+        onSelect: () => void applyChange(post, { archived: false }, 'Публикация возвращена из архива'),
+      };
+    } else if (isPublished) {
+      secondary = {
+        key: 'archive',
+        label: 'В архив',
+        icon: 'archive',
+        variant: 'secondary',
+        disabled: busy,
+        title: 'Скрыть публикацию с домашней страницы',
+        onSelect: () => void applyChange(post, { archived: true }, 'Публикация в архиве'),
+      };
+    } else {
+      secondary = {
+        key: 'schedule',
+        label: 'Запланировать',
+        icon: 'calendar',
+        variant: 'secondary',
+        // Планировать можно только черновик: у запланированной дата уже стоит.
+        disabled: busy || !isDraft,
+        title: isDraft ? 'Выбрать дату выхода' : 'Публикация уже запланирована',
+        onSelect: () => navigate(`${LIST_PATH}/${post.id}?mode=scheduled`),
+      };
+    }
+
+    return [
+      publish,
+      secondary,
+      {
+        key: 'edit',
+        label: 'Изменить',
+        icon: 'edit',
+        variant: 'secondary',
+        disabled: busy,
+        title: 'Открыть редактор публикации',
+        onSelect: () => navigate(`${LIST_PATH}/${post.id}`),
+      },
+      {
+        key: 'delete',
+        label: 'Удалить',
+        icon: 'delete',
+        variant: 'danger',
+        disabled: busy,
+        title: 'Удалить публикацию',
+        onSelect: () => setDeleting(post),
+      },
+    ];
+  };
+
   const columns: TableColumn<Post>[] = [
     {
       key: 'title',
-      header: 'Заголовок',
+      header: 'Заголовок публикации',
       render: (post) => (
         <div className={styles.cellMain}>
           <span className={styles.postTitle}>{post.title}</span>
@@ -182,7 +308,7 @@ export function PostsPage() {
     },
     {
       key: 'created',
-      header: 'Создана',
+      header: 'Дата',
       render: (post) => formatDateTime(post.createdAt),
     },
     {
@@ -190,64 +316,42 @@ export function PostsPage() {
       header: '',
       width: '320px',
       render: (post) => {
-        const busy = busyId === post.id;
+        const actions = buildRowActions(post);
+
+        if (isMobile) {
+          return (
+            <div className={styles.actionsMobile}>
+              <KebabMenu
+                label="Действия с публикацией"
+                items={actions.map((action) => ({
+                  key: action.key,
+                  label: action.label,
+                  icon: action.icon,
+                  disabled: action.disabled,
+                  // В меню нет «вариантов» — опасное действие помечаем флагом.
+                  danger: action.variant === 'danger',
+                  onSelect: action.onSelect,
+                }))}
+              />
+            </div>
+          );
+        }
+
         return (
-          <div className={styles.actions}>
-            {post.status === PostStatuses.archived ? (
+          <div className={styles.actions} role="group" aria-label="Действия с публикацией">
+            {actions.map((action) => (
               <Button
+                key={action.key}
                 size="sm"
-                variant="secondary"
-                disabled={busy}
-                title="Вернуть публикацию в ленту"
-                onClick={() => void applyChange(post, { archived: false }, 'Публикация возвращена из архива')}
+                variant={action.variant}
+                icon={action.icon}
+                disabled={action.disabled}
+                title={action.title}
+                onClick={action.onSelect}
               >
-                Из архива
+                {action.label}
               </Button>
-            ) : post.status === PostStatuses.published ? (
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={busy}
-                title="Скрыть публикацию с домашней страницы"
-                onClick={() => void applyChange(post, { archived: true }, 'Публикация в архиве')}
-              >
-                В архив
-              </Button>
-            ) : (
-              <>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  icon="check"
-                  disabled={busy}
-                  title="Опубликовать сейчас"
-                  onClick={() => void publishNow(post)}
-                >
-                  Опубликовать
-                </Button>
-                {post.status === PostStatuses.draft ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    icon="calendar"
-                    disabled={busy}
-                    title="Выбрать дату выхода"
-                    onClick={() => navigate(`${LIST_PATH}/${post.id}?mode=scheduled`)}
-                  >
-                    Запланировать
-                  </Button>
-                ) : null}
-              </>
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              icon="edit"
-              aria-label="Изменить"
-              disabled={busy}
-              onClick={() => navigate(`${LIST_PATH}/${post.id}`)}
-            />
-            <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" disabled={busy} onClick={() => setDeleting(post)} />
+            ))}
           </div>
         );
       },

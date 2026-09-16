@@ -1,9 +1,21 @@
+/* Действия в строке таблицы: сетка 2×2 на десктопе. */
 .actions {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.actions > button {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Мобильная обёртка: одна kebab-кнопка, прижатая вправо. */
+.actionsMobile {
+  display: flex;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: var(--space-1);
 }
 
 /* Ячейка «Заголовок»: название и пояснительные пометки под ним. */

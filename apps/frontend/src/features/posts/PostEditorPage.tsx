@@ -338,6 +338,9 @@ export function PostEditorPage() {
 
         <div className={styles.editorWrap}>
           <span className={styles.sectionLabel}>Содержание публикации</span>
+          <p className={styles.note}>
+            Вставьте подряд несколько изображений — в ленте они покажутся каруселью с листанием.
+          </p>
           <Suspense fallback={<StateMessage state="loading" />}>
             <MarkdownEditor
               markdown={content}

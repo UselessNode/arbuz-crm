@@ -54,7 +54,7 @@ export function AccountPage() {
         <div className={styles.contacts}>
           <h2 className={styles.contactsTitle}>Связь с организаторами</h2>
           <p className={styles.contactsText}>
-            Вопросы по заявкам и сброс пароля — по телефону или почте ниже. Нажмите на контакт, чтобы скопировать.
+            Вопросы по заявкам и сброс пароля — по телефону или почте ниже.
           </p>
           <button type="button" className={styles.contactValue} onClick={() => void handleCopy(ORGANIZER_CONTACTS.phone)}>
             {ORGANIZER_CONTACTS.phone}

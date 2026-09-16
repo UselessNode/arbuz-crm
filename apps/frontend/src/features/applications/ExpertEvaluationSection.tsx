@@ -136,7 +136,7 @@ export function ExpertEvaluationSection({ application, onChanged }: Props) {
       )}
 
       <Badge>Итоговый балл: {totalScore.toLocaleString('ru-RU')}</Badge>
-      <Textarea label="Текст экспертизы" value={text} onChange={(event) => setText(event.target.value)} />
+      <Textarea label="Комментарий эксперта" value={text} onChange={(event) => setText(event.target.value)} />
       {error ? <div className={styles.error}>{error}</div> : null}
       <div className={styles.formActions}>
         {/* Вердикт — текущий статус экспертизы; подставляется по умолчанию, отдельного
