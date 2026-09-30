@@ -1,0 +1,96 @@
+/* Админский раздел «Документы и согласия». */
+.tabs {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+}
+
+.cellMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.note {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: 14px;
+}
+
+/* Раздел «Соглашения»: карточки по типам документов. */
+.consents {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.consentCard {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  padding: var(--space-4);
+}
+
+.consentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.consentTitle {
+  margin: 0;
+  font-size: 16px;
+}
+
+.history {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.historyItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 13px;
+}
+
+.hash {
+  color: var(--color-muted);
+  font-size: 12px;
+}

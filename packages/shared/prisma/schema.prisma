@@ -15,6 +15,14 @@ enum RoleType {
   applicant
 }
 
+/// Тип документа согласия пользователя.
+/// terms — пользовательское соглашение; personal_data_consent — согласие на обработку ПДн.
+/// Это два независимых события (требование 152-ФЗ).
+enum ConsentDocumentType {
+  terms
+  personal_data_consent
+}
+
 model review_statuses {
   id          Int       @id @default(autoincrement())
   name        String    @db.VarChar(100)
@@ -196,6 +204,7 @@ model files {
   file_categories file_categories? @relation(fields: [category_id], references: [id], onUpdate: NoAction)
   posts_files     posts_files[]
   pdf_export_jobs pdf_export_jobs[]
+  documents       documents[]
 
   @@index([category_id], map: "idx_files_category")
   @@index([deleted_at], map: "idx_files_deleted", where: raw("(deleted_at IS NULL)"))
@@ -319,6 +328,8 @@ model users {
   change_logs   change_logs[]
   application_reviews application_reviews[]
   posts         posts[]
+  consent_documents consent_documents[] @relation("ConsentDocumentAuthor")
+  consent_events    consent_events[]    @relation("ConsentEventUser")
 
   @@index([deleted_at], map: "idx_users_deleted", where: raw("(deleted_at IS NULL)"))
   @@index([last_activity], map: "idx_users_last_activity")
@@ -342,6 +353,70 @@ model consent_files {
   @@index([deleted_at], map: "idx_consent_files_deleted", where: raw("(deleted_at IS NULL)"))
 }
 
+/// Неизменяемые редакции текстов соглашений пользователя.
+/// Старые редакции не перезаписываются: новая редакция — новая строка со своим хэшем.
+/// Минимальная доказательная цепочка: «кто → что → какую версию → когда → каким действием».
+model consent_documents {
+  id            Int                 @id @default(autoincrement())
+  document_type ConsentDocumentType
+  /// Версия редакции (напр. дата). В паре с типом уникальна.
+  version       String              @db.VarChar(50)
+  /// SHA-256 хэш текста (hex, 64 символа) — фиксирует неизменность редакции.
+  hash_sha256   String              @db.Char(64)
+  /// Полный текст редакции (Markdown); фронтенду отдаётся безопасный HTML.
+  text          String              @db.Text
+  published_at  DateTime            @default(now()) @db.Timestamptz(6)
+  created_by    Int?
+  created_at    DateTime            @default(now()) @db.Timestamptz(6)
+  author        users?              @relation("ConsentDocumentAuthor", fields: [created_by], references: [id], onUpdate: NoAction)
+
+  @@unique([document_type, version])
+  @@index([document_type, published_at], map: "idx_consent_documents_type_published")
+}
+
+/// Журнал принятия согласий — доказательная запись. Записи не изменяются:
+/// отзыв или новое согласие оформляются отдельным событием.
+model consent_events {
+  id                String              @id @default(uuid())
+  user_id           Int
+  document_type     ConsentDocumentType
+  document_version  String              @db.VarChar(50)
+  document_hash     String              @db.Char(64)
+  accepted_at       DateTime            @default(now()) @db.Timestamptz(6)
+  /// IP-адрес клиента в момент принятия (IPv4/IPv6, до 45 символов).
+  ip_address        String?             @db.VarChar(45)
+  /// User-Agent клиента (полезен как доказательство).
+  user_agent        String?             @db.Text
+  /// Способ подтверждения (напр. "checkbox+submit").
+  acceptance_method String              @default("checkbox") @db.VarChar(50)
+  user              users               @relation("ConsentEventUser", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id], map: "idx_consent_events_user")
+  @@index([document_type], map: "idx_consent_events_type")
+  @@index([accepted_at], map: "idx_consent_events_accepted")
+}
+
+// Публичные документы (согласия, положения и прочее), которые администратор
+// выкладывает в разделе «Документы» на домашней странице. Файл хранится в `files`.
+model documents {
+  id           Int       @id @default(autoincrement())
+  title        String    @db.VarChar(255)
+  description  String?
+  file_id      Int
+  /// Ручной порядок отображения (меньше — выше).
+  sort_order   Int       @default(0)
+  /// Опубликован ли документ в публичном разделе на главной.
+  is_published Boolean   @default(true)
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime  @default(now()) @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+  file         files     @relation(fields: [file_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([is_published, sort_order], map: "idx_documents_public")
+  @@index([deleted_at], map: "idx_documents_deleted", where: raw("(deleted_at IS NULL)"))
+  @@index([file_id], map: "idx_documents_file")
+}
+
 model posts {
   id           Int      @id @default(autoincrement())
   title        String   @db.VarChar(255)
@@ -356,6 +431,10 @@ model posts {
   archived_at  DateTime? @db.Timestamptz(6)
   /// Когда последний раз менялось содержимое (заголовок/текст) — для отметки «Отредактировано».
   edited_at    DateTime? @db.Timestamptz(6)
+  /// Закрепление в ленте: закреплённые публикации идут первыми (и на главной, и в списке).
+  pinned       Boolean   @default(false)
+  /// Ручной порядок отображения внутри группы (меньше — выше); при равенстве — по дате.
+  sort_order   Int       @default(0)
   created_by   Int?
   category_id  Int?
   created_at   DateTime @default(now()) @db.Timestamptz(6)
@@ -369,6 +448,7 @@ model posts {
   @@index([category_id], map: "idx_posts_category")
   @@index([created_at], map: "idx_posts_created")
   @@index([deleted_at], map: "idx_posts_deleted", where: raw("(deleted_at IS NULL)"))
+  @@index([pinned, sort_order], map: "idx_posts_order")
 }
 
 // Задачи асинхронной генерации PDF-отчётов.

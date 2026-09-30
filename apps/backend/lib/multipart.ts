@@ -9,6 +9,8 @@ export interface MultipartFile {
   buffer: Buffer;
   originalName: string;
   comment?: string;
+  /** Все текстовые поля формы (кроме файла): title, description и т. п. */
+  fields: Record<string, string>;
 }
 
 export function readMultipartFile(req: Request): Promise<MultipartFile> {
@@ -22,6 +24,7 @@ export function readMultipartFile(req: Request): Promise<MultipartFile> {
     });
     const chunks: Buffer[] = [];
     const comments: string[] = [];
+    const fields: Record<string, string> = {};
     let bytes = 0;
     let fileStarted = false;
     let duplicateFile = false;
@@ -44,6 +47,7 @@ export function readMultipartFile(req: Request): Promise<MultipartFile> {
       stream.on('error', reject);
     });
     bb.on('field', (field, value) => {
+      fields[field] = value;
       if (field === 'comment') comments.push(value);
     });
     bb.on('error', reject);
@@ -67,6 +71,7 @@ export function readMultipartFile(req: Request): Promise<MultipartFile> {
         buffer: Buffer.concat(chunks, bytes),
         originalName,
         comment: comments.length ? comments.join('\n') : undefined,
+        fields,
       });
     });
     req.pipe(bb);

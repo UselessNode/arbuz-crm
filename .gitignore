@@ -61,3 +61,8 @@ desktop.ini
 .agents/
 .aider*
 CLAUDE.md
+
+# --- Документация ---
+docs/media/
+NOTES.md
+PLANS.md

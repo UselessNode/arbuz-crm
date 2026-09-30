@@ -13,12 +13,12 @@ import {
   Container,
   DatePicker,
   DragDrop,
+  Icon,
   Input,
-  Select,
   StateMessage,
   useToast,
 } from '../../components/ui';
-import type { SelectOption } from '../../components/ui';
+import type { IconName } from '../../components/ui';
 import { postsApi, type Post, type PostFile, type PostPayload } from '../../api/posts';
 import { ApiError } from '../../api/client';
 import styles from './PostEditorPage.module.css';
@@ -35,10 +35,11 @@ const LIST_PATH = '/admin/posts';
 const PUBLISH_MODE = { draft: 'draft', now: 'now', scheduled: 'scheduled' } as const;
 type PublishMode = (typeof PUBLISH_MODE)[keyof typeof PUBLISH_MODE];
 
-const PUBLISH_MODE_OPTIONS: readonly SelectOption<PublishMode>[] = [
-  { value: PUBLISH_MODE.draft, label: 'Черновик — в ленте не показывать' },
-  { value: PUBLISH_MODE.now, label: 'Опубликовать сейчас' },
-  { value: PUBLISH_MODE.scheduled, label: 'Запланировать на дату' },
+/** Кнопки режима публикации: иконка + подпись (вместо выпадающего списка). */
+const PUBLISH_MODE_BUTTONS: readonly { value: PublishMode; label: string; icon: IconName }[] = [
+  { value: PUBLISH_MODE.draft, label: 'Черновик', icon: 'drag' },
+  { value: PUBLISH_MODE.now, label: 'Опубликовать сейчас', icon: 'check' },
+  { value: PUBLISH_MODE.scheduled, label: 'Запланировать', icon: 'clock' },
 ];
 
 /** `yyyy-mm-dd` на завтра — минимальная дата для планирования. */
@@ -143,6 +144,10 @@ export function PostEditorPage() {
   );
   const [scheduledDate, setScheduledDate] = useState('');
   const [hideAuthor, setHideAuthor] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  // Порядок здесь не редактируется (настраивается перетаскиванием в списке),
+  // но должен сохраняться при прочих правках — храним в ref без ререндера.
+  const sortOrderRef = useRef(0);
   // Файлы, выбранные до сохранения: загружаем их после сохранения публикации.
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(numericId !== null && !invalidId);
@@ -155,6 +160,8 @@ export function PostEditorPage() {
     setTitle(post.title);
     setContent(post.content);
     setHideAuthor(post.hideAuthor);
+    setPinned(post.pinned);
+    sortOrderRef.current = post.sortOrder;
     setArchived(post.status === PostStatuses.archived);
     setMode(
       post.status === PostStatuses.scheduled
@@ -200,6 +207,9 @@ export function PostEditorPage() {
     scheduled_at: mode === PUBLISH_MODE.scheduled ? dateInputToIso(scheduledDate) : null,
     // Архив — отдельное действие в списке: при правке статус архива сохраняем.
     archived,
+    pinned,
+    // Порядок меняется drag-&-drop в общем списке — здесь сохраняем текущее значение.
+    sort_order: sortOrderRef.current,
   });
 
   /** Создаёт публикацию, если её ещё нет (иначе загружать файлы некуда). */
@@ -313,28 +323,35 @@ export function PostEditorPage() {
               Публикация в архиве: её не видно в ленте. Вернуть — кнопкой «Из архива» в списке.
             </p>
           ) : (
-            <>
-              <Select
-                label="Публикация"
-                value={mode}
-                onChange={(value) => setMode(value as PublishMode)}
-                options={PUBLISH_MODE_OPTIONS}
-              />
-              {mode === PUBLISH_MODE.scheduled ? (
-                <DatePicker
-                  label="Дата выхода"
-                  value={scheduledDate}
-                  onChange={setScheduledDate}
-                  min={tomorrowInputValue()}
-                />
-              ) : null}
-            </>
+            <div className={styles.modeButtons} role="group" aria-label="Режим публикации">
+              {PUBLISH_MODE_BUTTONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={[styles.modeButton, mode === option.value ? styles.modeButtonActive : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                  aria-pressed={mode === option.value}
+                  onClick={() => setMode(option.value)}
+                >
+                  <Icon name={option.icon} size={16} />
+                  {option.label}
+                </button>
+              ))}
+            </div>
           )}
         </div>
+        {!archived && mode === PUBLISH_MODE.scheduled ? (
+          <DatePicker label="Дата выхода" value={scheduledDate} onChange={setScheduledDate} min={tomorrowInputValue()} />
+        ) : null}
 
         <div className={styles.formFlags}>
           <Checkbox label="Скрыть автора в ленте" checked={hideAuthor} onChange={setHideAuthor} />
+          <Checkbox label="Закрепить в ленте" checked={pinned} onChange={setPinned} />
         </div>
+        <p className={styles.note}>
+          Порядок публикаций настраивается перетаскиванием в общем списке «Публикации».
+        </p>
 
         <div className={styles.editorWrap}>
           <span className={styles.sectionLabel}>Содержание публикации</span>

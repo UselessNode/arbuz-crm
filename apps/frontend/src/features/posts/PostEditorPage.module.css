@@ -16,6 +16,44 @@
   flex: 1 1 240px;
 }
 
+/* Кнопки режима публикации: черновик / сейчас / отложенно. */
+.modeButtons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.modeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 9px var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.modeButton:hover {
+  background-color: var(--tone-neutral-bg);
+}
+
+.modeButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.modeButtonActive {
+  border-color: var(--color-primary);
+  background-color: var(--tone-blue-bg);
+  color: var(--tone-blue-text);
+}
+
 .formFlags {
   display: flex;
   flex-wrap: wrap;

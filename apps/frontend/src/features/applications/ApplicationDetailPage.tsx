@@ -356,17 +356,19 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
             <MaterialsSection applicationId={application.id} materials={application.materials} readOnly={!canEdit} onChanged={refresh} />
           </AccordionItem>
 
-          <AccordionItem itemKey="reviews" title={`Экспертизы (${application.reviews.length})`} defaultOpen>
-            <SectionHint>{APPLICATION_SECTION_HINTS.reviews}</SectionHint>
-            {isExpertArea ? <ExpertEvaluationSection application={application} onChanged={refresh} /> : null}
-            {isAdmin ? <ReviewsSection
-              applicationId={application.id}
-              reviews={application.reviews}
-              canManage={isAdmin}
-              requiredExperts={application.tender?.expertsCount}
-              onChanged={refresh}
-            /> : null}
-          </AccordionItem>
+          {isAdmin || isExpertArea ? (
+            <AccordionItem itemKey="reviews" title={`Экспертизы (${application.reviews.length})`} defaultOpen>
+              <SectionHint>{APPLICATION_SECTION_HINTS.reviews}</SectionHint>
+              {isExpertArea ? <ExpertEvaluationSection application={application} onChanged={refresh} /> : null}
+              {isAdmin ? <ReviewsSection
+                applicationId={application.id}
+                reviews={application.reviews}
+                canManage={isAdmin}
+                requiredExperts={application.tender?.expertsCount}
+                onChanged={refresh}
+              /> : null}
+            </AccordionItem>
+          ) : null}
         </Accordion>
       </Container>
 

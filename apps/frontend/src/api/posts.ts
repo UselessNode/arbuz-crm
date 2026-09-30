@@ -22,6 +22,10 @@ export interface Post {
   archivedAt: string | null;
   /** Когда менялось содержимое — для пометки «Отредактировано». */
   editedAt: string | null;
+  /** Закрепление в ленте: закреплённые публикации идут первыми. */
+  pinned: boolean;
+  /** Ручной порядок отображения внутри группы (меньше — выше). */
+  sortOrder: number;
   createdBy: number | null;
   /** Имя автора; `null`, если автор скрыт. */
   authorName: string | null;
@@ -47,6 +51,10 @@ export interface PostPayload {
   scheduled_at: string | null;
   /** Поместить в архив (true) или вернуть из архива (false). */
   archived: boolean;
+  /** Закрепить публикацию наверху ленты. */
+  pinned: boolean;
+  /** Ручной порядок отображения внутри группы (меньше — выше). */
+  sort_order: number;
 }
 
 export interface PostListParams {
@@ -77,6 +85,11 @@ export const postsApi = {
     const suffix = query.toString() ? `?${query.toString()}` : '';
     return api.get<{ posts: Post[]; total: number }>(`/posts${suffix}`);
   },
+  /**
+   * Публикации без фильтров — для сортировки всего списка перетаскиванием.
+   * Бэкенд отдаёт максимум 100 записей за запрос.
+   */
+  all: () => api.get<{ posts: Post[]; total: number }>('/posts?limit=100&offset=0'),
   get: (id: number) => api.get<{ post: Post }>(`/posts/${id}`),
   create: (payload: PostPayload) => api.post<{ post: Post }>('/posts', payload),
   update: (id: number, payload: PostPayload) => api.patch<{ post: Post }>(`/posts/${id}`, payload),

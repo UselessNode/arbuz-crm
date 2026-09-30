@@ -1,4 +1,4 @@
-/* Действия в строке таблицы: сетка 2×2 на десктопе. */
+/* Действия в строке таблицы: кнопки-иконки + kebab-меню. */
 .actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -11,11 +11,44 @@
   justify-content: center;
 }
 
+/* Кнопки-иконки (десктоп) с kebab-меню в конце. */
+.actionsIcons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 /* Мобильная обёртка: одна kebab-кнопка, прижатая вправо. */
 .actionsMobile {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+}
+
+/* Ручка перетаскивания порядка. */
+.dragHandle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  cursor: grab;
+}
+
+.dragHandle:hover {
+  background-color: var(--tone-neutral-bg);
+  color: var(--color-text);
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.dragHandle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 /* Ячейка «Заголовок»: название и пояснительные пометки под ним. */
@@ -27,6 +60,13 @@
 
 .postTitle {
   font-weight: 600;
+}
+
+/* Строка заголовка: название и отметка закрепления. */
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .note {

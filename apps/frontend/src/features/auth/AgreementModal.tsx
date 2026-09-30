@@ -1,12 +1,16 @@
-// Модальное окно обязательного соглашения: текст политики, индикатор прокрутки
-// и кнопка подтверждения, доступная только после прочтения до конца.
+// Модальное окно документа согласия: загружает текущую редакцию с сервера,
+// показывает прогресс прочтения, а подтверждение открывает после прокрутки до конца.
 import { useEffect, useRef, useState } from 'react';
-import { Button, Modal } from '../../components/ui';
-import { PrivacyPolicyContent } from '../legal/PrivacyPolicyContent';
+import { Button, Modal, StateMessage } from '../../components/ui';
+import { ApiError } from '../../api/client';
+import { consentsApi, type ConsentDocument, type ConsentDocumentType } from '../../api/consents';
 import styles from './AgreementModal.module.css';
 
 interface AgreementModalProps {
   open: boolean;
+  /** Тип документа: пользовательское соглашение или согласие на ПДн. */
+  type: ConsentDocumentType;
+  title: string;
   onClose: () => void;
   onAccept: () => void;
 }
@@ -14,18 +18,40 @@ interface AgreementModalProps {
 /** Допуск (px), при котором прокрутка считается завершённой. */
 const SCROLL_TOLERANCE = 24;
 
-export function AgreementModal({ open, onClose, onAccept }: AgreementModalProps) {
+function formatPublished(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('ru-RU');
+}
+
+export function AgreementModal({ open, type, title, onClose, onAccept }: AgreementModalProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [document, setDocument] = useState<ConsentDocument | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [reachedEnd, setReachedEnd] = useState(false);
 
-  // При каждом открытии сбрасываем прокрутку, прогресс и состояние прочтения.
+  // При каждом открытии сбрасываем состояние и загружаем актуальную редакцию документа.
   useEffect(() => {
     if (!open) return;
     setProgress(0);
     setReachedEnd(false);
+    setDocument(null);
+    setError(null);
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
-  }, [open]);
+
+    let cancelled = false;
+    consentsApi
+      .current(type)
+      .then((response) => {
+        if (!cancelled) setDocument(response.document);
+      })
+      .catch((caught) => {
+        if (!cancelled) setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить документ');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, type]);
 
   const handleScroll = () => {
     const node = scrollRef.current;
@@ -45,11 +71,11 @@ export function AgreementModal({ open, onClose, onAccept }: AgreementModalProps)
   return (
     <Modal
       open={open}
-      title="Соглашение на обработку персональных данных"
+      title={title}
       onClose={onClose}
       width={720}
       dismissable
-      footer={reachedEnd ? <Button onClick={handleAccept}>Согласиться и продолжить</Button> : undefined}
+      footer={document && reachedEnd ? <Button onClick={handleAccept}>Согласиться и продолжить</Button> : undefined}
     >
       <div className={styles.wrap}>
         <div
@@ -64,10 +90,21 @@ export function AgreementModal({ open, onClose, onAccept }: AgreementModalProps)
         </div>
 
         <div ref={scrollRef} className={styles.scrollArea} onScroll={handleScroll}>
-          <PrivacyPolicyContent />
+          {error ? (
+            <StateMessage state="error" message={error} />
+          ) : !document ? (
+            <StateMessage state="loading" />
+          ) : (
+            <div className={styles.document} dangerouslySetInnerHTML={{ __html: document.html }} />
+          )}
         </div>
 
-        {!reachedEnd ? <div className={styles.hint}>Прокрутите до конца, чтобы прочитать</div> : null}
+        {document && !reachedEnd ? <div className={styles.hint}>Прокрутите до конца, чтобы прочитать</div> : null}
+        {document ? (
+          <p className={styles.version}>
+            Редакция от {formatPublished(document.publishedAt)} · версия {document.version}
+          </p>
+        ) : null}
       </div>
     </Modal>
   );

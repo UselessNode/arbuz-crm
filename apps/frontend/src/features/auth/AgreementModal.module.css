@@ -42,3 +42,36 @@
   pointer-events: none;
   white-space: nowrap;
 }
+
+/* HTML документа, отрендеренный и очищенный на сервере. */
+.document {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+.document :global(h1) {
+  margin-top: 0;
+  font-size: 20px;
+}
+
+.document :global(h2) {
+  margin-top: var(--space-4);
+  font-size: 16px;
+}
+
+.document :global(p) {
+  margin: 0 0 var(--space-2);
+}
+
+.document :global(ul),
+.document :global(ol) {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-4);
+}
+
+.version {
+  margin: var(--space-2) 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}

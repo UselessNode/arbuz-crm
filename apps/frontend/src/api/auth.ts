@@ -7,6 +7,10 @@ export interface RegisterPayload {
   surname?: string | null;
   name?: string | null;
   patronymic?: string | null;
+  /** Обязательное принятие пользовательского соглашения. */
+  accept_terms: boolean;
+  /** Обязательное согласие на обработку персональных данных. */
+  accept_personal_data_consent: boolean;
 }
 
 export const authApi = {

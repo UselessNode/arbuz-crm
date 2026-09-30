@@ -35,6 +35,7 @@ async function createTempApplication(adminId: number, tenderId: number): Promise
 async function main(): Promise<void> {
   const admin = await requireAdmin();
   let applicationId: number | null = null;
+  let repeatApplicationId: number | null = null;
   let tempExpertId: number | null = null;
 
   try {
@@ -107,8 +108,21 @@ async function main(): Promise<void> {
         'EXPERT_LIMIT_REACHED',
       );
     }
+    // Повторное назначение после снятия: soft-deleted экспертиза не должна ломать create
+    // (уникальный индекс (application_id, expert_id) не учитывает deleted_at).
+    const repeatId = await createTempApplication(admin.id, tender.id);
+    repeatApplicationId = repeatId;
+    const reassigned = await assignExpert(admin, repeatId, firstExpert.id);
+    await prisma.application_reviews.update({ where: { id: reassigned.id }, data: { deleted_at: new Date() } });
+    await assignExpert(admin, repeatId, firstExpert.id);
+    smoke.eq(
+      'повторное назначение после снятия даёт ровно одну активную экспертизу',
+      await prisma.application_reviews.count({ where: { application_id: repeatId, deleted_at: null } }),
+      1,
+    );
   } finally {
     if (applicationId !== null) await prisma.applications.delete({ where: { id: applicationId } });
+    if (repeatApplicationId !== null) await prisma.applications.delete({ where: { id: repeatApplicationId } });
     if (tempExpertId !== null) await prisma.users.delete({ where: { id: tempExpertId } });
     await prisma.$disconnect();
   }

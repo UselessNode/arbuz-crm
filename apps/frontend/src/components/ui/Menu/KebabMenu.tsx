@@ -20,7 +20,7 @@ export interface KebabMenuProps {
   label?: string;
   /** Выравнивание выпадающего меню относительно триггера. */
   align?: 'start' | 'end';
-  /** Имя иконки для триггера. По умолчанию — `more-vertical`. */
+  /** Имя иконки для триггера. По умолчанию — `kebab-menu` (вертикальное «⋮»). */
   icon?: string;
   className?: string;
 }
@@ -29,7 +29,7 @@ export function KebabMenu({
   items,
   label = 'Действия',
   align = 'end',
-  icon = 'more-vertical',
+  icon = 'kebab-menu',
   className,
 }: KebabMenuProps) {
   const [open, setOpen] = useState(false);

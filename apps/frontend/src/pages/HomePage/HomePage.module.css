@@ -91,6 +91,86 @@
   font-size: 20px;
 }
 
+/* Строка заголовка карточки: название и действия справа. */
+.postHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+/* Боковая колонка: карточки «Документы» и «Контакты». */
+.aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  position: sticky;
+  top: calc(var(--space-6) + 56px);
+}
+
+@media (max-width: 860px) {
+  .aside {
+    position: static;
+  }
+}
+
+.sideCard {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.sideCard .sectionTitle {
+  margin-bottom: var(--space-3);
+}
+
+/* Список документов в боковой карточке. */
+.documents {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.documentItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.documentLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-1) 0;
+  color: var(--color-text);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.documentLink:hover {
+  color: var(--color-primary);
+}
+
+.documentName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .count {
   color: var(--color-muted);
   font-size: 13px;

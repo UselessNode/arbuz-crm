@@ -79,6 +79,8 @@ postsRouter.post(
       hide_author: req.body?.hide_author,
       scheduled_at: req.body?.scheduled_at,
       archived: req.body?.archived,
+      pinned: req.body?.pinned,
+      sort_order: req.body?.sort_order,
     });
     log.audit('posts.create', { userId: actor.id, postId: post.id, title: post.title });
     res.status(201).json({ post });
@@ -98,6 +100,8 @@ postsRouter.patch(
       hide_author: req.body?.hide_author,
       scheduled_at: req.body?.scheduled_at,
       archived: req.body?.archived,
+      pinned: req.body?.pinned,
+      sort_order: req.body?.sort_order,
     });
     log.audit('posts.update', { userId: actor.id, postId: post.id });
     res.json({ post });

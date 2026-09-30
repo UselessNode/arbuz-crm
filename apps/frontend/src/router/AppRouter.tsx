@@ -13,6 +13,7 @@ import { ReviewsPage } from '../features/reviews/ReviewsPage';
 import { ReviewsSummaryPage } from '../features/reviews/ReviewsSummaryPage';
 import { PostsPage } from '../features/posts/PostsPage';
 import { PostEditorPage } from '../features/posts/PostEditorPage';
+import { DocumentsPage } from '../features/documents/DocumentsPage';
 import { ContestSettingsPage } from '../features/references/ContestSettingsPage';
 import { ExpertiseSettingsPage } from '../features/references/ExpertiseSettingsPage';
 import { DesignSystemPage } from '../pages/DesignSystemPage/DesignSystemPage';
@@ -83,6 +84,7 @@ export function AppRouter() {
         <Route path="posts" element={<PostsPage />} />
         <Route path="posts/new" element={<PostEditorPage />} />
         <Route path="posts/:postId" element={<PostEditorPage />} />
+        <Route path="documents" element={<DocumentsPage />} />
         <Route path="contests" element={<ContestSettingsPage />} />
         <Route path="tenders" element={<Navigate to="/admin/contests" replace />} />
         <Route path="directions" element={<Navigate to="/admin/contests" replace />} />

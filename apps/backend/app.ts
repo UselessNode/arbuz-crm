@@ -3,6 +3,8 @@ import express from 'express';
 import { prisma } from './lib/prisma';
 import { errorHandler, notFoundHandler } from './lib/http';
 import { authRouter } from './modules/auth/auth.routes';
+import { consentsRouter } from './modules/consents/consents.routes';
+import { documentsRouter } from './modules/documents/documents.routes';
 import { filesRouter } from './modules/files/files.routes';
 import { postsRouter } from './modules/posts/posts.routes';
 import { pdfExportRouter } from './modules/pdf-export/pdf-export.routes';
@@ -24,7 +26,9 @@ export const API_VERSION = packageJson.version;
 
 export function createApp(): express.Express {
   const app = express();
-  app.use(express.json());
+  // Лимит тела запроса: публикации и тексты согласий могут быть крупными
+  // (до 1 млн и 500 тыс. символов соответственно), поэтому выше дефолтных 100 КБ.
+  app.use(express.json({ limit: '2mb' }));
 
   app.get('/', (_req, res) => {
     res.json({ name: 'Arbuz CRM API', status: 'running', version: API_VERSION });
@@ -41,6 +45,8 @@ export function createApp(): express.Express {
   });
 
   app.use('/api/auth', authRouter);
+  app.use('/api/consents', consentsRouter);
+  app.use('/api/documents', documentsRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/applications', filesRouter);
   app.use('/api/applications', applicationsRouter);

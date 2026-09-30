@@ -1,4 +1,5 @@
 // Бизнес-логика экспертиз: назначение экспертов администратором и оценка заявок.
+import { Prisma } from '@arbuz/shared';
 import { RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
@@ -95,11 +96,16 @@ export async function assignExpert(actor: CurrentUser, applicationId: number, ra
   });
   if (!expert) throw httpError(404, 'Эксперт не найден', 'EXPERT_NOT_FOUND');
 
-  const existing = await prisma.application_reviews.findFirst({
-    where: { application_id: application.id, expert_id: expertId, deleted_at: null },
-    select: { id: true },
+  // Уникальный индекс (application_id, expert_id) не учитывает soft-delete, поэтому
+  // удалённая экспертиза всё ещё занимает строку: ищем любое состояние и при soft-delete
+  // восстанавливаем запись вместо создания — иначе Prisma упадёт на нарушении уникальности.
+  const existing = await prisma.application_reviews.findUnique({
+    where: { application_id_expert_id: { application_id: application.id, expert_id: expertId } },
+    select: { id: true, deleted_at: true },
   });
-  if (existing) throw httpError(409, 'Этот эксперт уже назначен на заявку', 'EXPERT_ALREADY_ASSIGNED');
+  if (existing && !existing.deleted_at) {
+    throw httpError(409, 'Этот эксперт уже назначен на заявку', 'EXPERT_ALREADY_ASSIGNED');
+  }
 
   // Не больше, чем задано в настройках конкурса (см. «Настройки конкурсов и направлений»).
   const limit = await expertsLimitForTender(application.tender_id);
@@ -114,10 +120,17 @@ export async function assignExpert(actor: CurrentUser, applicationId: number, ra
     );
   }
 
-  const review = await prisma.application_reviews.create({
-    data: { application_id: application.id, expert_id: expertId, status_id: await getDefaultReviewStatusId() },
-    include: reviewInclude,
-  });
+  const statusId = await getDefaultReviewStatusId();
+  const review = existing
+    ? await prisma.application_reviews.update({
+        where: { id: existing.id },
+        data: { deleted_at: null, status_id: statusId, review_text: null, rating: Prisma.DbNull, total_score: null },
+        include: reviewInclude,
+      })
+    : await prisma.application_reviews.create({
+        data: { application_id: application.id, expert_id: expertId, status_id: statusId },
+        include: reviewInclude,
+      });
   return serializeReview(review);
 }
 

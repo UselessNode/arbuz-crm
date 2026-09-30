@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { Badge, Button, Checkbox, ConfirmDialog, Input, Modal, StateMessage, Table, useToast } from '../../components/ui';
 import type { TableColumn } from '../../components/ui';
 import { applicationsApi, type TeamMember, type TeamMemberPayload } from '../../api/applications';
+import { consentsApi } from '../../api/consents';
 import { ApiError } from '../../api/client';
 import { formatUserName } from '../../lib/format';
 import { ConsentModal } from './ConsentModal';
@@ -223,6 +224,25 @@ export function TeamMembersSection({ applicationId, members, readOnly = false, o
           <Checkbox label="Ответственный за форум" checked={isResponsible} onChange={setIsResponsible} />
           <Checkbox label="Координатор" checked={isCoordinator} onChange={setIsCoordinator} />
           <Checkbox label="Совершеннолетний" checked={isAdult} onChange={setIsAdult} />
+          <div className={styles.sectionToolbar}>
+            <span className={styles.metaLabel}>Образец согласия ПДн:</span>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon="download"
+              onClick={() => window.open(consentsApi.templates.downloadUrl('minor'), '_blank', 'noopener')}
+            >
+              до 14 лет
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon="download"
+              onClick={() => window.open(consentsApi.templates.downloadUrl('adult'), '_blank', 'noopener')}
+            >
+             с 14 лет
+            </Button>
+          </div>
           {error ? <div className={styles.error}>{error}</div> : null}
           <div className={styles.formActions}>
             <Button variant="secondary" type="button" onClick={() => setOpen(false)} disabled={saving}>

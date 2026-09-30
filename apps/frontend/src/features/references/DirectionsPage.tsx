@@ -162,7 +162,7 @@ export function DirectionsPage({ refreshToken = 0 }: DirectionsPageProps = {}) {
 
   const columns: TableColumn<Direction>[] = [
     { key: 'name', header: 'Название', field: 'name' },
-    { key: 'tender', header: 'Тендер', render: (d) => tenderName(d.tenderId) },
+    { key: 'tender', header: 'Конкурс', render: (d) => tenderName(d.tenderId) },
     { key: 'description', header: 'Описание', render: (d) => d.description ?? '—' },
     {
       key: 'actions',

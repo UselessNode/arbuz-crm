@@ -43,6 +43,11 @@ export const config = {
     // (не зависит от рабочего каталога запуска).
     dir: path.resolve(BACKEND_ROOT, process.env.UPLOAD_DIR ?? './uploads'),
   },
+  templates: {
+    // Каталог с шаблонами документов (образцы согласий ПДн). Лежит вне UPLOAD_DIR,
+    // поэтому коммитится в репозиторий и не затрагивается storage:cleanup.
+    dir: path.resolve(BACKEND_ROOT, process.env.TEMPLATES_DIR ?? './templates'),
+  },
   limits: {
     // Один файл до 10 МБ, суммарно на заявку до 25 МБ.
     maxFileBytes: 10 * 1024 * 1024,

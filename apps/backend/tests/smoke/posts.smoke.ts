@@ -20,7 +20,11 @@ const smoke = createSmoke('posts (жизненный цикл публикаци
 async function main(): Promise<void> {
   const admin = await requireAdmin();
   const title = `[smoke] Публикация ${Date.now()}`;
+  const pinnedLow = `[smoke] Закреп 1 ${Date.now()}`;
+  const pinnedHigh = `[smoke] Закреп 2 ${Date.now()}`;
   let postId: number | null = null;
+  let pinnedLowId: number | null = null;
+  let pinnedHighId: number | null = null;
 
   try {
     // Чистая функция: статус вычисляется из полей.
@@ -163,8 +167,32 @@ async function main(): Promise<void> {
       () => createPost(asExpert(admin.id, admin.email), { title, content: 'x' }),
       'FORBIDDEN',
     );
+
+    // Закрепление и порядок: закреплённые идут первыми, внутри группы — по sort_order.
+    const low = await createPost(admin, { title: pinnedLow, content: 'Закреп 1', is_published: true, pinned: true, sort_order: 2 });
+    pinnedLowId = low.id;
+    const high = await createPost(admin, { title: pinnedHigh, content: 'Закреп 2', is_published: true, pinned: true, sort_order: 1 });
+    pinnedHighId = high.id;
+    smoke.eq('создание: флаг закрепления сохранён', high.pinned, true);
+    smoke.eq('создание: порядок сохранён', high.sortOrder, 1);
+
+    const ordered = await listPublishedPosts({ limit: 100, offset: 0 });
+    const highIndex = ordered.posts.findIndex((post) => post.id === high.id);
+    const lowIndex = ordered.posts.findIndex((post) => post.id === low.id);
+    smoke.ok(
+      'лента: закреплённые с меньшим sort_order идут выше',
+      highIndex !== -1 && lowIndex !== -1 && highIndex < lowIndex,
+      { high: highIndex, low: lowIndex },
+    );
+    smoke.ok(
+      'лента: закреплённые стоят перед незакреплёнными',
+      ordered.posts.slice(0, 2).every((post) => post.pinned),
+      ordered.posts.slice(0, 3).map((post) => ({ id: post.id, pinned: post.pinned })),
+    );
   } finally {
     if (postId !== null) await prisma.posts.delete({ where: { id: postId } });
+    if (pinnedLowId !== null) await prisma.posts.delete({ where: { id: pinnedLowId } });
+    if (pinnedHighId !== null) await prisma.posts.delete({ where: { id: pinnedHighId } });
     await prisma.$disconnect();
   }
 

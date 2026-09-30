@@ -7,6 +7,11 @@ import { config } from '../../lib/config';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 import { parseEmail, parsePassword } from './credentials';
+import {
+  buildConsentEvents,
+  requireRegistrationConsents,
+  type ConsentRequestMeta,
+} from '../consents/consents.service';
 
 export interface SessionUser {
   id: number;
@@ -70,24 +75,40 @@ export interface RegisterInput {
   surname?: unknown;
   name?: unknown;
   patronymic?: unknown;
+  /** Обязательное принятие пользовательского соглашения. */
+  accept_terms?: unknown;
+  /** Обязательное согласие на обработку персональных данных. */
+  accept_personal_data_consent?: unknown;
 }
 
 /** Саморегистрация заявителя (роль всегда applicant). */
-export async function registerApplicant(input: RegisterInput) {
+export async function registerApplicant(input: RegisterInput, meta: ConsentRequestMeta) {
   const email = parseEmail(input.email);
   const password = parsePassword(input.password);
 
   const existing = await prisma.users.findUnique({ where: { email }, select: { id: true } });
   if (existing) throw httpError(409, 'Пользователь с таким email уже существует', 'EMAIL_TAKEN');
 
-  return prisma.users.create({
-    data: {
-      email,
-      password_hash: await hashPassword(password),
-      role: RoleType.applicant,
-      surname: optionalName(input.surname),
-      name: optionalName(input.name),
-      patronymic: optionalName(input.patronymic),
-    },
+  // Оба согласия обязательны (152-ФЗ): проверяем до создания пользователя и
+  // фиксируем принятие в журнале — вместе с созданием пользователя, одной транзакцией.
+  const documents = await requireRegistrationConsents({
+    accept_terms: input.accept_terms,
+    accept_personal_data_consent: input.accept_personal_data_consent,
+  });
+  const passwordHash = await hashPassword(password);
+
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.users.create({
+      data: {
+        email,
+        password_hash: passwordHash,
+        role: RoleType.applicant,
+        surname: optionalName(input.surname),
+        name: optionalName(input.name),
+        patronymic: optionalName(input.patronymic),
+      },
+    });
+    await tx.consent_events.createMany({ data: buildConsentEvents(user.id, documents, meta) });
+    return user;
   });
 }

@@ -15,6 +15,7 @@ import { prisma } from '../lib/prisma';
 import { log } from '../lib/logger';
 import { SEED_APPLICATIONS, SEED_POSTS, SEED_TENDER, SEED_USERS, type SeedUserKey } from './data';
 import { ensureApplicationStatuses, ensureReviewStatuses, type StatusMap } from './reference';
+import { ensureConsentDocuments } from './consents';
 import { ensureUser, resolveSeedUser } from './users';
 import { ensureTender } from './tenders';
 import { ensureApplication, ensureBudgetItem, ensureMember, ensurePlan } from './applications';
@@ -74,6 +75,8 @@ async function main(): Promise<void> {
 
   const statuses = await ensureApplicationStatuses();
   const reviewStatusByName = await ensureReviewStatuses();
+  // Документы согласий нужны всегда (без них невозможна регистрация).
+  await ensureConsentDocuments();
   const admin = await ensureUser({ email: adminEmail, password: adminPassword, role: RoleType.admin });
 
   const demoDisabled = process.env.SEED_DEMO === 'false' || process.env.NODE_ENV === 'production';

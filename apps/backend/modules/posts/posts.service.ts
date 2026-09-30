@@ -48,6 +48,10 @@ export interface PostInput {
   scheduled_at?: string | null;
   /** Поместить публикацию в архив (`true`) или вернуть из архива (`false`). */
   archived?: boolean;
+  /** Закрепить публикацию наверху ленты. */
+  pinned?: boolean;
+  /** Ручной порядок отображения внутри группы (меньше — выше). */
+  sort_order?: number;
 }
 
 interface ValidatedPostInput {
@@ -57,6 +61,18 @@ interface ValidatedPostInput {
   hide_author: boolean;
   scheduled_at: Date | null;
   archived: boolean;
+  pinned: boolean;
+  sort_order: number;
+}
+
+/** Разбор ручного порядка: целое число (пусто → 0). */
+function parseSortOrder(raw: unknown): number {
+  if (raw === undefined || raw === null || raw === '') return 0;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || !Number.isInteger(value)) {
+    throw httpError(400, 'Порядок отображения должен быть целым числом', 'INVALID_SORT_ORDER');
+  }
+  return value;
 }
 
 /** Разбор даты отложенной публикации (пусто → null). */
@@ -89,6 +105,8 @@ function validateInput(input: Partial<PostInput> & { title?: string; content?: s
     hide_author: Boolean(input.hide_author),
     scheduled_at: scheduledAt,
     archived: Boolean(input.archived),
+    pinned: Boolean(input.pinned),
+    sort_order: parseSortOrder(input.sort_order),
   };
 }
 
@@ -148,6 +166,10 @@ export interface PostData {
   archivedAt: Date | null;
   /** Когда менялось содержимое (заголовок/текст) — для пометки «Отредактировано». */
   editedAt: Date | null;
+  /** Закрепление в ленте: закреплённые идут первыми. */
+  pinned: boolean;
+  /** Ручной порядок отображения внутри группы. */
+  sortOrder: number;
   createdBy: number | null;
   /** Имя автора; `null`, если автор скрыт или удалён. */
   authorName: string | null;
@@ -162,6 +184,8 @@ type PostWithAuthor = PostStatusSource & {
   content: string;
   hide_author: boolean;
   edited_at: Date | null;
+  pinned: boolean;
+  sort_order: number;
   created_by: number | null;
   created_at: Date;
   updated_at: Date;
@@ -198,6 +222,8 @@ function serialize(post: PostWithAuthor): PostData {
     scheduledAt: post.scheduled_at,
     archivedAt: post.archived_at,
     editedAt: post.edited_at,
+    pinned: post.pinned,
+    sortOrder: post.sort_order,
     createdBy: post.created_by,
     authorName,
     createdAt: post.created_at,
@@ -225,6 +251,8 @@ const postSelect = {
   scheduled_at: true,
   archived_at: true,
   edited_at: true,
+  pinned: true,
+  sort_order: true,
   created_by: true,
   created_at: true,
   updated_at: true,
@@ -259,7 +287,8 @@ export async function listPublishedPosts(filter: {
   const [posts, total] = await Promise.all([
     prisma.posts.findMany({
       where,
-      orderBy: { created_at: 'desc' },
+      // Закреплённые — первыми, далее по ручному порядку, при равенстве — новые выше.
+      orderBy: [{ pinned: 'desc' }, { sort_order: 'asc' }, { created_at: 'desc' }],
       skip: filter.offset,
       take: filter.limit,
       select: postSelect,
@@ -283,7 +312,7 @@ export async function listPostsForAdmin(
   const [posts, total] = await Promise.all([
     prisma.posts.findMany({
       where,
-      orderBy: { created_at: 'desc' },
+      orderBy: [{ pinned: 'desc' }, { sort_order: 'asc' }, { created_at: 'desc' }],
       skip: filter.offset,
       take: filter.limit,
       select: postSelect,
@@ -317,6 +346,8 @@ export async function createPost(user: CurrentUser, input: Partial<PostInput>) {
       hide_author: data.hide_author,
       scheduled_at: data.scheduled_at,
       archived_at: data.archived ? new Date() : null,
+      pinned: data.pinned,
+      sort_order: data.sort_order,
       created_by: user.id,
     },
     select: postSelect,
@@ -345,6 +376,8 @@ export async function updatePost(user: CurrentUser, postId: number, input: Parti
       scheduled_at: data.scheduled_at,
       // Повторная архивация сохраняет исходную дату.
       archived_at: data.archived ? existing.archived_at ?? new Date() : null,
+      pinned: data.pinned,
+      sort_order: data.sort_order,
       ...(contentChanged ? { edited_at: new Date() } : {}),
     },
     select: postSelect,

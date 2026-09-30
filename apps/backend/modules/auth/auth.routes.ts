@@ -65,13 +65,22 @@ authRouter.post(
 authRouter.post(
   '/register',
   asyncHandler(async (req, res) => {
-    const user = await registerApplicant({
-      email: req.body?.email,
-      password: req.body?.password,
-      surname: req.body?.surname,
-      name: req.body?.name,
-      patronymic: req.body?.patronymic,
-    });
+    const user = await registerApplicant(
+      {
+        email: req.body?.email,
+        password: req.body?.password,
+        surname: req.body?.surname,
+        name: req.body?.name,
+        patronymic: req.body?.patronymic,
+        accept_terms: req.body?.accept_terms,
+        accept_personal_data_consent: req.body?.accept_personal_data_consent,
+      },
+      {
+        // IP и User-Agent сохраняются в журнале согласий как доказательство.
+        ip: req.ip ?? null,
+        userAgent: req.get('user-agent') ?? null,
+      },
+    );
     const token = await signSession({ id: user.id, role: user.role });
     setSessionCookie(res, token);
     log.audit('auth.register', { userId: user.id, email: user.email });
