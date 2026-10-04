@@ -2,11 +2,19 @@
 // `GET /api/posts/feed` — публичная лента (только опубликованные);
 // `GET /api/posts` — список раздела «Публикации» (админ, все статусы).
 // Создание/правка/удаление и вложения — только авторизованным (админ — в сервисе).
+import { PostStatus } from '@arbuz/shared';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../lib/http';
 import { log } from '../../lib/logger';
-import { parseLimitOffset, parseSearch } from '../../lib/query';
+import {
+  parseDateRange,
+  parseEnumArray,
+  parseIdArray,
+  parseLimitOffset,
+  parseSearch,
+  parseSort,
+} from '../../lib/query';
 import { optionalAuth, requireAuth } from '../auth/auth.middleware';
 import type { CurrentUser } from '../files/files.service';
 import {
@@ -45,15 +53,35 @@ postsRouter.get(
   }),
 );
 
-// Список раздела «Публикации»: все статусы, фильтр ?status=. Доступ — администратору.
+const POST_SORT_FIELDS = ['created_at', 'updated_at', 'scheduled_at', 'title', 'pinned', 'sort_order'] as const;
+const POST_STATUS_VALUES: readonly PostStatus[] = [
+  PostStatus.draft,
+  PostStatus.scheduled,
+  PostStatus.published,
+  PostStatus.archived,
+];
+
+// Список раздела «Публикации»: все статусы, фильтры и сортировка. Доступ — администратору.
 postsRouter.get(
   '/',
   requireAuth,
   asyncHandler(async (req: Request, res: Response) => {
     const { limit, offset } = parseLimitOffset(req.query);
     const search = parseSearch(req.query);
-    const status = parsePostStatus(req.query.status);
-    const result = await listPostsForAdmin(req.user as CurrentUser, { search, status, limit, offset });
+    // Мультивыбор статусов; одиночный `status` — для обратной совместимости.
+    const statuses = parseEnumArray(req.query.statuses, POST_STATUS_VALUES);
+    const legacyStatus = parsePostStatus(req.query.status);
+    const result = await listPostsForAdmin(req.user as CurrentUser, {
+      search,
+      statuses: statuses ?? (legacyStatus ? [legacyStatus] : undefined),
+      postIds: parseIdArray(req.query.ids),
+      scheduled: parseDateRange(req.query, 'scheduled'),
+      edited: parseDateRange(req.query, 'edited'),
+      created: parseDateRange(req.query, 'created'),
+      sort: parseSort(req.query, POST_SORT_FIELDS),
+      limit,
+      offset,
+    });
     res.json(result);
   }),
 );

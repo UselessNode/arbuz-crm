@@ -1,6 +1,7 @@
 // Бизнес-логика публичных документов (раздел «Документы» на главной и в админке).
 // Файл хранится через общий модуль files; администратор управляет списком.
 import { RoleType } from '@arbuz/shared';
+import { NotificationType } from '@arbuz/shared';
 import type { Request } from 'express';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
@@ -9,6 +10,7 @@ import { optionalText, requiredText } from '../../lib/parse';
 import type { CurrentUser } from '../files/files.service';
 import { safeOriginalName, validateUpload } from '../files/file-validation';
 import { openStored, storeUpload } from '../files/file-storage';
+import { notifyAll } from '../notifications/notifications.service';
 
 export interface DocumentData {
   id: number;
@@ -137,6 +139,15 @@ export async function createDocument(req: Request, user: CurrentUser): Promise<D
       select: documentSelect,
     });
   });
+  // Опубликованный документ — рассылаем уведомление всем.
+  if (created.is_published) {
+    await notifyAll({
+      type: NotificationType.document,
+      title: 'Новый документ',
+      body: created.title,
+      link: `/#document-${created.id}`,
+    });
+  }
   return serialize(created);
 }
 

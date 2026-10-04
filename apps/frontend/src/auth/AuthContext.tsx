@@ -1,6 +1,6 @@
 // Контекст аутентификации: восстановление сессии, вход, выход.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { authApi, type RegisterPayload } from '../api/auth';
+import { authApi, type ActivatePayload, type RegisterPayload } from '../api/auth';
 import { AUTH_UNAUTHORIZED_EVENT } from '../api/client';
 import type { AuthUser } from '../api/types';
 
@@ -9,6 +9,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
   register: (payload: RegisterPayload) => Promise<AuthUser>;
+  activate: (payload: ActivatePayload) => Promise<AuthUser>;
   logout: () => Promise<void>;
 }
 
@@ -54,14 +55,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return response.user;
   }, []);
 
+  const activate = useCallback(async (payload: ActivatePayload) => {
+    const response = await authApi.activate(payload);
+    setUser(response.user);
+    return response.user;
+  }, []);
+
   const logout = useCallback(async () => {
     await authApi.logout().catch(() => undefined);
     setUser(null);
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, login, register, logout }),
-    [user, loading, login, register, logout],
+    () => ({ user, loading, login, register, activate, logout }),
+    [user, loading, login, register, activate, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

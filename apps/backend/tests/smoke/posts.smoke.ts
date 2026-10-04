@@ -68,7 +68,7 @@ async function main(): Promise<void> {
 
     // Фильтр по статусу возвращает только посты этого статуса.
     for (const status of POST_STATUSES) {
-      const filtered = await listPostsForAdmin(admin, { limit: 100, offset: 0, status });
+      const filtered = await listPostsForAdmin(admin, { limit: 100, offset: 0, statuses: [status] });
       smoke.ok(
         `админ-список: фильтр ${status} отдаёт только этот статус`,
         filtered.posts.every((post) => post.status === status),
@@ -84,7 +84,7 @@ async function main(): Promise<void> {
     smoke.eq('лента: черновик не отдаётся', (await listPublishedPosts({ limit: 10, offset: 0, search: title })).total, 0);
     smoke.eq(
       'админ-список: фильтр по черновикам',
-      (await listPostsForAdmin(admin, { limit: 10, offset: 0, search: title, status: PostStatus.draft })).total,
+      (await listPostsForAdmin(admin, { limit: 10, offset: 0, search: title, statuses: [PostStatus.draft] })).total,
       1,
     );
     await smoke.fails('чтение черновика гостем', () => getPostOrThrow(undefined, created.id), 'POST_NOT_FOUND');
@@ -128,7 +128,7 @@ async function main(): Promise<void> {
     smoke.eq('лента: отложенная не отдаётся', (await listPublishedPosts({ limit: 10, offset: 0, search: title })).total, 0);
     smoke.eq(
       'админ-список: фильтр по отложенным',
-      (await listPostsForAdmin(admin, { limit: 10, offset: 0, search: title, status: PostStatus.scheduled })).total,
+      (await listPostsForAdmin(admin, { limit: 10, offset: 0, search: title, statuses: [PostStatus.scheduled] })).total,
       1,
     );
 
@@ -145,7 +145,7 @@ async function main(): Promise<void> {
     smoke.eq('лента: архив не отдаётся', (await listPublishedPosts({ limit: 10, offset: 0, search: title })).total, 0);
     smoke.eq(
       'админ-список: фильтр по архиву',
-      (await listPostsForAdmin(admin, { limit: 10, offset: 0, search: title, status: PostStatus.archived })).total,
+      (await listPostsForAdmin(admin, { limit: 10, offset: 0, search: title, statuses: [PostStatus.archived] })).total,
       1,
     );
 

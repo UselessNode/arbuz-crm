@@ -48,6 +48,13 @@
   text-align: center;
 }
 
+.selectAllCheckbox {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+}
+
 .sortButton {
   display: inline-flex;
   align-items: center;
@@ -74,10 +81,9 @@
   color: var(--color-primary);
 }
 
-.sortMark {
-  font-size: 10px;
-  line-height: 1;
-  opacity: 0.7;
+.sortIcon {
+  flex-shrink: 0;
+  opacity: 0.9;
 }
 
 .empty {

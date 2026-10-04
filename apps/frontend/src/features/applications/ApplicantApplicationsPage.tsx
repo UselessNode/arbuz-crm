@@ -49,15 +49,18 @@ export function ApplicantApplicationsPage() {
     {
       key: 'status',
       header: 'Статус',
+      width: '170px',
+      sortValue: (a) => a.status?.name ?? '',
       render: (a) =>
-        a.status ? <StatusBadge value={String(a.status.id)} options={statusOptions} /> : <Badge tone="neutral">—</Badge>,
+        a.status ? <StatusBadge value={String(a.status.id)} options={statusOptions} maxWidth={150} /> : <Badge tone="neutral">—</Badge>,
     },
-    { key: 'tender', header: 'Конкурс', render: (a) => a.tender ?? '—' },
-    { key: 'updated', header: 'Обновлена', render: (a) => formatDateTime(a.updatedAt) },
+    { key: 'tender', header: 'Конкурс', render: (a) => a.tender ?? '—', sortValue: (a) => a.tender ?? '' },
+    { key: 'updated', header: 'Обновлена', render: (a) => formatDateTime(a.updatedAt), sortValue: (a) => a.updatedAt },
     {
       key: 'actions',
       header: '',
       width: '90px',
+      sortable: false,
       render: (a) => (
         <Button size="sm" variant="secondary" icon="eye" onClick={() => navigate(`/applications/${a.id}`)}>
           Открыть

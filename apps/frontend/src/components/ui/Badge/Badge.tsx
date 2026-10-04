@@ -1,6 +1,6 @@
 // Бейдж: слово/метка с цветовым тоном. Статус-бейдж — вариант для
 // ролей/статусов/вердиктов, умеет превращаться в выпадающий список смены статуса.
-import type { ReactNode, SelectHTMLAttributes } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type SelectHTMLAttributes } from 'react';
 import type { RoleType } from '@arbuz/shared';
 import { Icon, type IconName } from '../Icon';
 import styles from './Badge.module.css';
@@ -66,14 +66,60 @@ export interface BadgeProps {
   tone?: BadgeTone;
   icon?: IconName;
   className?: string;
+  /** Подсказка при наведении; по умолчанию — текстовое содержимое. */
+  title?: string;
+  /** Максимальная ширина бейджа (число — px). Текст не переносится. */
+  maxWidth?: number | string;
   children: ReactNode;
 }
 
-export function Badge({ tone = 'neutral', icon, className, children }: BadgeProps) {
+function toCssSize(value?: number | string): string | undefined {
+  if (value === undefined) return undefined;
+  return typeof value === 'number' ? `${value}px` : value;
+}
+
+/**
+ * Бейдж не переносит текст и не растягивает строку таблицы. Если содержимое не
+ * помещается в доступную ширину, оно прокручивается внутри бейджа (бегущая строка)
+ * при наведении; полный текст доступен в подсказке (`title`).
+ */
+export function Badge({ tone = 'neutral', icon, className, title, maxWidth, children }: BadgeProps) {
+  const wrapRef = useRef<HTMLSpanElement | null>(null);
+  const textRef = useRef<HTMLSpanElement | null>(null);
+  const [shift, setShift] = useState(0);
+
+  // Измеряем переполнение текста относительно видимой области бейджа.
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    const text = textRef.current;
+    if (!wrap || !text) {
+      setShift(0);
+      return;
+    }
+    const measure = () => setShift(Math.max(0, Math.ceil(text.scrollWidth - wrap.clientWidth)));
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(wrap);
+    return () => observer.disconnect();
+  }, [children, maxWidth]);
+
+  const tooltip =
+    title ?? (typeof children === 'string' || typeof children === 'number' ? String(children) : undefined);
+  const badgeStyle = maxWidth !== undefined ? ({ maxWidth: toCssSize(maxWidth) } as CSSProperties) : undefined;
+  const textStyle =
+    shift > 0
+      ? ({ '--badge-shift': `${shift}px`, '--badge-speed': `${Math.max(2, Math.round(shift / 40))}s` } as CSSProperties)
+      : undefined;
+
   return (
-    <span className={`${styles.badge} ${styles[tone]} ${className ?? ''}`}>
+    <span className={`${styles.badge} ${styles[tone]} ${className ?? ''}`} style={badgeStyle} title={tooltip}>
       {icon ? <Icon name={icon} size={13} /> : null}
-      {children}
+      <span ref={wrapRef} className={styles.textWrap}>
+        <span ref={textRef} className={styles.text} data-scroll={shift > 0 || undefined} style={textStyle}>
+          {children}
+        </span>
+      </span>
     </span>
   );
 }
@@ -92,6 +138,8 @@ export interface StatusBadgeProps<V extends string>
   options: readonly StatusOption<V>[];
   /** Если задан — бейдж становится выпадающим списком для смены статуса. */
   onChange?: (value: V) => void;
+  /** Максимальная ширина бейджа (число — px). */
+  maxWidth?: number | string;
 }
 
 export function StatusBadge<V extends string>({
@@ -99,6 +147,7 @@ export function StatusBadge<V extends string>({
   options,
   onChange,
   className,
+  maxWidth,
   'aria-label': ariaLabel,
   ...rest
 }: StatusBadgeProps<V>) {
@@ -110,7 +159,7 @@ export function StatusBadge<V extends string>({
 
   if (!onChange) {
     return (
-      <Badge tone={current.tone} icon={current.icon}>
+      <Badge tone={current.tone} icon={current.icon} maxWidth={maxWidth}>
         {current.label}
       </Badge>
     );

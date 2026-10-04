@@ -1,8 +1,10 @@
 // Бизнес-логика заявок: доступ по ролям, CRUD, отправка на проверку.
-import { RoleType } from '@arbuz/shared';
+import { NotificationType, Prisma, RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 import { APPLICATION_STATUS_NAMES } from '../../lib/app-status';
+import type { DateRangeFilter, SortSpec } from '../../lib/query';
+import { createNotification } from '../notifications/notifications.service';
 import type { CurrentUser } from '../files/files.service';
 
 export type AccessMode = 'view' | 'edit' | 'submit' | 'delete';
@@ -99,9 +101,45 @@ export async function getApplicationForAccess(
   return application;
 }
 
+export interface ApplicationsFilter {
+  search?: string;
+  /** Мультивыбор статусов заявок. */
+  statusIds?: number[];
+  /** Мультивыбор конкурсов. */
+  tenderIds?: number[];
+  /** Мультивыбор заявителей. */
+  ownerIds?: number[];
+  /** Конкретные заявки. */
+  applicationIds?: number[];
+  created?: DateRangeFilter;
+  updated?: DateRangeFilter;
+  sort?: SortSpec | null;
+  limit: number;
+  offset: number;
+}
+
+function applicationsOrderBy(sort: SortSpec | null | undefined): Prisma.applicationsOrderByWithRelationInput[] {
+  if (!sort) return [{ created_at: 'desc' }];
+  const direction = sort.direction;
+  switch (sort.field) {
+    case 'created_at':
+      return [{ created_at: direction }];
+    case 'updated_at':
+      return [{ updated_at: direction }];
+    case 'title':
+      return [{ title: direction }];
+    case 'status':
+      return [{ application_statuses: { name: direction } }];
+    case 'owner':
+      return [{ users: { surname: direction } }, { users: { name: direction } }];
+    default:
+      return [{ created_at: 'desc' }];
+  }
+}
+
 export async function listApplications(
   user: CurrentUser,
-  filter: { limit: number; offset: number; search?: string; statusId?: number; tenderId?: number },
+  filter: ApplicationsFilter,
 ): Promise<{ applications: unknown[]; total: number }> {
   const accessWhere =
     user.role === RoleType.admin
@@ -110,22 +148,26 @@ export async function listApplications(
         ? { application_reviews: { some: { expert_id: user.id, deleted_at: null } } }
         : { owner_id: user.id };
 
-  const where = {
+  const where: Prisma.applicationsWhereInput = {
     deleted_at: null,
     ...accessWhere,
-    ...(filter.statusId ? { status_id: filter.statusId } : {}),
-    ...(filter.tenderId ? { tender_id: filter.tenderId } : {}),
+    ...(filter.statusIds?.length ? { status_id: { in: filter.statusIds } } : {}),
+    ...(filter.tenderIds?.length ? { tender_id: { in: filter.tenderIds } } : {}),
+    ...(filter.ownerIds?.length ? { owner_id: { in: filter.ownerIds } } : {}),
+    ...(filter.applicationIds?.length ? { id: { in: filter.applicationIds } } : {}),
+    ...(filter.created ? { created_at: filter.created } : {}),
+    ...(filter.updated ? { updated_at: filter.updated } : {}),
     ...(filter.search
       ? {
           OR: [
-            { title: { contains: filter.search, mode: 'insensitive' as const } },
+            { title: { contains: filter.search, mode: 'insensitive' } },
             {
               users: {
                 OR: [
-                  { surname: { contains: filter.search, mode: 'insensitive' as const } },
-                  { name: { contains: filter.search, mode: 'insensitive' as const } },
-                  { patronymic: { contains: filter.search, mode: 'insensitive' as const } },
-                  { email: { contains: filter.search, mode: 'insensitive' as const } },
+                  { surname: { contains: filter.search, mode: 'insensitive' } },
+                  { name: { contains: filter.search, mode: 'insensitive' } },
+                  { patronymic: { contains: filter.search, mode: 'insensitive' } },
+                  { email: { contains: filter.search, mode: 'insensitive' } },
                 ],
               },
             },
@@ -139,7 +181,7 @@ export async function listApplications(
   const [rows, total] = await Promise.all([
     prisma.applications.findMany({
       where,
-      orderBy: { created_at: 'desc' },
+      orderBy: applicationsOrderBy(filter.sort),
       skip: filter.offset,
       take: filter.limit,
       select: {
@@ -528,6 +570,21 @@ export async function updateApplication(
   }
 
   await prisma.applications.update({ where: { id: applicationId }, data });
+
+  // Уведомляем заявителя о смене статуса (финальный статус ставит администратор).
+  if (data.status_id !== undefined && data.status_id !== existing.status_id && existing.owner_id) {
+    const status = await prisma.application_statuses.findUnique({
+      where: { id: data.status_id as number },
+      select: { name: true },
+    });
+    await createNotification(existing.owner_id, {
+      type: NotificationType.application_status,
+      title: 'Статус заявки изменён',
+      body: `Заявка «${existing.title}»: новый статус — «${status?.name ?? '—'}».`,
+      link: `/applications/${applicationId}`,
+    });
+  }
+
   return getApplicationDetail(user, applicationId);
 }
 

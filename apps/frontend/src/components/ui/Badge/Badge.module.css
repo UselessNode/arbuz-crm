@@ -8,6 +8,42 @@
   font-weight: 600;
   line-height: 1.4;
   border: 1px solid transparent;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Область текста: клипает переполнение, не даёт бейджу расти бесконечно. */
+.textWrap {
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.text {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* При переполнении текст прокручивается внутри бейджа при наведении. */
+.badge:hover .text[data-scroll] {
+  animation: badge-marquee var(--badge-speed, 4s) linear infinite alternate;
+}
+
+@keyframes badge-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-1 * var(--badge-shift, 0px)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge:hover .text[data-scroll] {
+    animation: none;
+  }
 }
 
 /* Интерактивный бейдж-селект: обёртка держит тон и место под шеврон. */

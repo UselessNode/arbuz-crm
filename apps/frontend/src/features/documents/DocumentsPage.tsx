@@ -109,6 +109,7 @@ function DocumentsTab() {
     {
       key: 'title',
       header: 'Название',
+      sortValue: (document) => document.title.toLowerCase(),
       render: (document) => (
         <div className={styles.cellMain}>
           <span className={styles.strong}>{document.title}</span>
@@ -116,10 +117,11 @@ function DocumentsTab() {
         </div>
       ),
     },
-    { key: 'order', header: 'Порядок', width: '90px', render: (document) => document.sortOrder },
+    { key: 'order', header: 'Порядок', width: '90px', sortValue: (document) => document.sortOrder, render: (document) => document.sortOrder },
     {
       key: 'published',
       header: 'Статус',
+      sortValue: (document) => (document.isPublished ? 1 : 0),
       render: (document) =>
         document.isPublished ? (
           <Badge tone="green" icon="check">
@@ -129,11 +131,12 @@ function DocumentsTab() {
           <Badge tone="gray">Скрыт</Badge>
         ),
     },
-    { key: 'created', header: 'Добавлен', render: (document) => formatDateTime(document.createdAt) },
+    { key: 'created', header: 'Добавлен', sortValue: (document) => document.createdAt, render: (document) => formatDateTime(document.createdAt) },
     {
       key: 'actions',
       header: '',
       width: '120px',
+      sortable: false,
       render: (document) => (
         <div className={styles.actions}>
           <Button size="sm" variant="ghost" icon="edit" aria-label="Изменить" onClick={() => setEditing(document)} />

@@ -3,7 +3,14 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../lib/http';
 import { log } from '../../lib/logger';
-import { parseLimitOffset, parseOptionalId, parseSearch } from '../../lib/query';
+import {
+  parseDateRange,
+  parseIdArray,
+  parseLimitOffset,
+  parseOptionalId,
+  parseSearch,
+  parseSort,
+} from '../../lib/query';
 import { requireAuth } from '../auth/auth.middleware';
 import type { CurrentUser } from '../files/files.service';
 import {
@@ -21,14 +28,30 @@ import {
 export const applicationsRouter = Router();
 applicationsRouter.use(requireAuth);
 
+const APPLICATION_SORT_FIELDS = ['created_at', 'updated_at', 'title', 'status', 'owner'] as const;
+
 applicationsRouter.get(
   '/',
   asyncHandler(async (req: Request, res: Response) => {
     const { limit, offset } = parseLimitOffset(req.query);
     const search = parseSearch(req.query);
-    const statusId = parseOptionalId(req.query.status_id);
-    const tenderId = parseOptionalId(req.query.tender_id);
-    const result = await listApplications(req.user as CurrentUser, { search, statusId, tenderId, limit, offset });
+    // Мультивыбор; одиночные `status_id`/`tender_id` — для обратной совместимости.
+    const legacyStatus = parseOptionalId(req.query.status_id);
+    const legacyTender = parseOptionalId(req.query.tender_id);
+    const statusIds = parseIdArray(req.query.status_ids) ?? (legacyStatus ? [legacyStatus] : undefined);
+    const tenderIds = parseIdArray(req.query.tender_ids) ?? (legacyTender ? [legacyTender] : undefined);
+    const result = await listApplications(req.user as CurrentUser, {
+      search,
+      statusIds,
+      tenderIds,
+      ownerIds: parseIdArray(req.query.owner_ids),
+      applicationIds: parseIdArray(req.query.application_ids),
+      created: parseDateRange(req.query, 'created'),
+      updated: parseDateRange(req.query, 'updated'),
+      sort: parseSort(req.query, APPLICATION_SORT_FIELDS),
+      limit,
+      offset,
+    });
     res.json(result);
   }),
 );

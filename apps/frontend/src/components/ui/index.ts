@@ -46,10 +46,61 @@ export { Checkbox } from './Form';
 export type { CheckboxProps } from './Form';
 
 export { Table, useTableReorder } from './Table';
-export type { TableColumn, TableProps, TableReorderApi, TableReorderOptions } from './Table';
+export type {
+  TableColumn,
+  TableProps,
+  TableSelection,
+  TableReorderApi,
+  TableReorderOptions,
+} from './Table';
 
 export { ListToolbar, SearchInput } from './ListToolbar';
 export type { ListToolbarProps, SearchInputProps } from './ListToolbar';
+
+// Централизованная панель управления списком (поиск/фильтры/сортировка/URL-синк).
+export {
+  DEFAULT_PAGE_SIZE,
+  DataView,
+  activeFilters,
+  cycleSort,
+  hasActiveFilters,
+  isFilterValueEmpty,
+  readQuery,
+  removeFilterValue,
+  useDataViewState,
+  writeQuery,
+} from './DataView';
+export type {
+  ActiveFilter,
+  CheckboxGroupSpec,
+  DataViewColumn,
+  DataViewMode,
+  DataViewProps,
+  DataViewQuery,
+  DataViewSort,
+  DataViewState,
+  DataViewStateOptions,
+  DateRangeSpec,
+  DateRangeValue,
+  FilterOption,
+  FilterSpec,
+  FilterValue,
+  MultiSelectSpec,
+  QueryDefaults,
+  RangeSpec,
+  RangeValue,
+} from './DataView';
+
+// Примитивы фильтрации (используются внутри DataView, доступны и отдельно).
+export { ActiveFilters, CheckboxGroupFilter, DateRangeFilter, MultiSelectFilter, RangeFilter, SearchField } from './Filters';
+export type {
+  ActiveFiltersProps,
+  CheckboxGroupFilterProps,
+  DateRangeFilterProps,
+  MultiSelectFilterProps,
+  RangeFilterProps,
+  SearchFieldProps,
+} from './Filters';
 
 export { StateMessage } from './Feedback';
 export type { StateMessageProps } from './Feedback';

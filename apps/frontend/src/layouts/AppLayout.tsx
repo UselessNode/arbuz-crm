@@ -1,9 +1,10 @@
 // Каркас авторизованной части: сайдбар с навигацией по ролям, цветная шапка, футер.
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Button, Icon } from '../components/ui';
+import { Icon } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { formatUserName } from '../lib/format';
+import { NotificationsBell } from '../notifications/NotificationsBell';
 import melonLogo from '../assets/images/Melon.png';
 import { Footer } from './Footer';
 import { headerClassForRole, navItemsForRole, titleForRole } from './roleTheme';
@@ -89,9 +90,13 @@ export function AppLayout() {
           <span className={styles.headerTitle}>{titleForRole(user.role)}</span>
           <div className={styles.user}>
             <span className={styles.userName}>{formatUserName(user)}</span>
-            <Button variant="secondary" size="sm" icon="logout" onClick={handleLogout}>
-              Выйти
-            </Button>
+            <div className={styles.headerControls}>
+              <NotificationsBell />
+              <button type="button" className={styles.headerButton} onClick={handleLogout}>
+                <Icon name="logout" size={16} />
+                <span>Выйти</span>
+              </button>
+            </div>
           </div>
         </header>
         <main className={styles.content}>

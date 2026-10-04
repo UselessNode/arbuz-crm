@@ -13,19 +13,26 @@
 
 .toast {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  flex-direction: column;
   width: max-content;
   min-width: 280px;
   max-width: min(380px, calc(100vw - var(--space-5)));
-  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-left-width: 4px;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
+  overflow: hidden;
   pointer-events: auto;
   animation: toast-in 0.15s ease-out;
+}
+
+/* Строка содержимого: иконка, текст, действие, счётчик, закрытие. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
 }
 
 /* Полоса и иконка по тону уведомления. */
@@ -106,6 +113,34 @@
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
 }
+
+/* Обратный отсчёт: секунды до авто-скрытия. */
+.timer {
+  flex-shrink: 0;
+  min-width: 22px;
+  text-align: right;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Тонкая полоса оставшегося времени под содержимым тоста. */
+.progressTrack {
+  height: 3px;
+  width: 100%;
+  background-color: var(--color-border);
+}
+
+.progressFill {
+  height: 100%;
+  width: 100%;
+  background-color: var(--color-primary);
+  transition: width 0.1s linear;
+}
+
+.success .progressFill { background-color: var(--color-success); }
+.error .progressFill { background-color: var(--color-danger); }
+.info .progressFill { background-color: var(--color-primary); }
 
 .closing {
   animation: toast-out 0.15s ease-in forwards;

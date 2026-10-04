@@ -56,13 +56,14 @@ async function main(): Promise<void> {
 
     // Приватность: эксперт видит только свои экспертизы, администратор — все.
     const firstExpert = experts[0];
-    const expertView = await listReviews(asExpert(firstExpert.id, firstExpert.email));
+    // Без `limit` список отдаётся целиком (пагинация включается явно).
+    const expertView = (await listReviews(asExpert(firstExpert.id, firstExpert.email), { limit: null, offset: 0 })).reviews;
     smoke.ok(
       'эксперт видит только свои экспертизы',
       expertView.every((review) => review.expert?.id === firstExpert.id),
       expertView.map((review) => review.expert?.id),
     );
-    const adminView = await listReviews(admin);
+    const adminView = (await listReviews(admin, { limit: null, offset: 0 })).reviews;
     smoke.ok('администратор видит все экспертизы', adminView.length >= expertView.length, {
       admin: adminView.length,
       expert: expertView.length,

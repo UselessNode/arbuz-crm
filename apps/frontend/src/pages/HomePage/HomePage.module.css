@@ -177,6 +177,57 @@
   font-weight: 600;
 }
 
+/* Основная колонка (вкладки Новости/Документы). */
+.main {
+  min-width: 0;
+}
+
+/* Строка вкладок с кнопкой поиска справа. */
+.tabsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.tabs {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  margin-bottom: -2px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-muted);
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.tab:hover {
+  color: var(--color-text);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.tabActive {
+  color: var(--color-text);
+  border-bottom-color: var(--color-primary);
+}
+
 .feed {
   min-width: 0;
 }

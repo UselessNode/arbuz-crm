@@ -67,11 +67,12 @@ export interface PostListParams {
 }
 
 export const postsApi = {
-  /** Публичная лента: только опубликованные публикации. */
-  feed: (params?: { limit?: number; offset?: number }) => {
+  /** Публичная лента: только опубликованные публикации (с опциональным поиском). */
+  feed: (params?: { limit?: number; offset?: number; search?: string }) => {
     const query = new URLSearchParams();
     if (params?.limit !== undefined) query.set('limit', String(params.limit));
     if (params?.offset !== undefined) query.set('offset', String(params.offset));
+    if (params?.search) query.set('q', params.search);
     const suffix = query.toString() ? `?${query.toString()}` : '';
     return api.get<{ posts: Post[]; total: number }>(`/posts/feed${suffix}`);
   },

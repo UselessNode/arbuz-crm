@@ -1,0 +1,188 @@
+/* Страница центра уведомлений: сайдбар-список + текст выбранного. */
+.layout {
+  display: flex;
+  gap: var(--space-4);
+  align-items: stretch;
+  min-height: 60vh;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 380px;
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  overflow: hidden;
+}
+
+.filtersBar {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.item + .item {
+  margin-top: 2px;
+}
+
+.item:hover {
+  background-color: var(--tone-neutral-bg);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.itemActive {
+  background-color: var(--tone-blue-bg);
+}
+
+.itemUnread .itemTitle {
+  font-weight: 700;
+}
+
+.itemIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-muted);
+}
+
+.itemMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.itemTitleRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.itemTitle {
+  font-weight: 600;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.itemDate {
+  flex-shrink: 0;
+  color: var(--color-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.itemPreview {
+  color: var(--color-muted);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+}
+
+.detail {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.detailHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.detailDate {
+  margin-left: auto;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.detailTitle {
+  margin: 0;
+  font-size: 20px;
+}
+
+.detailBody {
+  color: var(--color-text);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.detailBody :global(p) {
+  margin: 0 0 var(--space-2);
+}
+
+.detailBody :global(img) {
+  max-width: 100%;
+  height: auto;
+}
+
+.detailEmpty {
+  color: var(--color-muted);
+}
+
+.detailActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* Мобильные: один столбец, показываем либо список, либо выбранное уведомление. */
+@media (max-width: 767px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+  }
+
+  .hiddenOnMobile {
+    display: none;
+  }
+}

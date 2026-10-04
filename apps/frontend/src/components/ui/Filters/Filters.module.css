@@ -1,0 +1,442 @@
+/* Стили примитивов фильтрации (поиск, фасеты, автокомплит, диапазоны, чипы). */
+
+/* --- Поиск --- */
+.search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 260px;
+  max-width: 380px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 10px;
+  color: var(--color-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 9px 30px 9px 34px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 14px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.searchInput:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+  border-color: var(--color-primary);
+}
+
+.searchClear {
+  position: absolute;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.searchClear:hover {
+  background-color: var(--tone-neutral-bg);
+  color: var(--color-text);
+}
+
+.searchClear:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.searchToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.searchToggle:hover {
+  background-color: var(--tone-neutral-bg);
+}
+
+.searchToggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+/* --- Кнопка «Фильтры» --- */
+.filterButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.filterButton:hover {
+  background-color: var(--tone-neutral-bg);
+}
+
+.filterButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.filterButtonActive {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.filterBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background-color: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* --- Панель фильтров --- */
+.panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.filterItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.filterLabel {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* --- Checkbox group / segmented --- */
+.checkboxGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.checkboxRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.segmentedButton {
+  padding: 7px var(--space-3);
+  border: none;
+  border-right: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.segmentedButton:last-child {
+  border-right: none;
+}
+
+.segmentedButton:hover {
+  background-color: var(--tone-neutral-bg);
+}
+
+.segmentedButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.segmentedActive {
+  background-color: var(--tone-blue-bg);
+  color: var(--tone-blue-text);
+  font-weight: 600;
+}
+
+/* --- Multi-select (token input) --- */
+.multi {
+  position: relative;
+  min-width: 240px;
+}
+
+.multiControl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 38px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  cursor: text;
+}
+
+.multiControl:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+  border-color: var(--color-primary);
+}
+
+.token {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  padding: 2px 4px 2px 8px;
+  border-radius: var(--radius-sm);
+  background-color: var(--tone-blue-bg);
+  color: var(--tone-blue-text);
+  font-size: 13px;
+}
+
+.tokenLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tokenRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.tokenRemove:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.multiInput {
+  flex: 1;
+  min-width: 80px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  padding: 4px;
+}
+
+.multiInput:focus {
+  outline: none;
+}
+
+.options {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.option {
+  display: block;
+  width: 100%;
+  padding: 8px var(--space-3);
+  border: none;
+  background-color: transparent;
+  color: var(--color-text);
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.option:hover,
+.optionActive {
+  background-color: var(--tone-blue-bg);
+}
+
+.optionMark {
+  float: right;
+  color: var(--color-primary);
+}
+
+.optionsEmpty {
+  padding: 8px var(--space-3);
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+/* --- Диапазон (слайдер) --- */
+.rangeWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 240px;
+}
+
+.rangeReset {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rangeReset:hover {
+  text-decoration: underline;
+}
+
+/* --- Пресеты дат --- */
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.presetButton {
+  padding: 4px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background-color: var(--color-surface);
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.presetButton:hover {
+  background-color: var(--tone-neutral-bg);
+  color: var(--color-text);
+}
+
+.presetButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+/* --- Активные чипы --- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background-color: var(--color-surface);
+  font-size: 13px;
+}
+
+.chipLabel {
+  color: var(--color-muted);
+}
+
+.chipValue {
+  font-weight: 600;
+}
+
+.chipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background-color: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.chipRemove:hover {
+  background-color: var(--tone-neutral-bg);
+  color: var(--color-text);
+}
+
+.chipRemove:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.chipsReset {
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chipsReset:hover {
+  text-decoration: underline;
+}

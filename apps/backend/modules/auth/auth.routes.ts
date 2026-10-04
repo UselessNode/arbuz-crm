@@ -5,8 +5,9 @@ import { config } from '../../lib/config';
 import { httpError, asyncHandler } from '../../lib/http';
 import { log } from '../../lib/logger';
 import type { PublicUser } from './auth.service';
-import { signSession, verifyPassword, registerApplicant } from './auth.service';
-import { requireAuth } from './auth.middleware';
+import { signSession, verifyPassword, registerApplicant, activateAccount } from './auth.service';
+import { requireAuthAllowInactive } from './auth.middleware';
+import type { CurrentUser } from '../files/files.service';
 
 export const authRouter = Router();
 
@@ -17,6 +18,7 @@ function toPublicUser(user: {
   surname: string | null;
   name: string | null;
   patronymic: string | null;
+  activated_at: Date | null;
 }): PublicUser {
   return {
     id: user.id,
@@ -25,6 +27,7 @@ function toPublicUser(user: {
     surname: user.surname,
     name: user.name,
     patronymic: user.patronymic,
+    activatedAt: user.activated_at,
   };
 }
 
@@ -97,10 +100,34 @@ authRouter.post('/logout', (req, res) => {
 
 authRouter.get(
   '/me',
-  requireAuth,
+  requireAuthAllowInactive,
   asyncHandler(async (req, res) => {
     const user = await prisma.users.findUnique({ where: { id: req.user!.id } });
     if (!user || user.deleted_at) throw httpError(401, 'Пользователь не найден', 'UNAUTHORIZED');
+    res.json({ user: toPublicUser(user) });
+  }),
+);
+
+// Завершение активации аккаунта, созданного администратором: правка данных,
+// (опционально) смена пароля и обязательное принятие ПС/ПДн.
+authRouter.post(
+  '/activate',
+  requireAuthAllowInactive,
+  asyncHandler(async (req, res) => {
+    const actor = req.user as CurrentUser;
+    const user = await activateAccount(
+      actor.id,
+      {
+        surname: req.body?.surname,
+        name: req.body?.name,
+        patronymic: req.body?.patronymic,
+        password: req.body?.password,
+        accept_terms: req.body?.accept_terms,
+        accept_personal_data_consent: req.body?.accept_personal_data_consent,
+      },
+      { ip: req.ip ?? null, userAgent: req.get('user-agent') ?? null },
+    );
+    log.audit('auth.activate', { userId: user.id, email: user.email });
     res.json({ user: toPublicUser(user) });
   }),
 );

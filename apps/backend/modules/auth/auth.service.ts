@@ -2,7 +2,7 @@
 // Токен не зависит от конкретного провайдера входа — в будущем «Госуслуги/ВК»
 // будут выпускать тот же самый токен, поэтому архитектура не меняется.
 import { SignJWT, jwtVerify } from 'jose';
-import { RoleType } from '@arbuz/shared';
+import { NotificationType, RoleType } from '@arbuz/shared';
 import { config } from '../../lib/config';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
@@ -12,6 +12,7 @@ import {
   requireRegistrationConsents,
   type ConsentRequestMeta,
 } from '../consents/consents.service';
+import { notifyRole } from '../notifications/notifications.service';
 
 export interface SessionUser {
   id: number;
@@ -25,6 +26,8 @@ export interface PublicUser {
   surname: string | null;
   name: string | null;
   patronymic: string | null;
+  /** null — аккаунт создан админом и ещё не активирован пользователем. */
+  activatedAt: Date | null;
 }
 
 const secret = new TextEncoder().encode(config.jwt.secret);
@@ -97,8 +100,8 @@ export async function registerApplicant(input: RegisterInput, meta: ConsentReque
   });
   const passwordHash = await hashPassword(password);
 
-  return prisma.$transaction(async (tx) => {
-    const user = await tx.users.create({
+  const user = await prisma.$transaction(async (tx) => {
+    const created = await tx.users.create({
       data: {
         email,
         password_hash: passwordHash,
@@ -106,9 +109,71 @@ export async function registerApplicant(input: RegisterInput, meta: ConsentReque
         surname: optionalName(input.surname),
         name: optionalName(input.name),
         patronymic: optionalName(input.patronymic),
+        // Саморегистрация: пользователь сразу принял ПС/ПДн → аккаунт активен.
+        activated_at: new Date(),
       },
     });
-    await tx.consent_events.createMany({ data: buildConsentEvents(user.id, documents, meta) });
+    await tx.consent_events.createMany({ data: buildConsentEvents(created.id, documents, meta) });
+    return created;
+  });
+
+  // Уведомляем администраторов о новой саморегистрации.
+  await notifyRole(RoleType.admin, {
+    type: NotificationType.account_created,
+    title: 'Новый пользователь',
+    body: `${email} зарегистрировался самостоятельно.`,
+    link: '/admin/users',
+  });
+
+  return user;
+}
+
+export interface ActivateInput {
+  surname?: unknown;
+  name?: unknown;
+  patronymic?: unknown;
+  /** Необязательная смена пароля (если задан — должен проходить политику). */
+  password?: unknown;
+  accept_terms?: unknown;
+  accept_personal_data_consent?: unknown;
+}
+
+/**
+ * Активация аккаунта, созданного администратором: пользователь подтверждает/правит данные,
+ * (опционально) меняет пароль и обязательно принимает ПС и ПДн. До этого аккаунт неактивен.
+ */
+export async function activateAccount(userId: number, input: ActivateInput, meta: ConsentRequestMeta) {
+  const existing = await prisma.users.findFirst({
+    where: { id: userId, deleted_at: null },
+    select: { id: true, activated_at: true },
+  });
+  if (!existing) throw httpError(404, 'Пользователь не найден', 'USER_NOT_FOUND');
+  if (existing.activated_at) throw httpError(409, 'Аккаунт уже активирован', 'ALREADY_ACTIVATED');
+
+  // Оба согласия обязательны (152-ФЗ): фиксируем принятие вместе с активацией.
+  const documents = await requireRegistrationConsents({
+    accept_terms: input.accept_terms,
+    accept_personal_data_consent: input.accept_personal_data_consent,
+  });
+
+  const data: {
+    activated_at: Date;
+    surname?: string | null;
+    name?: string | null;
+    patronymic?: string | null;
+    password_hash?: string;
+  } = { activated_at: new Date() };
+
+  if (input.surname !== undefined) data.surname = optionalName(input.surname);
+  if (input.name !== undefined) data.name = optionalName(input.name);
+  if (input.patronymic !== undefined) data.patronymic = optionalName(input.patronymic);
+  if (input.password !== undefined && input.password !== null && String(input.password) !== '') {
+    data.password_hash = await hashPassword(parsePassword(input.password));
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.users.update({ where: { id: userId }, data });
+    await tx.consent_events.createMany({ data: buildConsentEvents(userId, documents, meta) });
     return user;
   });
 }

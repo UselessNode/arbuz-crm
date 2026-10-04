@@ -1,11 +1,13 @@
 // Бизнес-логика экспертиз: назначение экспертов администратором и оценка заявок.
 import { Prisma } from '@arbuz/shared';
-import { RoleType } from '@arbuz/shared';
+import { NotificationType, RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
+import type { DateRangeFilter, NumberRangeFilter, SortSpec } from '../../lib/query';
 import { parseId } from '../../lib/parse';
 import type { CurrentUser } from '../files/files.service';
 import { getApplicationForAccess } from '../applications/applications.service';
+import { createNotification } from '../notifications/notifications.service';
 import { getDefaultReviewStatusId } from './review-statuses.service';
 
 /** Сколько экспертов назначается на заявку, если у конкурса не задано иное. */
@@ -131,23 +133,102 @@ export async function assignExpert(actor: CurrentUser, applicationId: number, ra
         data: { application_id: application.id, expert_id: expertId, status_id: statusId },
         include: reviewInclude,
       });
+  // Уведомляем эксперта о назначении.
+  await createNotification(expertId, {
+    type: NotificationType.expert_assignment,
+    title: 'Вы назначены экспертом',
+    body: `Заявка «${application.title}» назначена вам на экспертизу.`,
+    link: `/expert/applications/${application.id}`,
+  });
   return serializeReview(review);
 }
 
-export async function listReviews(user: CurrentUser) {
-  const where =
-    user.role === RoleType.admin
-      ? { deleted_at: null }
-      : user.role === RoleType.expert
-        ? { deleted_at: null, expert_id: user.id }
-        : { deleted_at: null, applications: { owner_id: user.id } };
+export interface ReviewsFilter {
+  search?: string;
+  /** Мультивыбор вердиктов (review_statuses). */
+  statusIds?: number[];
+  /** Мультивыбор экспертов. */
+  expertIds?: number[];
+  /** Мультивыбор заявок. */
+  applicationIds?: number[];
+  /** Диапазон итогового балла. */
+  score?: NumberRangeFilter;
+  created?: DateRangeFilter;
+  updated?: DateRangeFilter;
+  sort?: SortSpec | null;
+  /** null — без пагинации (обратная совместимость). */
+  limit: number | null;
+  offset: number;
+}
 
-  const reviews = await prisma.application_reviews.findMany({
-    where,
-    orderBy: { id: 'desc' },
-    include: reviewInclude,
-  });
-  return reviews.map(serializeReview);
+function reviewsOrderBy(sort: SortSpec | null | undefined): Prisma.application_reviewsOrderByWithRelationInput[] {
+  if (!sort) return [{ id: 'desc' }];
+  const direction = sort.direction;
+  switch (sort.field) {
+    case 'created_at':
+      return [{ created_at: direction }];
+    case 'updated_at':
+      return [{ updated_at: direction }];
+    case 'total_score':
+      return [{ total_score: direction }];
+    default:
+      return [{ id: 'desc' }];
+  }
+}
+
+export async function listReviews(user: CurrentUser, filter: ReviewsFilter) {
+  const accessWhere: Prisma.application_reviewsWhereInput =
+    user.role === RoleType.admin
+      ? {}
+      : user.role === RoleType.expert
+        ? { expert_id: user.id }
+        : { applications: { owner_id: user.id } };
+
+  const where: Prisma.application_reviewsWhereInput = {
+    deleted_at: null,
+    ...accessWhere,
+    ...(filter.statusIds?.length ? { status_id: { in: filter.statusIds } } : {}),
+    ...(filter.expertIds?.length ? { expert_id: { in: filter.expertIds } } : {}),
+    ...(filter.applicationIds?.length ? { application_id: { in: filter.applicationIds } } : {}),
+    ...(filter.score
+      ? {
+          total_score: {
+            ...(filter.score.min !== undefined ? { gte: filter.score.min } : {}),
+            ...(filter.score.max !== undefined ? { lte: filter.score.max } : {}),
+          },
+        }
+      : {}),
+    ...(filter.created ? { created_at: filter.created } : {}),
+    ...(filter.updated ? { updated_at: filter.updated } : {}),
+    ...(filter.search
+      ? {
+          OR: [
+            { applications: { title: { contains: filter.search, mode: 'insensitive' } } },
+            {
+              users: {
+                OR: [
+                  { surname: { contains: filter.search, mode: 'insensitive' } },
+                  { name: { contains: filter.search, mode: 'insensitive' } },
+                  { patronymic: { contains: filter.search, mode: 'insensitive' } },
+                  { email: { contains: filter.search, mode: 'insensitive' } },
+                ],
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+
+  const [reviews, total] = await Promise.all([
+    prisma.application_reviews.findMany({
+      where,
+      orderBy: reviewsOrderBy(filter.sort),
+      ...(filter.limit !== null ? { skip: filter.offset, take: filter.limit } : {}),
+      include: reviewInclude,
+    }),
+    prisma.application_reviews.count({ where }),
+  ]);
+  return { reviews: reviews.map(serializeReview), total };
 }
 
 /** Оценка заявки экспертом (или правка администратором). */
@@ -189,9 +270,19 @@ export async function updateReview(
 /** Снятие эксперта (удаление рецензии). Только администратор. */
 export async function deleteReview(actor: CurrentUser, reviewId: number): Promise<void> {
   if (actor.role !== RoleType.admin) throw httpError(403, 'Действие доступно только администратору', 'FORBIDDEN');
-  const review = await prisma.application_reviews.findFirst({ where: { id: reviewId, deleted_at: null }, select: { id: true } });
+  const review = await prisma.application_reviews.findFirst({
+    where: { id: reviewId, deleted_at: null },
+    select: { id: true, expert_id: true, applications: { select: { id: true, title: true } } },
+  });
   if (!review) throw httpError(404, 'Экспертиза не найдена', 'REVIEW_NOT_FOUND');
   await prisma.application_reviews.update({ where: { id: reviewId }, data: { deleted_at: new Date() } });
+  // Уведомляем эксперта о снятии с заявки.
+  await createNotification(review.expert_id, {
+    type: NotificationType.expert_assignment,
+    title: 'Вы сняты с экспертизы',
+    body: `Заявка «${review.applications?.title ?? '—'}» больше не назначена вам.`,
+    link: '/expert',
+  });
 }
 
 /**

@@ -5,11 +5,14 @@
 //   scheduled  — отложенная: is_published = true, scheduled_at в будущем;
 //   published  — опубликована: видна в публичной ленте;
 //   archived   — в архиве: скрыта из ленты, но доступна администратору.
-import { PostStatus, RoleType, isPostStatus } from '@arbuz/shared';
+import { PostStatus, Prisma, RoleType, isPostStatus } from '@arbuz/shared';
+import { NotificationType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
+import type { DateRangeFilter, SortSpec } from '../../lib/query';
 import type { CurrentUser } from '../files/files.service';
 import { renderMarkdown } from './markdown';
+import { notifyAll } from '../notifications/notifications.service';
 
 export const POST_TITLE_MAX = 255;
 export const POST_CONTENT_MAX = 1_000_000;
@@ -298,21 +301,68 @@ export async function listPublishedPosts(filter: {
   return { posts: posts.map(serialize), total };
 }
 
-/** Список для раздела «Публикации»: все статусы, с фильтром по статусу. Доступ — админ. */
+export interface AdminPostsFilter {
+  search?: string;
+  /** Мультивыбор вычисляемых статусов. */
+  statuses?: PostStatus[];
+  /** Конкретные публикации (автокомплит по заголовку). */
+  postIds?: number[];
+  scheduled?: DateRangeFilter;
+  edited?: DateRangeFilter;
+  created?: DateRangeFilter;
+  sort?: SortSpec | null;
+  limit: number;
+  offset: number;
+}
+
+/** Естественный порядок: закреплённые → ручной порядок → новые. */
+const DEFAULT_POSTS_ORDER: Prisma.postsOrderByWithRelationInput[] = [
+  { pinned: 'desc' },
+  { sort_order: 'asc' },
+  { created_at: 'desc' },
+];
+
+function adminPostsOrderBy(sort: SortSpec | null | undefined): Prisma.postsOrderByWithRelationInput[] {
+  if (!sort) return DEFAULT_POSTS_ORDER;
+  const direction = sort.direction;
+  switch (sort.field) {
+    case 'created_at':
+      return [{ created_at: direction }];
+    case 'updated_at':
+      return [{ updated_at: direction }];
+    case 'scheduled_at':
+      return [{ scheduled_at: direction }];
+    case 'title':
+      return [{ title: direction }];
+    case 'pinned':
+      return [{ pinned: direction }, { sort_order: 'asc' }];
+    case 'sort_order':
+      return [{ pinned: 'desc' }, { sort_order: direction }];
+    default:
+      return DEFAULT_POSTS_ORDER;
+  }
+}
+
+/** Список для раздела «Публикации»: все статусы, с фильтрами. Доступ — админ. */
 export async function listPostsForAdmin(
   user: CurrentUser,
-  filter: { limit: number; offset: number; search?: string; status?: PostStatus },
+  filter: AdminPostsFilter,
 ): Promise<PostPage> {
   requireAdmin(user);
-  const where = {
+  const now = new Date();
+  const where: Prisma.postsWhereInput = {
     deleted_at: null,
-    ...(filter.status ? statusWhere(filter.status, new Date()) : {}),
-    ...(filter.search ? { title: { contains: filter.search, mode: 'insensitive' as const } } : {}),
+    ...(filter.statuses?.length ? { OR: filter.statuses.map((status) => statusWhere(status, now)) } : {}),
+    ...(filter.postIds?.length ? { id: { in: filter.postIds } } : {}),
+    ...(filter.scheduled ? { scheduled_at: filter.scheduled } : {}),
+    ...(filter.edited ? { edited_at: filter.edited } : {}),
+    ...(filter.created ? { created_at: filter.created } : {}),
+    ...(filter.search ? { title: { contains: filter.search, mode: 'insensitive' } } : {}),
   };
   const [posts, total] = await Promise.all([
     prisma.posts.findMany({
       where,
-      orderBy: [{ pinned: 'desc' }, { sort_order: 'asc' }, { created_at: 'desc' }],
+      orderBy: adminPostsOrderBy(filter.sort),
       skip: filter.offset,
       take: filter.limit,
       select: postSelect,
@@ -352,6 +402,18 @@ export async function createPost(user: CurrentUser, input: Partial<PostInput>) {
     },
     select: postSelect,
   });
+  // Опубликованная публикация — рассылаем уведомление всем (кроме автора).
+  if (computePostStatus(post) === PostStatus.published) {
+    await notifyAll(
+      {
+        type: NotificationType.publication,
+        title: 'Новая публикация',
+        body: post.title,
+        link: `/#post-${post.id}`,
+      },
+      user.id,
+    );
+  }
   return serialize(post);
 }
 
@@ -359,7 +421,7 @@ export async function updatePost(user: CurrentUser, postId: number, input: Parti
   requireAdmin(user);
   const existing = await prisma.posts.findFirst({
     where: { id: postId, deleted_at: null },
-    select: { id: true, title: true, content: true, archived_at: true },
+    select: { id: true, title: true, content: true, archived_at: true, is_published: true, scheduled_at: true },
   });
   if (!existing) throw httpError(404, 'Пост не найден', 'POST_NOT_FOUND');
 
@@ -382,6 +444,19 @@ export async function updatePost(user: CurrentUser, postId: number, input: Parti
     },
     select: postSelect,
   });
+  // Переход в «опубликовано» (черновик/архив → лента) — уведомляем всех, кроме автора.
+  const wasPublished = computePostStatus(existing) === PostStatus.published;
+  if (!wasPublished && computePostStatus(post) === PostStatus.published) {
+    await notifyAll(
+      {
+        type: NotificationType.publication,
+        title: 'Новая публикация',
+        body: post.title,
+        link: `/#post-${post.id}`,
+      },
+      user.id,
+    );
+  }
   return serialize(post);
 }
 

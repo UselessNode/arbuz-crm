@@ -42,6 +42,8 @@ export async function ensureUser(input: UserInput) {
       surname: input.surname ?? null,
       name: input.name ?? null,
       patronymic: input.patronymic ?? null,
+      // Демо-аккаунты считаются уже активированными.
+      activated_at: new Date(),
     },
   });
   log.info('seed: создан пользователь', { id: user.id, email, role: input.role });

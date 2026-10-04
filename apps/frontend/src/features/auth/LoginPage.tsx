@@ -37,6 +37,12 @@ export function LoginPage() {
   return (
     <div className={styles.page}>
       <Container className={styles.card}>
+        <div className={styles.backRow}>
+          <Button variant="ghost" size="sm" icon="arrow-left" onClick={() => navigate('/')}>
+            Назад
+          </Button>
+        </div>
+
         <div className={styles.brand}>
           <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
           <h1 className={styles.title}>Arbuz CRM</h1>

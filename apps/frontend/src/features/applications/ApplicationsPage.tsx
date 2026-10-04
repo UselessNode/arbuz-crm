@@ -72,21 +72,24 @@ export function ApplicationsPage() {
 
   const columns: TableColumn<ApplicationSummary>[] = [
     { key: 'title', header: 'Заявка', field: 'title' },
-    { key: 'owner', header: 'Заявитель', render: (a) => a.ownerName },
+    { key: 'owner', header: 'Заявитель', render: (a) => a.ownerName, sortValue: (a) => a.ownerName ?? '' },
     {
       key: 'status',
       header: 'Статус',
+      width: '170px',
+      sortValue: (a) => a.status?.name ?? '',
       render: (a) =>
         a.status
-          ? <StatusBadge value={String(a.status.id)} options={statusOptions} />
+          ? <StatusBadge value={String(a.status.id)} options={statusOptions} maxWidth={150} />
           : <Badge tone="neutral">—</Badge>,
     },
-    { key: 'tender', header: 'Конкурс', render: (a) => a.tender ?? '—' },
-    { key: 'updated', header: 'Обновлена', render: (a) => formatDateTime(a.updatedAt) },
+    { key: 'tender', header: 'Конкурс', render: (a) => a.tender ?? '—', sortValue: (a) => a.tender ?? '' },
+    { key: 'updated', header: 'Обновлена', render: (a) => formatDateTime(a.updatedAt), sortValue: (a) => a.updatedAt },
     {
       key: 'actions',
       header: '',
       width: '80px',
+      sortable: false,
       render: (a) => (
         <Button size="sm" variant="secondary" icon="eye" onClick={() => navigate(`/admin/applications/${a.id}`)}>
           Открыть

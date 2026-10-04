@@ -15,6 +15,8 @@ export function ProtectedRoute({ roles, children }: ProtectedRouteProps) {
 
   if (loading) return <StateMessage state="loading" message="Проверка сессии…" />;
   if (!user) return <Navigate to="/login" replace />;
+  // Аккаунт создан админом и ещё не активирован — только страница активации.
+  if (!user.activatedAt) return <Navigate to="/activate" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/forbidden" replace />;
 
   return <>{children}</>;

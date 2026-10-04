@@ -4,6 +4,7 @@ import { AppLayout } from '../layouts/AppLayout';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
+import { ActivatePage } from '../features/auth/ActivatePage';
 import { UsersPage } from '../features/users/UsersPage';
 import { ApplicationsPage } from '../features/applications/ApplicationsPage';
 import { ApplicantApplicationsPage } from '../features/applications/ApplicantApplicationsPage';
@@ -14,6 +15,7 @@ import { ReviewsSummaryPage } from '../features/reviews/ReviewsSummaryPage';
 import { PostsPage } from '../features/posts/PostsPage';
 import { PostEditorPage } from '../features/posts/PostEditorPage';
 import { DocumentsPage } from '../features/documents/DocumentsPage';
+import { NotificationsPage } from '../notifications/NotificationsPage';
 import { ContestSettingsPage } from '../features/references/ContestSettingsPage';
 import { ExpertiseSettingsPage } from '../features/references/ExpertiseSettingsPage';
 import { DesignSystemPage } from '../pages/DesignSystemPage/DesignSystemPage';
@@ -31,6 +33,7 @@ export function AppRouter() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/activate" element={<ActivatePage />} />
       <Route path="/forbidden" element={<ForbiddenPage />} />
 
       <Route element={<PublicLayout />}>
@@ -47,6 +50,7 @@ export function AppRouter() {
         }
       >
         <Route path="/account" element={<AccountPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/applications" element={<ApplicantApplicationsPage />} />
         <Route path="/applications/:applicationId" element={<ApplicationDetailPage area="applicant" />} />
         <Route

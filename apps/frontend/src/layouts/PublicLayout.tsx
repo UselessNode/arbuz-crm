@@ -3,6 +3,7 @@ import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { homePathForRole } from '../lib/roles';
+import { NotificationsBell } from '../notifications/NotificationsBell';
 import melonLogo from '../assets/images/Melon.png';
 import { Footer } from './Footer';
 import styles from './PublicLayout.module.css';
@@ -21,9 +22,12 @@ export function PublicLayout() {
         </Link>
         <nav className={styles.actions}>
           {!loading && user ? (
-            <Button variant="secondary" size="sm" icon="user" onClick={() => navigate(cabinetPath)}>
-              Личный кабинет
-            </Button>
+            <>
+              <NotificationsBell />
+              <Button variant="secondary" size="sm" icon="user" onClick={() => navigate(cabinetPath)}>
+                Личный кабинет
+              </Button>
+            </>
           ) : (
             <>
               <Button variant="ghost" size="sm" icon="login" onClick={() => navigate('/login')}>

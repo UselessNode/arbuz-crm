@@ -186,6 +186,7 @@ export function PostsPage() {
             rowStyle={reorder.getRowStyle}
             rowClassName={reorder.getRowClassName}
             separateBorders
+            sortable={false}
           />
           <Pagination
             page={list.page}

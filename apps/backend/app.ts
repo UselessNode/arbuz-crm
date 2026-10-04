@@ -5,6 +5,7 @@ import { errorHandler, notFoundHandler } from './lib/http';
 import { authRouter } from './modules/auth/auth.routes';
 import { consentsRouter } from './modules/consents/consents.routes';
 import { documentsRouter } from './modules/documents/documents.routes';
+import { notificationsRouter } from './modules/notifications/notifications.routes';
 import { filesRouter } from './modules/files/files.routes';
 import { postsRouter } from './modules/posts/posts.routes';
 import { pdfExportRouter } from './modules/pdf-export/pdf-export.routes';
@@ -47,6 +48,7 @@ export function createApp(): express.Express {
   app.use('/api/auth', authRouter);
   app.use('/api/consents', consentsRouter);
   app.use('/api/documents', documentsRouter);
+  app.use('/api/notifications', notificationsRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/applications', filesRouter);
   app.use('/api/applications', applicationsRouter);

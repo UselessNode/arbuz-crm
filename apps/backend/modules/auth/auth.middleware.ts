@@ -29,19 +29,46 @@ export function extractToken(req: Request): string | undefined {
  * Аутентификация: проверяет токен и подставляет req.user.
  * Express 4 не ловит rejected promise у async-мидлвара, поэтому ошибки явно
  * передаём в next(err), чтобы их обработал errorHandler.
+ * По умолчанию требует активированный аккаунт (см. `requireAuthAllowInactive`).
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   (async () => {
-    const token = extractToken(req);
-    const session = token ? await verifySession(token) : null;
-    if (!session) throw httpError(401, 'Требуется авторизация', 'UNAUTHORIZED');
-
-    const user = await prisma.users.findUnique({ where: { id: session.id } });
-    if (!user || user.deleted_at) throw httpError(401, 'Пользователь не найден', 'UNAUTHORIZED');
-
+    const user = await loadSessionUser(req);
+    if (!user) throw httpError(401, 'Требуется авторизация', 'UNAUTHORIZED');
+    if (!user.activated_at) {
+      throw httpError(403, 'Аккаунт не активирован — завершите регистрацию', 'ACCOUNT_NOT_ACTIVATED');
+    }
     req.user = { id: user.id, email: user.email, role: user.role };
     next();
   })().catch(next);
+}
+
+/**
+ * Аутентификация без требования активации: для `/auth/me` и `/auth/activate`,
+ * чтобы неактивный пользователь мог завершить активацию.
+ */
+export function requireAuthAllowInactive(req: Request, _res: Response, next: NextFunction): void {
+  (async () => {
+    const user = await loadSessionUser(req);
+    if (!user) throw httpError(401, 'Требуется авторизация', 'UNAUTHORIZED');
+    req.user = { id: user.id, email: user.email, role: user.role };
+    next();
+  })().catch(next);
+}
+
+/** Загружает пользователя по сессионному токену (или null). */
+async function loadSessionUser(
+  req: Request,
+): Promise<{ id: number; email: string; role: RoleType; activated_at: Date | null } | null> {
+  const token = extractToken(req);
+  const session = token ? await verifySession(token) : null;
+  if (!session) return null;
+  const user = await prisma.users.findUnique({
+    where: { id: session.id },
+    select: { id: true, email: true, role: true, deleted_at: true, activated_at: true },
+  });
+  if (!user || user.deleted_at) return null;
+  return user;
 }
 
 /**

@@ -1,8 +1,17 @@
-// Публичная домашняя страница: два раздела для всех ролей — «Новости» и «Документы».
+// Публичная домашняя страница: вкладки «Новости» и «Документы» (доступны всем ролям).
 // Карточки новостей: кнопка «копировать ссылку» для всех и kebab-меню действий для администратора.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Icon, KebabMenu, Pagination, StateMessage, useToast } from '../../components/ui';
+import {
+  Button,
+  Icon,
+  KebabMenu,
+  ListToolbar,
+  Pagination,
+  SearchInput,
+  StateMessage,
+  useToast,
+} from '../../components/ui';
 import { postsApi, type Post, type PostPayload } from '../../api/posts';
 import { documentsApi, type PublicDocument } from '../../api/documents';
 import { ApiError } from '../../api/client';
@@ -17,6 +26,8 @@ import melonLogo from '../../assets/images/Melon.png';
 import styles from './HomePage.module.css';
 
 const PAGE_SIZE = 5;
+
+type Tab = 'news' | 'documents';
 
 /** Payload публикации целиком (PATCH заменяет документ): текущее состояние + изменения. */
 function toPayload(post: Post, override: Partial<PostPayload> = {}): PostPayload {
@@ -40,6 +51,11 @@ export function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
 
+  const [tab, setTab] = useState<Tab>('news');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [postSearch, setPostSearch] = useState('');
+  const [documentSearch, setDocumentSearch] = useState('');
+
   // Страница ленты хранится в адресе — ссылка на публикацию со второй страницы
   // восстанавливает нужную страницу: /?page=2#post-15.
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
@@ -59,7 +75,11 @@ export function HomePage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await postsApi.feed({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
+      const response = await postsApi.feed({
+        limit: PAGE_SIZE,
+        offset: (page - 1) * PAGE_SIZE,
+        search: postSearch || undefined,
+      });
       setPosts(response.posts);
       setTotal(response.total);
     } catch (caught) {
@@ -67,7 +87,7 @@ export function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, postSearch]);
 
   const loadDocuments = useCallback(async () => {
     setDocumentsLoading(true);
@@ -99,10 +119,19 @@ export function HomePage() {
     if (scrollTop) window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  /** Сброс страницы к первой (при смене поиска). */
+  const resetPage = () => {
+    if (searchParams.has('page')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('page');
+      setSearchParams(next, { replace: true });
+    }
+  };
+
   // Переход по ссылке-якорю: если публикация из хэша не на текущей странице,
   // вычисляем её страницу и переключаемся; прокрутка — отдельным эффектом ниже.
   useEffect(() => {
-    if (hashHandledRef.current || loading || posts.length === 0) return;
+    if (tab !== 'news' || hashHandledRef.current || loading || posts.length === 0) return;
     const match = /^#post-(\d+)$/.exec(window.location.hash);
     if (!match) return;
     const postId = Number(match[1]);
@@ -124,17 +153,17 @@ export function HomePage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, posts]);
+  }, [tab, loading, posts]);
 
   // Прокрутка к карточке, когда она оказалась в текущей загруженной странице.
   useEffect(() => {
-    if (loading || posts.length === 0) return;
+    if (tab !== 'news' || loading || posts.length === 0) return;
     const match = /^#post-(\d+)$/.exec(window.location.hash);
     if (!match) return;
     const postId = Number(match[1]);
     if (!posts.some((post) => post.id === postId)) return;
     document.getElementById(`post-${postId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [loading, posts]);
+  }, [tab, loading, posts]);
 
   /** Копирование ссылки в буфер с уведомлением. */
   const copyLink = async (url: string) => {
@@ -153,6 +182,15 @@ export function HomePage() {
     }
   };
 
+  const query = documentSearch.trim().toLowerCase();
+  const visibleDocuments = query
+    ? documents.filter(
+        (document) =>
+          document.title.toLowerCase().includes(query) ||
+          (document.description ?? '').toLowerCase().includes(query),
+      )
+    : documents;
+
   return (
     <div className={styles.page}>
       <section className={styles.hero}>
@@ -166,137 +204,173 @@ export function HomePage() {
       </section>
 
       <div className={styles.grid}>
-        <section className={styles.feed} aria-label="Новости">
-          <header className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Новости</h2>
-            {total > 0 ? <span className={styles.count}>{total}</span> : null}
-          </header>
+        <section className={styles.main} aria-label="Новости и документы">
+          <div className={styles.tabsRow}>
+            <div className={styles.tabs} role="tablist" aria-label="Разделы">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'news'}
+                className={[styles.tab, tab === 'news' ? styles.tabActive : ''].filter(Boolean).join(' ')}
+                onClick={() => setTab('news')}
+              >
+                Новости
+                {total > 0 ? <span className={styles.count}>{total}</span> : null}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'documents'}
+                className={[styles.tab, tab === 'documents' ? styles.tabActive : ''].filter(Boolean).join(' ')}
+                onClick={() => setTab('documents')}
+              >
+                Документы
+                {documents.length > 0 ? <span className={styles.count}>{documents.length}</span> : null}
+              </button>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={searchOpen ? 'close' : 'search'}
+              aria-label={searchOpen ? 'Скрыть поиск' : 'Показать поиск'}
+              title={searchOpen ? 'Скрыть поиск' : 'Поиск'}
+              onClick={() => setSearchOpen((prev) => !prev)}
+            />
+          </div>
 
-          {loading ? (
-            <StateMessage state="loading" />
-          ) : error ? (
-            <StateMessage state="error" message={error} onRetry={() => void loadPosts()} />
-          ) : posts.length === 0 ? (
-            <StateMessage state="empty" message="Публикаций пока нет" />
-          ) : (
-            <>
-              <div className={styles.posts}>
-                {posts.map((post) => (
-                  <article key={post.id} id={`post-${post.id}`} className={styles.post}>
-                    <div className={styles.postHeader}>
-                      <h3 className={styles.postTitle}>{post.title}</h3>
-                      <div className={styles.cardActions}>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          icon="link"
-                          aria-label="Скопировать ссылку на публикацию"
-                          title="Скопировать ссылку"
-                          onClick={() => {
-                            // Ссылка включает номер страницы, чтобы открыть нужную страницу ленты.
-                            const base = `${window.location.origin}${window.location.pathname}`;
-                            const pageQuery = page > 1 ? `?page=${page}` : '';
-                            void copyLink(`${base}${pageQuery}#post-${post.id}`);
-                          }}
-                        />
-                        {isAdmin ? (
-                          <KebabMenu
-                            label="Действия с публикацией"
-                            items={[
-                              { key: 'edit', label: 'Редактировать', icon: 'edit', onSelect: () => navigate(`/admin/posts/${post.id}`) },
-                              {
-                                key: 'archive',
-                                label: 'Заархивировать',
-                                icon: 'briefcase',
-                                onSelect: () => void applyPostChange(post, { archived: true }, 'Публикация в архиве'),
-                              },
-                              {
-                                key: 'pin',
-                                label: post.pinned ? 'Открепить' : 'Прикрепить',
-                                icon: 'pin',
-                                onSelect: () =>
-                                  void applyPostChange(
-                                    post,
-                                    { pinned: !post.pinned },
-                                    post.pinned ? 'Публикация откреплена' : 'Публикация прикреплена наверху',
-                                  ),
-                              },
-                              {
-                                key: 'hide',
-                                label: 'Скрыть',
-                                icon: 'crossed-eye',
-                                onSelect: () =>
-                                  void applyPostChange(
-                                    post,
-                                    { is_published: false, scheduled_at: null },
-                                    'Публикация скрыта из ленты',
-                                  ),
-                              },
-                            ]}
+          {searchOpen ? (
+            <ListToolbar>
+              {tab === 'news' ? (
+                <SearchInput
+                  placeholder="Поиск по новостям"
+                  onChange={(value) => {
+                    setPostSearch(value);
+                    resetPage();
+                  }}
+                />
+              ) : (
+                <SearchInput placeholder="Поиск по документам" onChange={setDocumentSearch} />
+              )}
+            </ListToolbar>
+          ) : null}
+
+          {tab === 'news' ? (
+            loading ? (
+              <StateMessage state="loading" />
+            ) : error ? (
+              <StateMessage state="error" message={error} onRetry={() => void loadPosts()} />
+            ) : posts.length === 0 ? (
+              <StateMessage state="empty" message={postSearch ? 'Ничего не найдено' : 'Публикаций пока нет'} />
+            ) : (
+              <>
+                <div className={styles.posts}>
+                  {posts.map((post) => (
+                    <article key={post.id} id={`post-${post.id}`} className={styles.post}>
+                      <div className={styles.postHeader}>
+                        <h3 className={styles.postTitle}>{post.title}</h3>
+                        <div className={styles.cardActions}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            icon="link"
+                            aria-label="Скопировать ссылку на публикацию"
+                            title="Скопировать ссылку"
+                            onClick={() => {
+                              // Ссылка включает номер страницы, чтобы открыть нужную страницу ленты.
+                              const base = `${window.location.origin}${window.location.pathname}`;
+                              const pageQuery = page > 1 ? `?page=${page}` : '';
+                              void copyLink(`${base}${pageQuery}#post-${post.id}`);
+                            }}
                           />
-                        ) : null}
+                          {isAdmin ? (
+                            <KebabMenu
+                              label="Действия с публикацией"
+                              items={[
+                                { key: 'edit', label: 'Редактировать', icon: 'edit', onSelect: () => navigate(`/admin/posts/${post.id}`) },
+                                {
+                                  key: 'archive',
+                                  label: 'Заархивировать',
+                                  icon: 'briefcase',
+                                  onSelect: () => void applyPostChange(post, { archived: true }, 'Публикация в архиве'),
+                                },
+                                {
+                                  key: 'pin',
+                                  label: post.pinned ? 'Открепить' : 'Прикрепить',
+                                  icon: 'pin',
+                                  onSelect: () =>
+                                    void applyPostChange(
+                                      post,
+                                      { pinned: !post.pinned },
+                                      post.pinned ? 'Публикация откреплена' : 'Публикация прикреплена наверху',
+                                    ),
+                                },
+                                {
+                                  key: 'hide',
+                                  label: 'Скрыть',
+                                  icon: 'crossed-eye',
+                                  onSelect: () =>
+                                    void applyPostChange(
+                                      post,
+                                      { is_published: false, scheduled_at: null },
+                                      'Публикация скрыта из ленты',
+                                    ),
+                                },
+                              ]}
+                            />
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                    <div className={styles.postMeta}>
-                      <time>{formatDateTime(post.createdAt)}</time>
-                      {post.pinned ? <span> · прикреплено</span> : null}
-                      {/* Автор скрыт, если публикация помечена как обратная связь от организации. */}
-                      {post.authorName ? <span> · {post.authorName}</span> : null}
-                    </div>
-                    {/* HTML санитизируется на сервере (contentHtml); подряд идущие
-                        картинки показываются каруселью (PostContent). */}
-                    <PostContent html={post.contentHtml} className={styles.postContent} />
-                    <PostAttachments post={post} />
-                  </article>
-                ))}
-              </div>
-              <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={moveToPage} />
-            </>
+                      <div className={styles.postMeta}>
+                        <time>{formatDateTime(post.createdAt)}</time>
+                        {post.pinned ? <span> · прикреплено</span> : null}
+                        {/* Автор скрыт, если публикация помечена как обратная связь от организации. */}
+                        {post.authorName ? <span> · {post.authorName}</span> : null}
+                      </div>
+                      {/* HTML санитизируется на сервере (contentHtml); подряд идущие
+                          картинки показываются каруселью (PostContent). */}
+                      <PostContent html={post.contentHtml} className={styles.postContent} />
+                      <PostAttachments post={post} />
+                    </article>
+                  ))}
+                </div>
+                <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={moveToPage} />
+              </>
+            )
+          ) : documentsLoading ? (
+            <StateMessage state="loading" />
+          ) : documentsError ? (
+            <StateMessage state="error" message={documentsError} onRetry={() => void loadDocuments()} />
+          ) : visibleDocuments.length === 0 ? (
+            <StateMessage state="empty" message={documentSearch ? 'Ничего не найдено' : 'Документов пока нет'} />
+          ) : (
+            <ul className={styles.documents}>
+              {visibleDocuments.map((document) => (
+                <li key={document.id} id={`document-${document.id}`} className={styles.documentItem}>
+                  <a
+                    href={documentsApi.downloadUrl(document.id)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={styles.documentLink}
+                    title={document.description ?? document.title}
+                  >
+                    <Icon name="document" size={16} />
+                    <span className={styles.documentName}>{document.title}</span>
+                  </a>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon="link"
+                    aria-label="Скопировать ссылку на документ"
+                    title="Скопировать ссылку"
+                    onClick={() => void copyLink(`${window.location.origin}${documentsApi.downloadUrl(document.id)}`)}
+                  />
+                </li>
+              ))}
+            </ul>
           )}
         </section>
 
-        <aside className={styles.aside} aria-label="Документы и контакты">
-          <section className={styles.sideCard} aria-label="Документы">
-            <header className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>Документы</h2>
-              {documents.length > 0 ? <span className={styles.count}>{documents.length}</span> : null}
-            </header>
-            {documentsLoading ? (
-              <StateMessage state="loading" />
-            ) : documentsError ? (
-              <StateMessage state="error" message={documentsError} onRetry={() => void loadDocuments()} />
-            ) : documents.length === 0 ? (
-              <StateMessage state="empty" message="Документов пока нет" />
-            ) : (
-              <ul className={styles.documents}>
-                {documents.map((document) => (
-                  <li key={document.id} id={`document-${document.id}`} className={styles.documentItem}>
-                    <a
-                      href={documentsApi.downloadUrl(document.id)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={styles.documentLink}
-                      title={document.description ?? document.title}
-                    >
-                      <Icon name="document" size={16} />
-                      <span className={styles.documentName}>{document.title}</span>
-                    </a>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      icon="link"
-                      aria-label="Скопировать ссылку на документ"
-                      title="Скопировать ссылку"
-                      onClick={() =>
-                        void copyLink(`${window.location.origin}${documentsApi.downloadUrl(document.id)}`)
-                      }
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
+        <aside className={styles.aside} aria-label="Контакты">
           <section className={styles.sideCard} aria-label="Контакты организации">
             <h2 className={styles.sectionTitle}>Контакты</h2>
             <ContactValue label="Телефон" value={ORGANIZER_CONTACTS.phone} />

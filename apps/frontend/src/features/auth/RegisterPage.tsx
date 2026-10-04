@@ -1,5 +1,5 @@
 // Страница регистрации заявителя.
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Button, Checkbox, Container, Input } from '../../components/ui';
 import { useAuth } from '../../auth/AuthContext';
@@ -9,9 +9,6 @@ import { homePathForRole } from '../../lib/roles';
 import { AgreementModal } from './AgreementModal';
 import melonLogo from '../../assets/images/Melon.png';
 import styles from './AuthPage.module.css';
-
-/** Длительность удержания чекбокса (мс) для подтверждения в dev-режиме. */
-const HOLD_DURATION = 1500;
 
 /** Обязательные к принятию документы (152-ФЗ: два независимых согласия). */
 const CONSENT_ITEMS = [
@@ -42,46 +39,6 @@ export function RegisterPage() {
     [ConsentDocumentType.personal_data_consent]: false,
   });
   const [openDocument, setOpenDocument] = useState<ConsentDocumentType | null>(null);
-  const [hold, setHold] = useState<{ type: ConsentDocumentType; progress: number } | null>(null);
-
-  const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const holdStartRef = useRef(0);
-
-  // Останавливаем удержание и сбрасываем его индикатор.
-  const clearHold = useCallback(() => {
-    if (holdTimeoutRef.current !== null) {
-      clearTimeout(holdTimeoutRef.current);
-      holdTimeoutRef.current = null;
-    }
-    if (holdIntervalRef.current !== null) {
-      clearInterval(holdIntervalRef.current);
-      holdIntervalRef.current = null;
-    }
-    setHold(null);
-  }, []);
-
-  // Удержание чекбокса (только в dev): по завершении отмечает согласие без открытия документа.
-  const startHold = useCallback(
-    (type: ConsentDocumentType) => {
-      if (!import.meta.env.DEV) return;
-      clearHold();
-      holdStartRef.current = Date.now();
-      setHold({ type, progress: 0 });
-      holdIntervalRef.current = setInterval(() => {
-        const elapsed = Date.now() - holdStartRef.current;
-        setHold({ type, progress: Math.min(100, (elapsed / HOLD_DURATION) * 100) });
-      }, 50);
-      holdTimeoutRef.current = setTimeout(() => {
-        clearHold();
-        setAccepted((prev) => (prev[type] ? prev : { ...prev, [type]: true }));
-      }, HOLD_DURATION);
-    },
-    [clearHold],
-  );
-
-  // Страховка: не оставляем активные таймеры при размонтировании.
-  useEffect(() => clearHold, [clearHold]);
 
   if (!loading && user) {
     return <Navigate to={homePathForRole(user.role)} replace />;
@@ -115,6 +72,12 @@ export function RegisterPage() {
   return (
     <div className={styles.page}>
       <Container className={styles.card}>
+        <div className={styles.backRow}>
+          <Button variant="ghost" size="sm" icon="arrow-left" onClick={() => navigate('/')}>
+            Назад
+          </Button>
+        </div>
+
         <div className={styles.brand}>
           <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
           <h1 className={styles.title}>Регистрация</h1>
@@ -149,21 +112,12 @@ export function RegisterPage() {
 
           {CONSENT_ITEMS.map((item) => (
             <div key={item.type} className={styles.agreement}>
-              <div
-                className={styles.agreementCheck}
-                onMouseDown={() => startHold(item.type)}
-                onMouseUp={clearHold}
-                onMouseLeave={clearHold}
-                onTouchStart={() => startHold(item.type)}
-                onTouchEnd={clearHold}
-              >
-                <Checkbox
-                  checked={accepted[item.type]}
-                  onChange={() => {
-                    if (!accepted[item.type]) setOpenDocument(item.type);
-                  }}
-                />
-              </div>
+              <Checkbox
+                checked={accepted[item.type]}
+                onChange={() => {
+                  if (!accepted[item.type]) setOpenDocument(item.type);
+                }}
+              />
               <button
                 type="button"
                 className={styles.agreementLink}
@@ -171,11 +125,6 @@ export function RegisterPage() {
               >
                 {item.label}
               </button>
-              {import.meta.env.DEV && hold?.type === item.type && hold.progress > 0 ? (
-                <div className={styles.holdTrack} aria-hidden="true">
-                  <div className={styles.holdBar} style={{ width: `${hold.progress}%` }} />
-                </div>
-              ) : null}
             </div>
           ))}
 
