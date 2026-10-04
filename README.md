@@ -4,7 +4,7 @@ CRM-система для некоммерческой организации: �
 заявок. Основной объект — **заявка** (`applications`): конкурс и направление, состав команды
 с файлами согласий, план мероприятий, бюджет, материалы, экспертизы, статусы и публикации.
 
-Монорепозиторий на Bun workspaces. Текущая версия — **1.25.0**
+Монорепозиторий на Bun workspaces. Текущая версия — **1.27.0**
 (см. [`CHANGELOG.md`](CHANGELOG.md)); MVP собран, идёт подготовка к деплою.
 План работ и заметки заказчика держим локально (не коммитятся).
 
@@ -309,6 +309,9 @@ arbuz-crm/
 | Содержимое заявки        | `project_plans`, `project_budget`, `team_members`, `consent_files`, `additional_materials` |
 | Файлы и отчёты           | `files`, `file_categories`*, `pdf_export_jobs`                          |
 | Публикации               | `posts`, `posts_files`                                                  |
+| Документы и согласия     | `documents` (файл, порядок, признак шаблона ПДн `consent_template_kind`), `consent_documents`, `consent_events` |
+| Подсказки разделов       | `application_section_hints`                                             |
+| Уведомления              | `notifications`                                                         |
 | Не используется          | `change_logs`*                                                          |
 
 \* `change_logs` — зарезервированная таблица, аудит правок решено не вести.
@@ -439,16 +442,25 @@ arbuz-crm/
 - `GET /api/consents/documents/current?type=` — действующая редакция (публично);
 - `GET/POST /api/consents/documents` — история редакций и публикация новой (admin);
 - `GET /api/consents/templates/:kind/download` — образец согласия ПДн
-  (`kind` = `minor` | `adult`; `docx` в приоритете, `pdf` — запасной). Шаблоны лежат
-  в `apps/backend/templates/consents/` (вне `UPLOAD_DIR`, коммитятся).
+  (`kind` = `minor` | `adult`). Приоритет — документ, назначенный шаблоном
+  (`documents.consent_template_kind`); иначе — файл из `apps/backend/templates/consents/`
+  (`docx` в приоритете, `pdf` — запасной; вне `UPLOAD_DIR`, коммитится).
 
 **Документы.** Публичные файлы (согласия, положения и прочее) для раздела «Документы» на главной.
 
 - `GET /api/documents/feed` — публичный список опубликованных;
 - `GET /api/documents` — полный список (admin);
-- `POST /api/documents` — загрузка файла + `title`/`description`/`sort_order`/`is_published` (admin);
-- `PATCH/DELETE /api/documents/:id` — правка метаданных и удаление (admin);
+- `POST /api/documents` — загрузка файла + `title`/`description`/`is_published`/
+  `consent_template_kind` (`minor`/`adult` — назначить шаблоном ПДн, admin);
+- `PATCH/DELETE /api/documents/:id` — правка метаданных (в т.ч. `sort_order`) и удаление (admin);
 - `GET /api/documents/:id/download` — скачивание (опубликованное — всем, снятое — admin).
+
+**Подсказки к разделам формы заявки** (`application_section_hints`):
+
+- `GET /api/application-section-hints` — тексты подсказок (авторизованным);
+- `PUT /api/application-section-hints/:sectionKey` — сохранить текст раздела (admin).
+  Раздел — `main` | `team` | `plans` | `budget` | `materials` | `reviews`; ссылки задаются
+  markdown-синтаксисом `[подпись](url)` и редактируются в «Заявки → Настройка шаблона».
 
 ### PDF-отчёты
 
@@ -494,14 +506,14 @@ arbuz-crm/
 | `/activate`                                 | неактив.    | Активация аккаунта, созданного админом (данные, пароль, ПС+ПДн) |
 | `/account`                                  | авториз.    | Личный кабинет: профиль и контакты организаторов |
 | `/notifications`                            | авториз.    | Центр уведомлений: список и текст выбранного уведомления |
-| `/applications`, `/applications/:id`         | applicant   | «Мои заявки» и карточка заявки                 |
+| `/applications`, `/applications/new`, `/applications/:id` | applicant | «Мои заявки», создание и карточка заявки (секции на вкладках) |
 | `/expert`, `/expert/applications/:id`        | expert      | Назначенные заявки и карточка (оценка по критериям) |
 | `/admin/users`                              | admin       | Пользователи и роли                           |
-| `/admin/applications`, `/admin/applications/:id` | admin   | Заявки: список, карточка, эксперты, статус     |
+| `/admin/applications`, `/admin/applications/new`, `/admin/applications/:id` | admin | Заявки: список, создание, карточка; вкладка «Настройка шаблона» (подсказки разделов) |
 | `/admin/reviews`                            | admin       | Экспертизы: фильтры, группировка, отчёты       |
 | `/admin/reviews/summary`                    | admin       | Сводка по экспертизам (отдельная страница)     |
 | `/admin/posts`, `/admin/posts/new`, `/admin/posts/:postId` | admin | Публикации: список (закрепление, порядок перетаскиванием) и редактор |
-| `/admin/documents`                          | admin       | Документы и согласия (две вкладки)             |
+| `/admin/documents`                          | admin       | Документы и согласия (две вкладки); ручной порядок документов drag-and-drop, назначение шаблона ПДн |
 | `/admin/contests`                           | admin       | Конкурсы и направления (две вкладки), критерии |
 | `/admin/expertise`                          | admin       | Настройки экспертизы (вкладки «Статусы»/«Вердикты») |
 | `/design-system`                            | всем        | Демонстрация всех компонентов дизайн-системы  |

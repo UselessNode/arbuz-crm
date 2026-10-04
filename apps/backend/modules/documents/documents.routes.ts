@@ -61,6 +61,7 @@ documentsRouter.patch(
       description: req.body?.description,
       sort_order: req.body?.sort_order,
       is_published: req.body?.is_published,
+      consent_template_kind: req.body?.consent_template_kind,
     });
     log.audit('documents.update', { userId: actor.id, documentId: document.id });
     res.json({ document });

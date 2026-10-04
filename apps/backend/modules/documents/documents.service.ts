@@ -11,6 +11,7 @@ import type { CurrentUser } from '../files/files.service';
 import { safeOriginalName, validateUpload } from '../files/file-validation';
 import { openStored, storeUpload } from '../files/file-storage';
 import { notifyAll } from '../notifications/notifications.service';
+import { isConsentTemplateKind } from '../consents/consents.service';
 
 export interface DocumentData {
   id: number;
@@ -20,6 +21,8 @@ export interface DocumentData {
   fileType: string | null;
   sortOrder: number;
   isPublished: boolean;
+  /** 'minor' | 'adult' | null — назначен ли документ шаблоном согласия ПДн. */
+  consentTemplateKind: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,6 +33,7 @@ const documentSelect = {
   description: true,
   sort_order: true,
   is_published: true,
+  consent_template_kind: true,
   created_at: true,
   updated_at: true,
   file: { select: { name: true, file_type: true } },
@@ -41,6 +45,7 @@ interface DocumentRow {
   description: string | null;
   sort_order: number;
   is_published: boolean;
+  consent_template_kind: string | null;
   created_at: Date;
   updated_at: Date;
   file: { name: string; file_type: string | null };
@@ -55,6 +60,7 @@ function serialize(document: DocumentRow): DocumentData {
     fileType: document.file.file_type,
     sortOrder: document.sort_order,
     isPublished: document.is_published,
+    consentTemplateKind: document.consent_template_kind,
     createdAt: document.created_at,
     updatedAt: document.updated_at,
   };
@@ -92,6 +98,17 @@ export interface DocumentInput {
   description?: unknown;
   sort_order?: unknown;
   is_published?: unknown;
+  /** undefined — не менять; ''/null — снять привязку; 'minor'/'adult' — назначить шаблоном. */
+  consent_template_kind?: unknown;
+}
+
+/** Разбор вида шаблона согласия: пусто → null, иначе 'minor' | 'adult'. */
+function parseTemplateKind(raw: unknown): string | null {
+  if (raw === undefined || raw === null || raw === '') return null;
+  if (!isConsentTemplateKind(raw)) {
+    throw httpError(400, 'Неизвестный вид шаблона согласия', 'INVALID_TEMPLATE_KIND');
+  }
+  return raw;
 }
 
 /** Разбор порядкового номера (пусто → 0). */
@@ -120,10 +137,18 @@ export async function createDocument(req: Request, user: CurrentUser): Promise<D
   const description = optionalText(fields.description);
   const sortOrder = parseSortOrder(fields.sort_order);
   const isPublished = parseFormBool(fields.is_published, true);
+  const consentTemplateKind = parseTemplateKind(fields.consent_template_kind);
 
   const relativePath = await storeUpload(buffer, 'documents', type);
 
   const created = await prisma.$transaction(async (tx) => {
+    // Шаблон согласия для каждого вида — один: снимаем прежнее назначение.
+    if (consentTemplateKind) {
+      await tx.documents.updateMany({
+        where: { consent_template_kind: consentTemplateKind },
+        data: { consent_template_kind: null },
+      });
+    }
     const file = await tx.files.create({
       data: { name: safeOriginalName(originalName).slice(0, 100), file_type: type, path: relativePath },
       select: { id: true },
@@ -135,6 +160,7 @@ export async function createDocument(req: Request, user: CurrentUser): Promise<D
         file_id: file.id,
         sort_order: sortOrder,
         is_published: isPublished,
+        consent_template_kind: consentTemplateKind,
       },
       select: documentSelect,
     });
@@ -164,13 +190,29 @@ export async function updateDocument(
   });
   if (!existing) throw httpError(404, 'Документ не найден', 'DOCUMENT_NOT_FOUND');
 
-  const data: { title?: string; description?: string | null; sort_order?: number; is_published?: boolean } = {};
+  const data: {
+    title?: string;
+    description?: string | null;
+    sort_order?: number;
+    is_published?: boolean;
+    consent_template_kind?: string | null;
+  } = {};
   if (input.title !== undefined) data.title = requiredText(input.title, 'Название документа', 255);
   if (input.description !== undefined) data.description = optionalText(input.description);
   if (input.sort_order !== undefined) data.sort_order = parseSortOrder(input.sort_order);
   if (input.is_published !== undefined) data.is_published = Boolean(input.is_published);
+  if (input.consent_template_kind !== undefined) data.consent_template_kind = parseTemplateKind(input.consent_template_kind);
 
-  const updated = await prisma.documents.update({ where: { id: documentId }, data, select: documentSelect });
+  const updated = await prisma.$transaction(async (tx) => {
+    // Новый шаблон для вида — единственный: снимаем прежнюю привязку у других документов.
+    if (data.consent_template_kind) {
+      await tx.documents.updateMany({
+        where: { consent_template_kind: data.consent_template_kind, id: { not: documentId } },
+        data: { consent_template_kind: null },
+      });
+    }
+    return tx.documents.update({ where: { id: documentId }, data, select: documentSelect });
+  });
   return serialize(updated);
 }
 

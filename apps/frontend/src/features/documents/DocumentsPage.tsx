@@ -10,16 +10,18 @@ import {
   Container,
   DataView,
   DragDrop,
+  Icon,
   Input,
   Modal,
-  NumberInput,
+  RowActions,
   StateMessage,
   Textarea,
   useDataViewState,
+  useTableReorder,
   useToast,
 } from '../../components/ui';
 import type { DateRangeValue, FilterSpec, TableColumn } from '../../components/ui';
-import { documentsApi, type DocumentPayload, type PublicDocument } from '../../api/documents';
+import { documentsApi, type ConsentTemplateKind, type DocumentPayload, type PublicDocument } from '../../api/documents';
 import { consentsApi, ConsentDocumentType, type ConsentDocument } from '../../api/consents';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
@@ -54,6 +56,25 @@ export function DocumentsPage() {
 }
 
 // --- Раздел «Документы» ---
+
+/**
+ * Новый порядок списка после перестановки (draggedId → позиция targetId).
+ * Порядок строк в массиве — источник истины для отображения, поэтому его надо менять,
+ * а не только обновлять значения `sort_order`.
+ */
+function reorderDocuments(
+  list: PublicDocument[],
+  draggedId: number,
+  targetId: number,
+): PublicDocument[] | null {
+  const from = list.findIndex((document) => document.id === draggedId);
+  const to = list.findIndex((document) => document.id === targetId);
+  if (from === -1 || to === -1 || from === to) return null;
+  const next = [...list];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
 
 function DocumentsTab() {
   const toast = useToast();
@@ -141,8 +162,6 @@ function DocumentsTab() {
         switch (field) {
           case 'title':
             return document.title.toLowerCase();
-          case 'order':
-            return document.sortOrder;
           case 'published':
             return document.isPublished ? 1 : 0;
           case 'created_at':
@@ -171,7 +190,91 @@ function DocumentsTab() {
     }
   };
 
+  // Ручной порядок доступен только для полного списка (без фильтров и сортировки).
+  const reorderDisabled = state.hasActiveFilters || Boolean(query.sort);
+
+  /** Перестановка (draggedId → позиция targetId): локально меняем порядок + PATCH изменившихся `sort_order`. */
+  const applyReorder = async (draggedId: number, targetId: number) => {
+    // Переставляем внутри полного списка: `sorted` здесь совпадает с `documents`
+    // (drag доступен только без фильтров и сортировки).
+    const reordered = reorderDocuments(sorted, draggedId, targetId);
+    if (!reordered) return;
+
+    const changes = reordered
+      .map((document, index) => ({ id: document.id, sortOrder: index }))
+      .filter((change) => documents.find((document) => document.id === change.id)?.sortOrder !== change.sortOrder);
+
+    // Порядок массива — источник истины для отображения: обновляем его сразу.
+    setDocuments(reordered.map((document, index) => ({ ...document, sortOrder: index })));
+    if (changes.length === 0) return;
+
+    try {
+      for (const change of changes) {
+        await documentsApi.update(change.id, { sort_order: change.sortOrder });
+      }
+      toast.showToast({ message: 'Порядок документов обновлён', tone: 'success' });
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Не удалось сохранить порядок');
+      await load();
+    }
+  };
+
+  const reorder = useTableReorder<PublicDocument>({
+    items: sorted,
+    id: (document) => document.id,
+    onReorder: (draggedId, targetId) => void applyReorder(draggedId, targetId),
+    classNames: { dragging: styles.rowDragging, shifting: styles.rowShifting },
+  });
+
+  /** Сосед в ручном порядке — для «Переместить выше/ниже». */
+  const neighborDocument = (document: PublicDocument, direction: 'up' | 'down'): PublicDocument | null => {
+    const index = documents.findIndex((item) => item.id === document.id);
+    const target = direction === 'up' ? index - 1 : index + 1;
+    if (index === -1 || target < 0 || target >= documents.length) return null;
+    return documents[target];
+  };
+  const canMoveDocument = (document: PublicDocument, direction: 'up' | 'down') =>
+    !reorderDisabled && neighborDocument(document, direction) !== null;
+  const moveDocument = (document: PublicDocument, direction: 'up' | 'down') => {
+    const target = neighborDocument(document, direction);
+    if (target) void applyReorder(document.id, target.id);
+  };
+
   const columns: TableColumn<PublicDocument>[] = [
+    // Ручка перетаскивания — только когда нет фильтров/сортировки.
+    ...(reorderDisabled
+      ? []
+      : [
+          {
+            key: 'drag',
+            header: '',
+            width: '36px',
+            sortable: false,
+            render: (document: PublicDocument, index: number) => (
+              <span
+                {...reorder.getHandleProps(document, index)}
+                className={[styles.dragHandle, reorder.isDraggedItem(document) ? styles.dragHandleActive : '']
+                  .filter(Boolean)
+                  .join(' ')}
+                role="button"
+                tabIndex={0}
+                title="Перетащите, чтобы изменить порядок"
+                aria-label="Перетащите, чтобы изменить порядок"
+                onKeyDown={(event) => {
+                  if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    moveDocument(document, 'up');
+                  } else if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    moveDocument(document, 'down');
+                  }
+                }}
+              >
+                <Icon name="drag-vertical" size={16} />
+              </span>
+            ),
+          } satisfies TableColumn<PublicDocument>,
+        ]),
     {
       key: 'title',
       header: 'Название',
@@ -182,7 +285,6 @@ function DocumentsTab() {
         </div>
       ),
     },
-    { key: 'order', header: 'Порядок', width: '90px', render: (document) => document.sortOrder },
     {
       key: 'published',
       header: 'Статус',
@@ -200,13 +302,32 @@ function DocumentsTab() {
     {
       key: 'actions',
       header: '',
-      width: '120px',
+      width: '150px',
       sortable: false,
       render: (document) => (
-        <div className={styles.actions}>
-          <Button size="sm" variant="ghost" icon="edit" aria-label="Изменить" onClick={() => setEditing(document)} />
-          <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => setDeleting(document)} />
-        </div>
+        <RowActions
+          ariaLabel="Действия с документом"
+          items={[
+            {
+              key: 'move-up',
+              label: 'Переместить выше',
+              icon: 'arrow-up',
+              placement: 'menu',
+              disabled: !canMoveDocument(document, 'up'),
+              onSelect: () => moveDocument(document, 'up'),
+            },
+            {
+              key: 'move-down',
+              label: 'Переместить ниже',
+              icon: 'arrow-down',
+              placement: 'menu',
+              disabled: !canMoveDocument(document, 'down'),
+              onSelect: () => moveDocument(document, 'down'),
+            },
+            { key: 'edit', label: 'Изменить', icon: 'edit', onSelect: () => setEditing(document) },
+            { key: 'delete', label: 'Удалить', icon: 'delete', danger: true, onSelect: () => setDeleting(document) },
+          ]}
+        />
       ),
     },
   ];
@@ -229,6 +350,10 @@ function DocumentsTab() {
         rowKey={(document) => document.id}
         total={sorted.length}
         paginated={false}
+        sortable={false}
+        separateBorders
+        reorder={reorder}
+        reorderDisabled={reorderDisabled}
         loading={loading}
         error={error}
         onRetry={() => void load()}
@@ -281,8 +406,8 @@ function DocumentFormModal({
   const isEdit = document !== null;
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [sortOrder, setSortOrder] = useState(0);
   const [published, setPublished] = useState(true);
+  const [templateKind, setTemplateKind] = useState<ConsentTemplateKind | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -291,8 +416,8 @@ function DocumentFormModal({
     if (!open) return;
     setTitle(document?.title ?? '');
     setDescription(document?.description ?? '');
-    setSortOrder(document?.sortOrder ?? 0);
     setPublished(document?.isPublished ?? true);
+    setTemplateKind(document?.consentTemplateKind ?? null);
     setFile(null);
     setError(null);
   }, [open, document]);
@@ -310,8 +435,8 @@ function DocumentFormModal({
         const payload: DocumentPayload = {
           title,
           description: description.trim() || null,
-          sort_order: sortOrder,
           is_published: published,
+          consent_template_kind: templateKind,
         };
         await documentsApi.update(document.id, payload);
       } else {
@@ -319,8 +444,8 @@ function DocumentFormModal({
         formData.append('file', file as File);
         formData.append('title', title);
         formData.append('description', description);
-        formData.append('sort_order', String(sortOrder));
         formData.append('is_published', String(published));
+        formData.append('consent_template_kind', templateKind ?? '');
         await documentsApi.create(formData);
       }
       toast.showToast({ message: isEdit ? 'Документ обновлён' : 'Документ добавлен', tone: 'success' });
@@ -358,8 +483,24 @@ function DocumentFormModal({
             hint={file ? file.name : 'Перетащите файл документа (PDF, DOCX, изображение) или нажмите для выбора'}
           />
         )}
-        <NumberInput label="Порядок (меньше — выше)" value={sortOrder} onChange={setSortOrder} />
         <Checkbox label="Показывать на главной странице" checked={published} onChange={setPublished} />
+        <div className={styles.templateGroup}>
+          <span className={styles.templateLabel}>Назначить шаблоном заполнения ПДн</span>
+          <Checkbox
+            label="до 14 лет"
+            checked={templateKind === 'minor'}
+            onChange={(checked) => setTemplateKind(checked ? 'minor' : null)}
+          />
+          <Checkbox
+            label="после 14 лет"
+            checked={templateKind === 'adult'}
+            onChange={(checked) => setTemplateKind(checked ? 'adult' : null)}
+          />
+          <span className={styles.note}>
+            Шаблон отдаётся по ссылке «Образец согласия ПДн» в форме заявки. Для каждого возраста —
+            один документ.
+          </span>
+        </div>
         {error ? <div className={styles.error}>{error}</div> : null}
         <div className={styles.formActions}>
           <Button variant="secondary" type="button" onClick={onClose} disabled={saving}>

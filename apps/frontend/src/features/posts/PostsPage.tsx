@@ -78,29 +78,41 @@ export function PostsPage() {
             header: '',
             width: '36px',
             sortable: false,
-            render: (post: Post, index: number) => (
-              <span
-                {...reorder.getHandleProps(post, index)}
-                className={[styles.dragHandle, reorder.isDraggedItem(post) ? styles.dragHandleActive : '']
-                  .filter(Boolean)
-                  .join(' ')}
-                role="button"
-                tabIndex={0}
-                title="Перетащите, чтобы изменить порядок"
-                aria-label="Перетащите, чтобы изменить порядок"
-                onKeyDown={(event) => {
-                  if (event.key === 'ArrowUp') {
-                    event.preventDefault();
-                    list.move(post, 'up');
-                  } else if (event.key === 'ArrowDown') {
-                    event.preventDefault();
-                    list.move(post, 'down');
-                  }
-                }}
-              >
-                <Icon name="drag-vertical" size={16} />
-              </span>
-            ),
+            render: (post: Post, index: number) =>
+              post.pinned ? (
+                // У закреплённых вместо ручки — булавка: клик снимает закрепление.
+                <button
+                  type="button"
+                  className={`${styles.dragHandle} ${styles.pinButton}`}
+                  title="Открепить публикацию"
+                  aria-label="Открепить публикацию"
+                  onClick={() => void list.togglePin(post)}
+                >
+                  <Icon name="pin" size={16} />
+                </button>
+              ) : (
+                <span
+                  {...reorder.getHandleProps(post, index)}
+                  className={[styles.dragHandle, reorder.isDraggedItem(post) ? styles.dragHandleActive : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                  role="button"
+                  tabIndex={0}
+                  title="Перетащите, чтобы изменить порядок"
+                  aria-label="Перетащите, чтобы изменить порядок"
+                  onKeyDown={(event) => {
+                    if (event.key === 'ArrowUp') {
+                      event.preventDefault();
+                      list.move(post, 'up');
+                    } else if (event.key === 'ArrowDown') {
+                      event.preventDefault();
+                      list.move(post, 'down');
+                    }
+                  }}
+                >
+                  <Icon name="drag-vertical" size={16} />
+                </span>
+              ),
           } satisfies TableColumn<Post>,
         ]),
     {

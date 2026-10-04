@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { ApiError } from '../../api/client';
 import { homePathForRole } from '../../lib/roles';
 import melonLogo from '../../assets/images/Melon.png';
+import heroLogo from '../../assets/images/drawings/hero.svg';
 import styles from './AuthPage.module.css';
 
 export function LoginPage() {
@@ -44,8 +45,11 @@ export function LoginPage() {
         </div>
 
         <div className={styles.brand}>
-          <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
-          <h1 className={styles.title}>Arbuz CRM</h1>
+          <img src={heroLogo} alt="Арбузный грант" className={styles.hero} />
+          <div className={styles.brandRow}>
+            <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
+            <h1 className={styles.title}>Arbuz CRM</h1>
+          </div>
           <p className={styles.subtitle}>Вход в систему</p>
         </div>
 

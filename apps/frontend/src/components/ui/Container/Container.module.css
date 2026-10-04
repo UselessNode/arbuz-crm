@@ -18,6 +18,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  flex-wrap: wrap;
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
 }
@@ -29,6 +30,8 @@
 
 .actions {
   display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-2);
 }
 
@@ -48,33 +51,53 @@
   border-top: 1px solid var(--color-border);
 }
 
-.accordionTrigger {
+/* Секция с ошибками — красная полоса слева и красный заголовок. */
+.accordionItemInvalid {
+  box-shadow: inset 3px 0 0 var(--color-danger);
+}
+
+.accordionItemInvalid .accordionTitle {
+  color: var(--color-danger);
+}
+
+.accordionHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  width: 100%;
   padding: var(--space-3) var(--space-4);
-  border: none;
-  background-color: transparent;
-  cursor: pointer;
   color: var(--color-text);
-  text-align: left;
+}
+
+/* Сворачивание — только по кнопке с шевроном, чтобы клик по заголовку не прятал содержимое. */
+.accordionToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.accordionTrigger:hover {
+.accordionToggle:hover {
   background-color: var(--tone-neutral-bg);
+  color: var(--color-text);
 }
 
-/* Визуальный отклик на нажатие */
-.accordionTrigger:active {
+.accordionToggle:active {
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
-.accordionTrigger:focus-visible {
+.accordionToggle:focus-visible {
   outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
+  outline-offset: 2px;
 }
 
 .accordionTitle {

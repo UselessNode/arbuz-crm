@@ -1,7 +1,6 @@
 // HTTP API пользовательских соглашений.
 // Публично: текущие редакции документов (нужны странице регистрации) и скачивание образцов ПДн.
 // Только администратору: история редакций и публикация новой.
-import { createReadStream } from 'node:fs';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../lib/http';
@@ -76,9 +75,8 @@ consentsRouter.get(
     }
     const template = await getConsentTemplate(req.params.kind);
     applyDownloadHeaders(res, template.downloadName, template.fileType, template.size);
-    const stream = createReadStream(template.absolutePath);
-    stream.on('error', () => res.destroy());
-    res.on('close', () => stream.destroy());
-    stream.pipe(res);
+    template.stream.on('error', () => res.destroy());
+    res.on('close', () => template.stream.destroy());
+    template.stream.pipe(res);
   }),
 );

@@ -7,7 +7,6 @@ import { applicationsApi, type ApplicationSummary } from '../../api/applications
 import { statusesApi } from '../../api/references';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
-import { ApplicationFormModal } from './ApplicationFormModal';
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 
@@ -20,7 +19,6 @@ export function ApplicantApplicationsPage() {
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,7 +71,7 @@ export function ApplicantApplicationsPage() {
     <Container
       title="Мои заявки"
       actions={
-        <Button icon="add" onClick={() => setCreating(true)}>
+        <Button icon="add" onClick={() => navigate('/applications/new')}>
           Создать заявку
         </Button>
       }
@@ -97,15 +95,6 @@ export function ApplicantApplicationsPage() {
           />
         </>
       )}
-
-      <ApplicationFormModal
-        open={creating}
-        mode="create"
-        onClose={() => setCreating(false)}
-        onSaved={(created) => {
-          if (created) navigate(`/applications/${created.id}`);
-        }}
-      />
     </Container>
   );
 }

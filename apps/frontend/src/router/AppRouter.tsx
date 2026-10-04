@@ -8,6 +8,7 @@ import { ActivatePage } from '../features/auth/ActivatePage';
 import { UsersPage } from '../features/users/UsersPage';
 import { ApplicationsPage } from '../features/applications/ApplicationsPage';
 import { ApplicantApplicationsPage } from '../features/applications/ApplicantApplicationsPage';
+import { ApplicationCreatePage } from '../features/applications/ApplicationCreatePage';
 import { ApplicationDetailPage } from '../features/applications/ApplicationDetailPage';
 import { ExpertApplicationsPage } from '../features/expert/ExpertApplicationsPage';
 import { ReviewsPage } from '../features/reviews/ReviewsPage';
@@ -52,6 +53,7 @@ export function AppRouter() {
         <Route path="/account" element={<AccountPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/applications" element={<ApplicantApplicationsPage />} />
+        <Route path="/applications/new" element={<ApplicationCreatePage area="applicant" />} />
         <Route path="/applications/:applicationId" element={<ApplicationDetailPage area="applicant" />} />
         <Route
           path="/expert"
@@ -82,6 +84,7 @@ export function AppRouter() {
         <Route index element={<Navigate to="users" replace />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="applications" element={<ApplicationsPage />} />
+        <Route path="applications/new" element={<ApplicationCreatePage area="admin" />} />
         <Route path="applications/:applicationId" element={<ApplicationDetailPage area="admin" />} />
         <Route path="reviews" element={<ReviewsPage />} />
         <Route path="reviews/summary" element={<ReviewsSummaryPage />} />

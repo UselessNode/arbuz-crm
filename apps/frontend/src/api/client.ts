@@ -13,7 +13,7 @@ export class ApiError extends Error {
 /** Событие, на которое подписан AuthContext для сброса сессии при 401. */
 export const AUTH_UNAUTHORIZED_EVENT = 'auth:unauthorized';
 
-type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
 async function fetchOrNetworkError(path: string, init: RequestInit): Promise<Response> {
   try {
@@ -64,6 +64,7 @@ export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
+  put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
   delete: <T>(path: string) => request<T>('DELETE', path),
   upload: <T>(path: string, formData: FormData) => requestForm<T>(path, formData),
 };

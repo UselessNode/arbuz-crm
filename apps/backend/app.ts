@@ -18,6 +18,7 @@ import { tendersRouter } from './modules/tenders/tenders.routes';
 import { criteriaRouter } from './modules/tenders/criteria.routes';
 import { directionsRouter } from './modules/directions/directions.routes';
 import { statusesRouter } from './modules/statuses/statuses.routes';
+import { sectionHintsRouter } from './modules/section-hints/section-hints.routes';
 import { reviewsRouter } from './modules/reviews/reviews.routes';
 import { reviewsSummaryRouter } from './modules/reviews/summary.routes';
 import { reviewStatusesRouter } from './modules/reviews/review-statuses.routes';
@@ -61,6 +62,7 @@ export function createApp(): express.Express {
   app.use('/api/directions', directionsRouter);
   app.use('/api/application-statuses', statusesRouter);
   app.use('/api/review-statuses', reviewStatusesRouter);
+  app.use('/api/application-section-hints', sectionHintsRouter);
   // Сводка по экспертизам подключается раньше `reviewsRouter`: иначе
   // `/reviews/summary` перехватится его параметром `/:reviewId`.
   app.use('/api', reviewsSummaryRouter);

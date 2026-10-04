@@ -1,6 +1,8 @@
 // API публичных документов: список для домашней страницы, управление для админки.
 import { api } from './client';
 
+export type ConsentTemplateKind = 'minor' | 'adult';
+
 export interface PublicDocument {
   id: number;
   title: string;
@@ -9,6 +11,8 @@ export interface PublicDocument {
   fileType: string | null;
   sortOrder: number;
   isPublished: boolean;
+  /** Назначен шаблоном согласия ПДн: 'minor' (до 14) / 'adult' (с 14) либо null. */
+  consentTemplateKind: ConsentTemplateKind | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -18,6 +22,8 @@ export interface DocumentPayload {
   description?: string | null;
   sort_order?: number;
   is_published?: boolean;
+  /** undefined — не менять; null — снять; 'minor'/'adult' — назначить шаблоном. */
+  consent_template_kind?: ConsentTemplateKind | null;
 }
 
 export const documentsApi = {

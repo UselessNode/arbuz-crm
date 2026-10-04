@@ -27,9 +27,28 @@
   object-fit: contain;
 }
 
+/* Векторный логотип-«wordmark» («Арбузный грант») над заголовком. */
+.hero {
+  display: block;
+  width: 132px;
+  height: auto;
+  margin: 0 auto var(--space-2);
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
 .title {
   margin: var(--space-2) 0 0;
   font-size: 22px;
+}
+
+.brandRow .title {
+  margin: 0;
 }
 
 .subtitle {

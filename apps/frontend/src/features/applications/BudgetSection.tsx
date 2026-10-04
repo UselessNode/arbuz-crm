@@ -181,7 +181,7 @@ export function BudgetSection({ applicationId, items, readOnly = false, onChange
               value={form.unitCost}
               onChange={(value) => setForm({ ...form, unitCost: value })}
               min={0}
-              step={100}
+              step={1}
             />
           </div>
           <div className={styles.grid2}>
@@ -190,14 +190,14 @@ export function BudgetSection({ applicationId, items, readOnly = false, onChange
               value={form.ownFunds}
               onChange={(value) => setForm({ ...form, ownFunds: value })}
               min={0}
-              step={100}
+              step={1}
             />
             <NumberInput
               label="Средства гранта, ₽"
               value={form.grantFunds}
               onChange={(value) => setForm({ ...form, grantFunds: value })}
               min={0}
-              step={100}
+              step={1}
             />
           </div>
           <Input label="Комментарий" value={form.comment} onChange={(e) => setForm({ ...form, comment: e.target.value })} />

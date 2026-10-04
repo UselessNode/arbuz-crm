@@ -7,6 +7,7 @@ import { formatUserName } from '../lib/format';
 import { NotificationsBell } from '../notifications/NotificationsBell';
 import melonLogo from '../assets/images/Melon.png';
 import { Footer } from './Footer';
+import { ScrollToTopButton } from './ScrollToTopButton';
 import { headerClassForRole, navItemsForRole, titleForRole } from './roleTheme';
 import styles from './AppLayout.module.css';
 
@@ -104,6 +105,8 @@ export function AppLayout() {
         </main>
         <Footer />
       </div>
+
+      <ScrollToTopButton />
     </div>
   );
 }

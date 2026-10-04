@@ -9,14 +9,17 @@
 //
 // Дополнительно модуль отдаёт образцы согласий ПДн (шаблоны docx/pdf) из каталога templates.
 import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
+import type { Readable } from 'node:stream';
 import { ConsentDocumentType, RoleType } from '@arbuz/shared';
 import { config } from '../../lib/config';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 import { oneOf, optionalText } from '../../lib/parse';
 import { renderMarkdown } from '../posts/markdown';
+import { openStored } from '../files/file-storage';
 import type { CurrentUser } from '../files/files.service';
 
 /** Типы документов соглашений (значения enum из схемы БД). */
@@ -262,14 +265,33 @@ const TEMPLATE_FILES: Record<ConsentTemplateKind, { base: string; downloadName: 
 const TEMPLATE_FORMATS = ['docx', 'pdf'] as const;
 
 export interface ConsentTemplateFile {
-  absolutePath: string;
+  stream: Readable;
   downloadName: string;
   fileType: string;
   size: number;
 }
 
-/** Находит шаблон заданного вида: `consents/<base>.<ext>` в каталоге templates. */
+/**
+ * Шаблон согласия заданного вида. Приоритет — документ, назначенный шаблоном в разделе
+ * «Документы» (`documents.consent_template_kind`); запасной вариант — файл в каталоге templates.
+ */
 export async function getConsentTemplate(kind: ConsentTemplateKind): Promise<ConsentTemplateFile> {
+  // 1) Документ, назначенный шаблоном ПДн (до 14 / с 14 лет).
+  const assigned = await prisma.documents.findFirst({
+    where: { consent_template_kind: kind, deleted_at: null, file: { deleted_at: null } },
+    select: { title: true, file: { select: { file_type: true, path: true } } },
+  });
+  if (assigned?.file?.path) {
+    try {
+      const { stream, size } = await openStored(assigned.file.path);
+      const ext = assigned.file.file_type ?? 'pdf';
+      return { stream, downloadName: `${assigned.title}.${ext}`, fileType: ext, size };
+    } catch {
+      // Файл недоступен — отдаём комплектный образец (см. ниже).
+    }
+  }
+
+  // 2) Комплектный образец: `consents/<base>.<ext>` в каталоге templates.
   const template = TEMPLATE_FILES[kind];
   for (const ext of TEMPLATE_FORMATS) {
     const absolutePath = path.resolve(config.templates.dir, 'consents', `${template.base}.${ext}`);
@@ -277,7 +299,12 @@ export async function getConsentTemplate(kind: ConsentTemplateKind): Promise<Con
     if (absolutePath !== root && !absolutePath.startsWith(root + path.sep)) continue;
     const info = await stat(absolutePath).catch(() => null);
     if (info?.isFile()) {
-      return { absolutePath, downloadName: `${template.downloadName}.${ext}`, fileType: ext, size: info.size };
+      return {
+        stream: createReadStream(absolutePath),
+        downloadName: `${template.downloadName}.${ext}`,
+        fileType: ext,
+        size: info.size,
+      };
     }
   }
   throw httpError(404, 'Шаблон согласия не найден', 'TEMPLATE_NOT_FOUND');

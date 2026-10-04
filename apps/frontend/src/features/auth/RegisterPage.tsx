@@ -8,6 +8,7 @@ import { ConsentDocumentType } from '../../api/consents';
 import { homePathForRole } from '../../lib/roles';
 import { AgreementModal } from './AgreementModal';
 import melonLogo from '../../assets/images/Melon.png';
+import heroLogo from '../../assets/images/drawings/hero.svg';
 import styles from './AuthPage.module.css';
 
 /** Обязательные к принятию документы (152-ФЗ: два независимых согласия). */
@@ -79,8 +80,11 @@ export function RegisterPage() {
         </div>
 
         <div className={styles.brand}>
-          <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
-          <h1 className={styles.title}>Регистрация</h1>
+          <img src={heroLogo} alt="Арбузный грант" className={styles.hero} />
+          <div className={styles.brandRow}>
+            <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
+            <h1 className={styles.title}>Регистрация</h1>
+          </div>
           <p className={styles.subtitle}>Создайте аккаунт заявителя</p>
         </div>
 

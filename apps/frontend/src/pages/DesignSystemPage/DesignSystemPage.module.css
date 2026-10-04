@@ -1,52 +1,223 @@
+/* Витрина-документация дизайн-системы. */
 .page {
-  max-width: 960px;
+  max-width: 1040px;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-4);
+  padding: var(--space-6) var(--space-4) var(--space-8);
 }
 
-.h1 {
-  font-size: 26px;
-  margin-bottom: var(--space-2);
-}
-
-.lead {
-  color: var(--color-muted);
-  margin-bottom: var(--space-6);
-}
-
-.section {
+.header {
   margin-bottom: var(--space-5);
 }
 
+.h1 {
+  margin: 0 0 var(--space-2);
+  font-size: 26px;
+}
+
+.lead {
+  margin: 0;
+  max-width: 68ch;
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+
+/* --- Вкладки --- */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  padding: 8px var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.tab:hover {
+  background-color: var(--tone-neutral-bg);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.tabActive {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* --- Карточка компонента --- */
+.item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  overflow: hidden;
+}
+
+.itemHead {
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+
+.itemTitle {
+  margin: 0;
+  font-size: 18px;
+}
+
+.itemDesc {
+  margin: var(--space-2) 0 0;
+  max-width: 76ch;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Границы примера — намеренно видимые, чтобы видеть габариты компонента. */
+.preview {
+  margin: 0 var(--space-4) var(--space-4);
+  padding: var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg, #fafafa);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.previewColumn {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.codeWrap {
+  border-top: 1px solid var(--color-border);
+  background-color: var(--tone-neutral-bg);
+}
+
+.codeSummary {
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.code {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--color-text);
+  tab-size: 2;
+}
+
+/* --- Мелкие помощники --- */
 .row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-
-.row:last-child {
-  margin-bottom: 0;
 }
 
 .caption {
+  width: 100%;
+  margin: 0 0 var(--space-1);
   color: var(--color-muted);
-  font-size: 13px;
-  margin-right: var(--space-2);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
-.prototypeHint {
-  margin: 0 0 var(--space-3);
-  color: var(--color-muted);
-  font-size: 13px;
-  line-height: 1.5;
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-4);
+  width: 100%;
 }
 
+.formDemo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: min(360px, 100%);
+}
+
+/* --- Токены/цвета --- */
+.swatchGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.swatch {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.swatchColor {
+  height: 48px;
+}
+
+.swatchLabel {
+  padding: 6px 8px;
+  font-size: 11px;
+  color: var(--color-muted);
+  word-break: break-all;
+}
+
+.typeRow {
+  width: 100%;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.spacingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.spacingBox {
+  height: 16px;
+  background-color: var(--tone-blue-bg);
+  border: 1px solid var(--tone-blue-text);
+  border-radius: 2px;
+}
+
+/* --- Иконки --- */
 .iconGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
   gap: var(--space-2);
+  width: 100%;
 }
 
 .iconCell {
@@ -66,35 +237,22 @@
   text-align: center;
 }
 
-.grid2 {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: var(--space-4);
-}
-
-/* Отступ между блоками внутри одной секции демо-страницы. */
-.grid2 + .row,
-.grid2 + .grid2,
-.row + .grid2 {
-  margin-top: var(--space-4);
-}
-
-/* Итог выбора строк под таблицей. */
-.selectionSummary {
-  display: flex;
+/* Ручка перетаскивания строк таблицы. */
+.dragHandle {
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
+  justify-content: center;
+  color: var(--color-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+/* --- Пустое состояние витрины --- */
+.note {
+  color: var(--color-muted);
   font-size: 14px;
-}
-
-/* Содержимое демонстрационной формы в модальном окне. */
-.formStack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.slide h3 {
-  margin-bottom: var(--space-3);
 }

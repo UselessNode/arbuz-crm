@@ -22,7 +22,7 @@ import { formatDateTime } from '../../lib/format';
 import { copyToClipboard } from '../../lib/clipboard';
 import { ORGANIZER_CONTACTS } from '../../lib/contacts';
 import { PostContent } from '../../features/posts/PostContent';
-import melonLogo from '../../assets/images/Melon.png';
+import heroLogo from '../../assets/images/drawings/hero.svg';
 import styles from './HomePage.module.css';
 
 const PAGE_SIZE = 5;
@@ -376,7 +376,7 @@ export function HomePage() {
             <ContactValue label="Телефон" value={ORGANIZER_CONTACTS.phone} />
             <ContactValue label="Электронная почта" value={ORGANIZER_CONTACTS.email} />
             <div className={styles.imgContainer}>
-              <img src={melonLogo} alt="Арбузный грант" className={styles.heroLogo} />
+              <img src={heroLogo} alt="Арбузный грант" className={styles.heroLogo} />
             </div>
           </section>
         </aside>

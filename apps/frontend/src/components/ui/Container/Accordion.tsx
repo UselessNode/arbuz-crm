@@ -48,9 +48,11 @@ export interface AccordionItemProps {
   children: ReactNode;
   /** Раскрыть секцию при первом показе. */
   defaultOpen?: boolean;
+  /** Подсветить секцию рамкой — в ней есть ошибки, требующие внимания. */
+  invalid?: boolean;
 }
 
-export function AccordionItem({ itemKey, title, children, defaultOpen = false }: AccordionItemProps) {
+export function AccordionItem({ itemKey, title, children, defaultOpen = false, invalid = false }: AccordionItemProps) {
   const context = useContext(AccordionContext);
   if (!context) throw new Error('AccordionItem должен использоваться внутри Accordion');
 
@@ -63,16 +65,20 @@ export function AccordionItem({ itemKey, title, children, defaultOpen = false }:
   }, []);
 
   return (
-    <div className={styles.accordionItem}>
-      <button
-        type="button"
-        className={styles.accordionTrigger}
-        onClick={() => context.toggle(itemKey)}
-        aria-expanded={open}
-      >
+    <div className={[styles.accordionItem, invalid ? styles.accordionItemInvalid : ''].filter(Boolean).join(' ')}>
+      <div className={styles.accordionHeader}>
         <span className={styles.accordionTitle}>{title}</span>
-        <Icon name={open ? 'chevron-up' : 'chevron-down'} size={16} />
-      </button>
+        <button
+          type="button"
+          className={styles.accordionToggle}
+          onClick={() => context.toggle(itemKey)}
+          aria-expanded={open}
+          aria-label={open ? 'Свернуть раздел' : 'Развернуть раздел'}
+          title={open ? 'Свернуть раздел' : 'Развернуть раздел'}
+        >
+          <Icon name={open ? 'chevron-up' : 'chevron-down'} size={16} />
+        </button>
+      </div>
       {open && <div className={styles.accordionContent}>{children}</div>}
     </div>
   );

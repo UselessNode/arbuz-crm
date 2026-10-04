@@ -443,22 +443,34 @@ model consent_events {
 // Публичные документы (согласия, положения и прочее), которые администратор
 // выкладывает в разделе «Документы» на домашней странице. Файл хранится в `files`.
 model documents {
-  id           Int       @id @default(autoincrement())
-  title        String    @db.VarChar(255)
-  description  String?
-  file_id      Int
+  id                    Int       @id @default(autoincrement())
+  title                 String    @db.VarChar(255)
+  description           String?
+  file_id               Int
   /// Ручной порядок отображения (меньше — выше).
-  sort_order   Int       @default(0)
+  sort_order            Int       @default(0)
   /// Опубликован ли документ в публичном разделе на главной.
-  is_published Boolean   @default(true)
-  created_at   DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at   DateTime  @default(now()) @db.Timestamptz(6)
-  deleted_at   DateTime? @db.Timestamptz(6)
-  file         files     @relation(fields: [file_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  is_published          Boolean   @default(true)
+  /// Назначен шаблоном согласия ПДн: 'minor' (до 14) или 'adult' (с 14); null — обычный документ.
+  consent_template_kind String?   @unique @db.VarChar(10)
+  created_at            DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime  @default(now()) @db.Timestamptz(6)
+  deleted_at            DateTime? @db.Timestamptz(6)
+  file                  files     @relation(fields: [file_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([is_published, sort_order], map: "idx_documents_public")
   @@index([deleted_at], map: "idx_documents_deleted", where: raw("(deleted_at IS NULL)"))
   @@index([file_id], map: "idx_documents_file")
+}
+
+// Настраиваемые администратором подсказки к разделам формы заявки (текст + ссылки на документы).
+// Один ряд на раздел (`section_key`); ссылки на документы задаются прямо в тексте URL-адресами.
+model application_section_hints {
+  id          Int      @id @default(autoincrement())
+  section_key String   @unique @db.VarChar(50)
+  text        String?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
 }
 
 model posts {
