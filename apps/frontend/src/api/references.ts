@@ -5,6 +5,10 @@ export interface Tender {
   name: string;
   description: string | null;
   expertsCount: number;
+  /** Число активных критериев оценивания. */
+  criteriaCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Criterion {
@@ -23,6 +27,8 @@ export interface Direction {
   name: string;
   description: string | null;
   tenderId: number | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ApplicationStatus {

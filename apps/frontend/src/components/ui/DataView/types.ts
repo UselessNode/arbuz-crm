@@ -30,6 +30,14 @@ export interface MultiSelectSpec {
   minChars?: number;
 }
 
+export interface SelectSpec {
+  kind: 'select';
+  field: string;
+  label: string;
+  options: readonly FilterOption[];
+  placeholder?: string;
+}
+
 export interface DateRangeSpec {
   kind: 'date-range';
   field: string;
@@ -48,7 +56,7 @@ export interface RangeSpec {
   unit?: string;
 }
 
-export type FilterSpec = CheckboxGroupSpec | MultiSelectSpec | DateRangeSpec | RangeSpec;
+export type FilterSpec = CheckboxGroupSpec | MultiSelectSpec | SelectSpec | DateRangeSpec | RangeSpec;
 
 /** Значения фильтров разного вида. */
 export type FilterValue = string[] | DateRangeValue | RangeValue;

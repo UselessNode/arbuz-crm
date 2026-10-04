@@ -31,4 +31,5 @@ export type {
   MultiSelectSpec,
   RangeSpec,
   RangeValue,
+  SelectSpec,
 } from './types';

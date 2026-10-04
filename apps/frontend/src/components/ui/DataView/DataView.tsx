@@ -11,6 +11,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pagination } from '../Pagination';
 import { StateMessage } from '../Feedback';
+import { Select } from '../Form';
 import { Table, type TableColumn, type TableReorderApi, type TableSelection } from '../Table';
 import { Icon } from '../Icon';
 import { ActiveFilters } from '../Filters/ActiveFilters';
@@ -190,12 +191,13 @@ export function DataView<T>({
         </div>
       ) : null}
 
-      {loading ? (
-        <StateMessage state="loading" />
-      ) : error ? (
+      {error ? (
         <StateMessage state="error" message={error} onRetry={onRetry} />
+      ) : loading && rows.length === 0 ? (
+        <StateMessage state="loading" />
       ) : (
         <>
+          <div className={styles.results} aria-busy={loading}>
           <Table
             columns={columns}
             data={rows}
@@ -215,6 +217,12 @@ export function DataView<T>({
               return parts.filter(Boolean).join(' ') || undefined;
             }}
           />
+          {loading ? (
+            <div className={styles.overlay}>
+              <Icon name="loading" size={22} className={styles.spin} />
+            </div>
+          ) : null}
+          </div>
           {rows.length === 0 && state.hasActiveFilters ? (
             <div className={styles.emptyReset}>
               <button type="button" className={styles.resetButton} onClick={state.resetAll}>
@@ -261,6 +269,18 @@ function FilterControl({ spec, state }: { spec: FilterSpec; state: DataViewState
         placeholder={spec.placeholder}
         minChars={spec.minChars}
         onLabels={(labels) => state.registerLabels(spec.field, labels)}
+      />
+    );
+  }
+  if (spec.kind === 'select') {
+    const selected = (state.query.filters[spec.field] as string[] | undefined)?.[0] ?? '';
+    return (
+      <Select
+        label={spec.label}
+        placeholder={spec.placeholder ?? 'Все'}
+        value={selected}
+        onChange={(value) => state.setFilter(spec.field, value ? [value] : [])}
+        options={spec.options}
       />
     );
   }

@@ -348,15 +348,35 @@ arbuz-crm/
 ### Пользователи (только admin)
 
 `GET/POST /api/users`, `GET/PATCH/DELETE /api/users/:id`,
-`POST /api/users/:id/reset-password`, `GET /api/users/experts`.
+`POST /api/users/:id/reset-password`, `POST /api/users/:id/notify` (целевое уведомление),
+`GET /api/users/experts`.
 Созданные администратором аккаунты (заявитель/эксперт) неактивны до активации (`users.activated_at`);
 админы — активны сразу. Неактивные — первыми в списке; неактивные эксперты не попадают в `/users/experts`.
+Список поддерживает серверные фильтры: `q`, `roles` (CSV), `activated`, `created_from/to`,
+`active_from/to`, `apps_min/max` и сортировку `sort`/`order`.
+
+### Уведомления
+
+Центр уведомлений (таблица `notifications`, тип — `NotificationType`): **быстрые** тосты
+(обратный отсчёт, пауза при наведении, кнопка «Отменить») и **долгие** уведомления в центре.
+
+- `GET /api/notifications` — список текущего пользователя (фильтр `?type=`, `limit`/`offset`),
+  отдаёт `{ notifications, total, unread }` и безопасный HTML текста;
+- `GET /api/notifications/unread-count` — лёгкий счётчик непрочитанных (поллинг бейджа);
+- `PATCH /api/notifications/:id/read`, `POST /api/notifications/read-all` — отметки прочтения.
+
+События генерируют сами модули: смена статуса заявки (заявителю), назначение/снятие эксперта,
+создание пользователя и «аккаунт не активирован N дн.» (админам), публикация/документ (всем).
+Идемпотентные уведомления защищены ключом `dedupe_key`. Целевое сообщение конкретному
+пользователю — `POST /api/users/:id/notify` (admin, заголовок + Markdown-текст).
 
 ### Заявки (по ролям)
 
 `GET/POST /api/applications`, `GET/PATCH/DELETE /api/applications/:id`,
 `POST /api/applications/:id/submit`.
 Состав: `GET/POST/PATCH/DELETE /api/applications/:id/team-members|project-plans|project-budget`.
+Список `GET /api/applications` поддерживает `q`, мультифильтры `status_ids`/`tender_ids`/`owner_ids`/
+`application_ids` (CSV), `created_from/to`, `updated_from/to` и сортировку `sort`/`order`.
 
 ### Справочники
 
@@ -372,6 +392,8 @@ arbuz-crm/
 `tenders.experts_count`; `GET /api/reviews` — список по ролям; `PATCH /api/reviews/:id` —
 оценка; `DELETE /api/reviews/:id` — снятие. Итоговый балл (`total_score`) считает сервер
 по критериям конкурса. Эксперт видит только свою экспертизу — и в списке, и в карточке заявки.
+Список `GET /api/reviews` поддерживает `q`, `status_ids`/`expert_ids`/`application_ids` (CSV),
+`score_min/max`, `created_from/to`, `updated_from/to`, `sort`/`order`; пагинация включается при `limit`.
 
 ### Сводки по экспертизам (только admin)
 
@@ -386,7 +408,8 @@ arbuz-crm/
 
 `GET /api/posts/feed` — публичная лента: отдаёт **только опубликованные** посты (черновики,
 отложенные и архив не показываются никому, включая администратора). `GET /api/posts` — список
-раздела «Публикации» (admin, все статусы, фильтр `?status=`); создание, правка и удаление — admin.
+раздела «Публикации» (admin, все статусы; фильтры `?statuses=` (CSV), `?ids=`, диапазоны
+`scheduled_from/to`, `edited_from/to`, `created_from/to`, `sort`/`order`); создание, правка и удаление — admin.
 
 Статусы не хранятся в БД, а вычисляются из полей `posts` (`PostStatus` из `@arbuz/shared`):
 
@@ -470,16 +493,17 @@ arbuz-crm/
 | `/login`, `/register`                       | гостям      | Вход и регистрация (с обязательным принятием ПС и ПДн) |
 | `/activate`                                 | неактив.    | Активация аккаунта, созданного админом (данные, пароль, ПС+ПДн) |
 | `/account`                                  | авториз.    | Личный кабинет: профиль и контакты организаторов |
+| `/notifications`                            | авториз.    | Центр уведомлений: список и текст выбранного уведомления |
 | `/applications`, `/applications/:id`         | applicant   | «Мои заявки» и карточка заявки                 |
 | `/expert`, `/expert/applications/:id`        | expert      | Назначенные заявки и карточка (оценка по критериям) |
 | `/admin/users`                              | admin       | Пользователи и роли                           |
 | `/admin/applications`, `/admin/applications/:id` | admin   | Заявки: список, карточка, эксперты, статус     |
-| `/admin/reviews`                            | admin       | Экспертизы: группировка, отчёты               |
+| `/admin/reviews`                            | admin       | Экспертизы: фильтры, группировка, отчёты       |
 | `/admin/reviews/summary`                    | admin       | Сводка по экспертизам (отдельная страница)     |
 | `/admin/posts`, `/admin/posts/new`, `/admin/posts/:postId` | admin | Публикации: список (закрепление, порядок перетаскиванием) и редактор |
 | `/admin/documents`                          | admin       | Документы и согласия (две вкладки)             |
-| `/admin/contests`                           | admin       | Конкурсы, критерии, число экспертов, направления |
-| `/admin/expertise`                          | admin       | Настройки экспертизы: статусы заявок, вердикты |
+| `/admin/contests`                           | admin       | Конкурсы и направления (две вкладки), критерии |
+| `/admin/expertise`                          | admin       | Настройки экспертизы (вкладки «Статусы»/«Вердикты») |
 | `/design-system`                            | всем        | Демонстрация всех компонентов дизайн-системы  |
 
 Старые пути `/admin/tenders`, `/admin/directions`, `/admin/statuses` редиректят на актуальные.
@@ -491,10 +515,20 @@ arbuz-crm/
 `Input`/`NumberInput`/`Slider`/`RangeSlider`/`DatePicker`/`DateInput`/`RangeDatePicker`/
 `DateRangeInput`/`Select`/`Textarea`/`Checkbox`, `Table` (+ `useTableReorder`),
 `ListToolbar`/`SearchInput`, `StateMessage`/`Modal`/`ConfirmDialog`, `SectionHint`,
-`Pagination`, `KebabMenu`, `RowActions` (+ `useIsMobile`).
+`Pagination`, `KebabMenu`, `RowActions` (+ `useIsMobile`), а также **`DataView`** (`useDataViewState`)
+и примитивы фильтрации: `SearchField`, `CheckboxGroupFilter`, `MultiSelectFilter`, `DateRangeFilter`,
+`RangeFilter`, `ActiveFilters`.
 
 Тяжёлый `MarkdownEditor` (MDXEditor) лежит в `components/ui`, но **в barrel намеренно не входит**
 и подключается только через `lazy` — иначе ~750 КБ редактора уезжают в основной чанк.
+
+**Списки — единый `DataView`.** Общая панель для админских таблиц: режимы `minimal` / `standard` /
+`advanced` / `pro`, поиск, фасетные фильтры (`checkbox-group`, `select`, `multi-select` с асинхронным
+автокомплитом, `date-range` с пресетами, `range`), активные чипы фильтров с удалением по одному,
+сортировка по клику на заголовок и пагинация. Состояние (поиск/фильтры/сортировка/страница/размер)
+синхронизируется с query-параметрами — ссылку можно скопировать. Оба вида пустого состояния
+(«нет данных» / «ничего не найдено по фильтрам») различаются. Используется в `users`, `applications`,
+`reviews`, `posts`, `documents`, `contests`, `expertise`.
 
 **Даты и диапазоны.** Календарь один на все поля (`CalendarPanel`): показывает один или несколько
 месяцев сразу, по клику на название месяца открывается выбор года с переходами по десятилетиям
@@ -515,8 +549,9 @@ arbuz-crm/
 
 ### Раздел «Экспертизы» (`/admin/reviews`)
 
-Рабочее место для отчётности: поиск, фильтр по вердикту и **группировка** в одной панели
-(без группировки / по эксперту / по вердикту / по оценке / по дате). Столбец чекбоксов набирает
+Рабочее место для отчётности: единый `DataView` (поиск, фильтры по заявке/эксперту/статусу,
+баллу и датам) и **группировка** как элемент фильтров (без группировки / по эксперту / по вердикту /
+по оценке / по дате). Столбец чекбоксов набирает
 строки в отчёт: одна строка-группа — отчёт по всей группе, несколько — точный список экспертиз.
 Сортировка — по клику на заголовок. Данные сводки берутся с сервера (тот же источник, что и PDF).
 У каждой строки есть «Сводка» — страница `/admin/reviews/summary` (ссылка шарится, F5 не теряет

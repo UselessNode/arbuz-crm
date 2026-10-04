@@ -1,24 +1,25 @@
 // Блок «Вердикты экспертиз» в разделе «Настройки экспертизы».
 // Вердикт — редактируемый справочник: администратор задаёт названия и цвета,
 // один вердикт помечается «по умолчанию» (его получает новая экспертиза).
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   Badge,
   Button,
   Checkbox,
   ConfirmDialog,
   Container,
+  DataView,
   Input,
   Modal,
   Select,
-  StateMessage,
-  Table,
   toBadgeTone,
+  useDataViewState,
   useToast,
 } from '../../components/ui';
 import type { SelectOption, TableColumn } from '../../components/ui';
 import { reviewStatusesApi, type ReviewVerdict, type ReviewVerdictPayload } from '../../api/references';
 import { ApiError } from '../../api/client';
+import { sortRows } from '../../lib/sort-rows';
 import styles from './References.module.css';
 
 /** Варианты цвета бейджа для формы (значения совпадают с тонами дизайн-системы). */
@@ -141,6 +142,33 @@ export function VerdictsSection() {
     void load();
   }, [load]);
 
+  const state = useDataViewState({ specs: [], defaultPageSize: 50 });
+  const { query } = state;
+
+  // Справочник небольшой — поиск и сортировка на клиенте.
+  const filtered = useMemo(() => {
+    const needle = query.search.trim().toLowerCase();
+    if (!needle) return verdicts;
+    return verdicts.filter((verdict) => [verdict.name, verdict.description ?? ''].join(' ').toLowerCase().includes(needle));
+  }, [verdicts, query.search]);
+
+  const sorted = useMemo(
+    () =>
+      sortRows(filtered, query.sort, (verdict, field) => {
+        switch (field) {
+          case 'name':
+            return verdict.name.toLowerCase();
+          case 'default':
+            return verdict.isDefault ? 1 : 0;
+          case 'description':
+            return verdict.description ?? '';
+          default:
+            return verdict.id;
+        }
+      }),
+    [filtered, query.sort],
+  );
+
   const handleDelete = async () => {
     if (!deleting) return;
     setDeleteSaving(true);
@@ -169,6 +197,7 @@ export function VerdictsSection() {
       key: 'actions',
       header: '',
       width: '100px',
+      sortable: false,
       render: (v) => (
         <div className={styles.actions}>
           <Button size="sm" variant="ghost" icon="edit" aria-label="Изменить" onClick={() => setEditing(v)} />
@@ -191,15 +220,21 @@ export function VerdictsSection() {
         Вердикт — рекомендация эксперта. Финальный статус заявки всё равно ставит администратор.
       </div>
 
-      {loading ? (
-        <StateMessage state="loading" />
-      ) : error ? (
-        <StateMessage state="error" message={error} onRetry={() => void load()} />
-      ) : verdicts.length === 0 ? (
-        <StateMessage state="empty" message="Вердикты не настроены" />
-      ) : (
-        <Table columns={columns} data={verdicts} rowKey={(v) => v.id} />
-      )}
+      <DataView
+        state={state}
+        mode="pro"
+        search={{ placeholder: 'Поиск по названию и описанию' }}
+        columns={columns}
+        rows={sorted}
+        rowKey={(verdict) => verdict.id}
+        total={sorted.length}
+        paginated={false}
+        loading={loading}
+        error={error}
+        onRetry={() => void load()}
+        emptyText="Вердикты не настроены"
+        noResultsText="Ничего не найдено"
+      />
 
       <VerdictFormModal open={creating} initial={null} onClose={() => setCreating(false)} onSaved={load} />
       <VerdictFormModal open={editing !== null} initial={editing} onClose={() => setEditing(null)} onSaved={load} />

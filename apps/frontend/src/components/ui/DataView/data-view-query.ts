@@ -56,7 +56,7 @@ export function readQuery(params: URLSearchParams, specs: readonly FilterSpec[],
 }
 
 function readFilter(params: URLSearchParams, spec: FilterSpec): FilterValue | null {
-  if (spec.kind === 'checkbox-group' || spec.kind === 'multi-select') {
+  if (spec.kind === 'checkbox-group' || spec.kind === 'multi-select' || spec.kind === 'select') {
     const raw = params.get(spec.field);
     if (!raw) return null;
     const values = raw
@@ -94,7 +94,7 @@ export function writeQuery(query: DataViewQuery, specs: readonly FilterSpec[], d
 }
 
 function writeFilter(params: URLSearchParams, spec: FilterSpec, value: FilterValue): void {
-  if (spec.kind === 'checkbox-group' || spec.kind === 'multi-select') {
+  if (spec.kind === 'checkbox-group' || spec.kind === 'multi-select' || spec.kind === 'select') {
     const values = value as string[];
     if (values.length) params.set(spec.field, values.join(','));
     return;
@@ -119,7 +119,9 @@ function isoToRu(iso: string): string {
 function optionLabel(spec: FilterSpec, value: string, labels: Record<string, Record<string, string>>): string {
   const external = labels[spec.field]?.[value];
   if (external) return external;
-  if (spec.kind === 'checkbox-group') return spec.options.find((option) => option.value === value)?.label ?? value;
+  if (spec.kind === 'checkbox-group' || spec.kind === 'select') {
+    return spec.options.find((option) => option.value === value)?.label ?? value;
+  }
   return value;
 }
 
@@ -139,7 +141,7 @@ export function activeFilters(
   for (const spec of specs) {
     const value = query.filters[spec.field];
     if (value === undefined) continue;
-    if (spec.kind === 'checkbox-group' || spec.kind === 'multi-select') {
+    if (spec.kind === 'checkbox-group' || spec.kind === 'multi-select' || spec.kind === 'select') {
       for (const item of value as string[]) {
         result.push({
           key: `${spec.field}:${item}`,
@@ -201,7 +203,7 @@ const BASE_PARAMS = ['q', 'page', 'pageSize', 'sort', 'order'];
 export function isDataViewParam(key: string, specs: readonly FilterSpec[]): boolean {
   if (BASE_PARAMS.includes(key)) return true;
   return specs.some((spec) => {
-    if (spec.kind === 'checkbox-group' || spec.kind === 'multi-select') return key === spec.field;
+    if (spec.kind === 'checkbox-group' || spec.kind === 'multi-select' || spec.kind === 'select') return key === spec.field;
     if (spec.kind === 'date-range') return key === `${spec.field}_from` || key === `${spec.field}_to`;
     return key === `${spec.field}_min` || key === `${spec.field}_max`;
   });

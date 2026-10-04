@@ -38,6 +38,9 @@ interface TenderRow {
   name: string;
   description: string | null;
   experts_count: number;
+  created_at: Date;
+  updated_at: Date;
+  _count?: { evaluation_criteria: number } | null;
 }
 
 function serialize(tender: TenderRow) {
@@ -46,16 +49,32 @@ function serialize(tender: TenderRow) {
     name: tender.name,
     description: tender.description,
     expertsCount: tender.experts_count,
+    criteriaCount: tender._count?.evaluation_criteria ?? 0,
+    createdAt: tender.created_at,
+    updatedAt: tender.updated_at,
   };
 }
 
-const tenderSelect = { id: true, name: true, description: true, experts_count: true } as const;
+const tenderSelect = {
+  id: true,
+  name: true,
+  description: true,
+  experts_count: true,
+  created_at: true,
+  updated_at: true,
+} as const;
+
+/** Выборка списка: дополнительно считаем число активных критериев конкурса. */
+const tenderListSelect = {
+  ...tenderSelect,
+  _count: { select: { evaluation_criteria: { where: { deleted_at: null } } } },
+} as const;
 
 export async function listTenders() {
   const tenders = await prisma.tenders.findMany({
     where: { deleted_at: null },
     orderBy: { id: 'asc' },
-    select: tenderSelect,
+    select: tenderListSelect,
   });
   return tenders.map(serialize);
 }

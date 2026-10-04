@@ -4,17 +4,8 @@
 // отдельный режим (селект в панели), таблица остаётся представлением, не источником правил
 // (см. `lib/review-grouping.ts`).
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  Badge,
-  Button,
-  Container,
-  DataView,
-  Select,
-  StatusBadge,
-  toBadgeTone,
-  useDataViewState,
-} from '../../components/ui';
+import { useNavigate } from 'react-router-dom';
+import { Badge, Button, Container, DataView, StatusBadge, toBadgeTone, useDataViewState } from '../../components/ui';
 import type { DateRangeValue, FilterSpec, RangeValue, StatusOption, TableColumn } from '../../components/ui';
 import { reviewsApi, type ReviewListItem } from '../../api/reviews';
 import { reviewStatusesApi, type ReviewVerdict } from '../../api/references';
@@ -67,13 +58,6 @@ function toGroupingRow(review: ReviewListItem): GroupingRow {
 
 export function ReviewsPage() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const grouping: ReviewGrouping = (() => {
-    const raw = searchParams.get('group') ?? ReviewGrouping.none;
-    return isReviewGrouping(raw) ? raw : ReviewGrouping.none;
-  })();
-  const grouped = grouping !== ReviewGrouping.none;
 
   const [reviews, setReviews] = useState<ReviewListItem[]>([]);
   const [verdicts, setVerdicts] = useState<ReviewVerdict[]>([]);
@@ -103,6 +87,16 @@ export function ReviewsPage() {
 
   const specs = useMemo<FilterSpec[]>(
     () => [
+      {
+        kind: 'select',
+        field: 'group',
+        label: 'Группировка',
+        placeholder: 'Без группировки',
+        options: REVIEW_GROUPING_OPTIONS.filter((option) => option.value !== ReviewGrouping.none).map((option) => ({
+          value: option.value,
+          label: option.label,
+        })),
+      },
       {
         kind: 'multi-select',
         field: 'application',
@@ -146,6 +140,11 @@ export function ReviewsPage() {
 
   const state = useDataViewState({ specs, defaultPageSize: 50 });
   const { query } = state;
+
+  // Группировка — элемент фильтров (single-select); в URL живёт как параметр `group`.
+  const rawGroup = (query.filters.group as string[] | undefined)?.[0];
+  const grouping: ReviewGrouping = rawGroup && isReviewGrouping(rawGroup) ? rawGroup : ReviewGrouping.none;
+  const grouped = grouping !== ReviewGrouping.none;
 
   const load = useCallback(async () => {
     const statusIds = (query.filters.status as string[] | undefined) ?? [];
@@ -215,14 +214,10 @@ export function ReviewsPage() {
     };
   }, [grouped, state.hasActiveFilters, reviews]);
 
-  const setGrouping = (value: string) => {
-    // Ключи строк в разных режимах имеют разную природу — выделение переносить некуда.
+  // Ключи строк в разных режимах имеют разную природу — при смене группировки выделение сбрасываем.
+  useEffect(() => {
     setSelected(new Set());
-    const next = new URLSearchParams(searchParams);
-    if (value === ReviewGrouping.none) next.delete('group');
-    else next.set('group', value);
-    setSearchParams(next, { replace: true });
-  };
+  }, [grouping]);
 
   const toggleGroupRow = useCallback((row: GroupedRow) => {
     setSelected((prev) => toggle(prev, row.key));
@@ -297,15 +292,6 @@ export function ReviewsPage() {
     },
   ];
 
-  const toolbarExtras = (
-    <Select
-      label="Группировка"
-      value={grouping}
-      onChange={setGrouping}
-      options={REVIEW_GROUPING_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
-    />
-  );
-
   return (
     <Container
       title="Экспертизы"
@@ -333,7 +319,6 @@ export function ReviewsPage() {
           state={state}
           mode="advanced"
           search={{ placeholder: 'Поиск по заявке и эксперту' }}
-          toolbarExtras={toolbarExtras}
           columns={groupedColumns}
           rows={sortedRows}
           rowKey={(row) => row.key}
@@ -351,7 +336,6 @@ export function ReviewsPage() {
           state={state}
           mode="advanced"
           search={{ placeholder: 'Поиск по заявке и эксперту' }}
-          toolbarExtras={toolbarExtras}
           columns={reviewColumns(verdictOptions, openSummary)}
           rows={sortedReviews}
           rowKey={(row) => row.id}

@@ -7,6 +7,19 @@
   align-items: center;
   flex: 1 1 260px;
   max-width: 380px;
+  /* Быстрое раскрытие из кнопки-лупы (0.1с). */
+  animation: search-expand 0.1s ease-out;
+}
+
+@keyframes search-expand {
+  from {
+    max-width: 44px;
+    opacity: 0.35;
+  }
+  to {
+    max-width: 380px;
+    opacity: 1;
+  }
 }
 
 .searchIcon {

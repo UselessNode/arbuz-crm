@@ -1,27 +1,29 @@
 // Админский раздел «Документы и согласия»: два раздела на одной странице.
 //  • «Документы» — публичные файлы (главная страница): загрузка, порядок, публикация.
 //  • «Соглашения» — версии текстов (ПС и ПДн): история и публикация новой редакции.
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   Badge,
   Button,
   Checkbox,
   ConfirmDialog,
   Container,
+  DataView,
   DragDrop,
   Input,
   Modal,
   NumberInput,
   StateMessage,
-  Table,
   Textarea,
+  useDataViewState,
   useToast,
 } from '../../components/ui';
-import type { TableColumn } from '../../components/ui';
+import type { DateRangeValue, FilterSpec, TableColumn } from '../../components/ui';
 import { documentsApi, type DocumentPayload, type PublicDocument } from '../../api/documents';
 import { consentsApi, ConsentDocumentType, type ConsentDocument } from '../../api/consents';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../lib/format';
+import { sortRows } from '../../lib/sort-rows';
 import styles from './DocumentsPage.module.css';
 
 type Tab = 'documents' | 'consents';
@@ -35,29 +37,19 @@ export function DocumentsPage() {
   const [tab, setTab] = useState<Tab>('documents');
 
   return (
-    <Container
-      title="Документы и согласия"
-      actions={
-        <div className={styles.tabs} role="tablist" aria-label="Разделы">
-          <Button
-            size="sm"
-            variant={tab === 'documents' ? 'primary' : 'secondary'}
-            onClick={() => setTab('documents')}
-          >
-            Документы
-          </Button>
-          <Button
-            size="sm"
-            variant={tab === 'consents' ? 'primary' : 'secondary'}
-            onClick={() => setTab('consents')}
-          >
-            Соглашения
-          </Button>
-        </div>
-      }
-    >
+    <div>
+      <h1 className={styles.pageTitle}>Документы и согласия</h1>
+      <div className={styles.tabs} role="tablist" aria-label="Разделы">
+        <Button size="sm" variant={tab === 'documents' ? 'primary' : 'secondary'} onClick={() => setTab('documents')}>
+          Документы
+        </Button>
+        <Button size="sm" variant={tab === 'consents' ? 'primary' : 'secondary'} onClick={() => setTab('consents')}>
+          Соглашения
+        </Button>
+      </div>
+
       {tab === 'documents' ? <DocumentsTab /> : <ConsentsTab />}
-    </Container>
+    </div>
   );
 }
 
@@ -90,6 +82,80 @@ function DocumentsTab() {
     void load();
   }, [load]);
 
+  const specs = useMemo<FilterSpec[]>(
+    () => [
+      {
+        kind: 'multi-select',
+        field: 'name',
+        label: 'По названию',
+        placeholder: 'Название документа…',
+        loadOptions: async (search) => {
+          const needle = search.trim().toLowerCase();
+          return documents
+            .filter((document) => !needle || document.title.toLowerCase().includes(needle))
+            .map((document) => ({ value: String(document.id), label: document.title }));
+        },
+      },
+      {
+        kind: 'checkbox-group',
+        field: 'status',
+        label: 'Статус документа',
+        options: [
+          { value: 'published', label: 'Опубликован' },
+          { value: 'hidden', label: 'Скрыт' },
+        ],
+      },
+      { kind: 'date-range', field: 'created', label: 'Дата создания', presets: true },
+      { kind: 'date-range', field: 'updated', label: 'Дата изменения', presets: true },
+    ],
+    [documents],
+  );
+
+  const state = useDataViewState({ specs, defaultPageSize: 50 });
+  const { query } = state;
+
+  // Документов немного — фильтруем на клиенте по состоянию DataView.
+  const filtered = useMemo(() => {
+    const needle = query.search.trim().toLowerCase();
+    const names = (query.filters.name as string[] | undefined) ?? [];
+    const statuses = (query.filters.status as string[] | undefined) ?? [];
+    const created = query.filters.created as DateRangeValue | undefined;
+    const updated = query.filters.updated as DateRangeValue | undefined;
+    return documents.filter((document) => {
+      if (needle && !document.title.toLowerCase().includes(needle)) return false;
+      if (names.length && !names.includes(String(document.id))) return false;
+      if (statuses.length && !statuses.includes(document.isPublished ? 'published' : 'hidden')) return false;
+      const createdDay = document.createdAt.slice(0, 10);
+      if (created?.from && createdDay < created.from) return false;
+      if (created?.to && createdDay > created.to) return false;
+      const updatedDay = document.updatedAt.slice(0, 10);
+      if (updated?.from && updatedDay < updated.from) return false;
+      if (updated?.to && updatedDay > updated.to) return false;
+      return true;
+    });
+  }, [documents, query]);
+
+  const sorted = useMemo(
+    () =>
+      sortRows(filtered, query.sort, (document, field) => {
+        switch (field) {
+          case 'title':
+            return document.title.toLowerCase();
+          case 'order':
+            return document.sortOrder;
+          case 'published':
+            return document.isPublished ? 1 : 0;
+          case 'created_at':
+            return document.createdAt;
+          case 'updated_at':
+            return document.updatedAt;
+          default:
+            return document.id;
+        }
+      }),
+    [filtered, query.sort],
+  );
+
   const confirmDelete = async () => {
     if (!deleting) return;
     setDeleteSaving(true);
@@ -109,7 +175,6 @@ function DocumentsTab() {
     {
       key: 'title',
       header: 'Название',
-      sortValue: (document) => document.title.toLowerCase(),
       render: (document) => (
         <div className={styles.cellMain}>
           <span className={styles.strong}>{document.title}</span>
@@ -117,11 +182,10 @@ function DocumentsTab() {
         </div>
       ),
     },
-    { key: 'order', header: 'Порядок', width: '90px', sortValue: (document) => document.sortOrder, render: (document) => document.sortOrder },
+    { key: 'order', header: 'Порядок', width: '90px', render: (document) => document.sortOrder },
     {
       key: 'published',
       header: 'Статус',
-      sortValue: (document) => (document.isPublished ? 1 : 0),
       render: (document) =>
         document.isPublished ? (
           <Badge tone="green" icon="check">
@@ -131,7 +195,8 @@ function DocumentsTab() {
           <Badge tone="gray">Скрыт</Badge>
         ),
     },
-    { key: 'created', header: 'Добавлен', sortValue: (document) => document.createdAt, render: (document) => formatDateTime(document.createdAt) },
+    { key: 'created_at', header: 'Добавлен', render: (document) => formatDateTime(document.createdAt) },
+    { key: 'updated_at', header: 'Изменён', render: (document) => formatDateTime(document.updatedAt) },
     {
       key: 'actions',
       header: '',
@@ -147,22 +212,29 @@ function DocumentsTab() {
   ];
 
   return (
-    <>
-      <div className={styles.toolbar}>
+    <Container
+      title="Документы"
+      actions={
         <Button icon="add" onClick={() => setCreating(true)}>
-          Добавить документ
+          Добавить
         </Button>
-      </div>
-
-      {loading ? (
-        <StateMessage state="loading" />
-      ) : error ? (
-        <StateMessage state="error" message={error} onRetry={() => void load()} />
-      ) : documents.length === 0 ? (
-        <StateMessage state="empty" message="Документов пока нет" />
-      ) : (
-        <Table columns={columns} data={documents} rowKey={(document) => document.id} />
-      )}
+      }
+    >
+      <DataView
+        state={state}
+        mode="advanced"
+        search={{ placeholder: 'Поиск по названию' }}
+        columns={columns}
+        rows={sorted}
+        rowKey={(document) => document.id}
+        total={sorted.length}
+        paginated={false}
+        loading={loading}
+        error={error}
+        onRetry={() => void load()}
+        emptyText="Документов пока нет"
+        noResultsText="Ничего не найдено"
+      />
 
       <DocumentFormModal
         open={creating || editing !== null}
@@ -188,10 +260,11 @@ function DocumentsTab() {
         onConfirm={() => void confirmDelete()}
         onClose={() => setDeleting(null)}
       />
-    </>
+    </Container>
   );
 }
 
+// --- Раздел «Соглашения» ---
 /** Форма создания/правки документа: создание — с файлом, правка — только метаданные. */
 function DocumentFormModal({
   open,
@@ -331,7 +404,7 @@ function ConsentsTab() {
     documents.find((document) => document.type === type);
 
   return (
-    <>
+    <Container title="Соглашения">
       <p className={styles.note}>
         Тексты публикуются как неизменяемые редакции: при правке создаётся новая версия, старая сохраняется
         (версия + SHA-256). Пользователи принимают действующую редакцию при регистрации.
@@ -391,7 +464,7 @@ function ConsentsTab() {
           }}
         />
       ) : null}
-    </>
+    </Container>
   );
 }
 

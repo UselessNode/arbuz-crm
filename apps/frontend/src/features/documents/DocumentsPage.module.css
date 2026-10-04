@@ -1,7 +1,13 @@
 /* Админский раздел «Документы и согласия». */
+.pageTitle {
+  margin: 0 0 var(--space-4);
+  font-size: 22px;
+}
+
 .tabs {
   display: flex;
   gap: var(--space-2);
+  margin-bottom: var(--space-4);
 }
 
 .toolbar {

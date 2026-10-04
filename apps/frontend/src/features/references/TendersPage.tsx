@@ -4,18 +4,20 @@ import {
   Button,
   ConfirmDialog,
   Container,
+  DataView,
   Input,
-  ListToolbar,
   Modal,
   NumberInput,
-  SearchInput,
   StateMessage,
   Table,
+  useDataViewState,
   useToast,
 } from '../../components/ui';
-import type { TableColumn } from '../../components/ui';
+import type { DateRangeValue, FilterSpec, RangeValue, TableColumn } from '../../components/ui';
 import { criteriaApi, tendersApi, type Criterion, type Tender } from '../../api/references';
 import { ApiError } from '../../api/client';
+import { formatDateTime } from '../../lib/format';
+import { sortRows } from '../../lib/sort-rows';
 import styles from './References.module.css';
 
 function TenderFormModal({
@@ -344,7 +346,6 @@ interface TendersPageProps {
 export function TendersPage({ onChanged }: TendersPageProps = {}) {
   const toast = useToast();
   const [tenders, setTenders] = useState<Tender[]>([]);
-  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -377,12 +378,80 @@ export function TendersPage({ onChanged }: TendersPageProps = {}) {
     void load();
   }, [load]);
 
-  // Справочник небольшой — фильтруем на клиенте.
+  const criteriaMax = useMemo(() => Math.max(10, ...tenders.map((tender) => tender.criteriaCount), 0), [tenders]);
+
+  const specs = useMemo<FilterSpec[]>(
+    () => [
+      {
+        kind: 'multi-select',
+        field: 'name',
+        label: 'По названию',
+        placeholder: 'Название конкурса…',
+        loadOptions: async (search) => {
+          const needle = search.trim().toLowerCase();
+          return tenders
+            .filter((tender) => !needle || tender.name.toLowerCase().includes(needle))
+            .map((tender) => ({ value: String(tender.id), label: tender.name }));
+        },
+      },
+      { kind: 'range', field: 'experts', label: 'Экспертов на заявку', min: 1, max: 20, step: 1 },
+      { kind: 'range', field: 'criteria', label: 'Количество критериев', min: 0, max: criteriaMax, step: 1 },
+      { kind: 'date-range', field: 'created', label: 'Дата создания', presets: true },
+      { kind: 'date-range', field: 'updated', label: 'Дата изменения', presets: true },
+    ],
+    [tenders, criteriaMax],
+  );
+
+  const state = useDataViewState({ specs, defaultPageSize: 50 });
+  const { query } = state;
+
+  // Справочник небольшой — фильтруем на клиенте по состоянию DataView.
   const filtered = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    if (!needle) return tenders;
-    return tenders.filter((tender) => [tender.name, tender.description ?? ''].join(' ').toLowerCase().includes(needle));
-  }, [tenders, search]);
+    const needle = query.search.trim().toLowerCase();
+    const names = (query.filters.name as string[] | undefined) ?? [];
+    const experts = query.filters.experts as RangeValue | undefined;
+    const criteria = query.filters.criteria as RangeValue | undefined;
+    const created = query.filters.created as DateRangeValue | undefined;
+    const updated = query.filters.updated as DateRangeValue | undefined;
+    return tenders.filter((tender) => {
+      if (needle && ![tender.name, tender.description ?? ''].join(' ').toLowerCase().includes(needle)) return false;
+      if (names.length && !names.includes(String(tender.id))) return false;
+      if (experts?.min != null && tender.expertsCount < experts.min) return false;
+      if (experts?.max != null && tender.expertsCount > experts.max) return false;
+      if (criteria?.min != null && tender.criteriaCount < criteria.min) return false;
+      if (criteria?.max != null && tender.criteriaCount > criteria.max) return false;
+      const createdDay = tender.createdAt.slice(0, 10);
+      if (created?.from && createdDay < created.from) return false;
+      if (created?.to && createdDay > created.to) return false;
+      const updatedDay = tender.updatedAt.slice(0, 10);
+      if (updated?.from && updatedDay < updated.from) return false;
+      if (updated?.to && updatedDay > updated.to) return false;
+      return true;
+    });
+  }, [tenders, query]);
+
+  const sorted = useMemo(
+    () =>
+      sortRows(filtered, query.sort, (tender, field) => {
+        switch (field) {
+          case 'name':
+            return tender.name.toLowerCase();
+          case 'description':
+            return tender.description ?? '';
+          case 'experts':
+            return tender.expertsCount;
+          case 'criteria':
+            return tender.criteriaCount;
+          case 'created_at':
+            return tender.createdAt;
+          case 'updated_at':
+            return tender.updatedAt;
+          default:
+            return tender.id;
+        }
+      }),
+    [filtered, query.sort],
+  );
 
   const handleDelete = async () => {
     if (!deleting) return;
@@ -403,10 +472,13 @@ export function TendersPage({ onChanged }: TendersPageProps = {}) {
     { key: 'name', header: 'Название', field: 'name' },
     { key: 'description', header: 'Описание', render: (t) => t.description ?? '—' },
     { key: 'experts', header: 'Экспертов на заявку', width: '170px', render: (t) => t.expertsCount },
+    { key: 'criteria', header: 'Критериев', width: '110px', render: (t) => t.criteriaCount },
+    { key: 'updated_at', header: 'Изменён', render: (t) => formatDateTime(t.updatedAt) },
     {
       key: 'actions',
       header: '',
       width: '230px',
+      sortable: false,
       render: (t) => (
         <div className={styles.actions}>
           <Button size="sm" variant="secondary" icon="settings" onClick={() => setCriteriaFor(t)}>
@@ -435,19 +507,21 @@ export function TendersPage({ onChanged }: TendersPageProps = {}) {
         </Button>
       }
     >
-      <ListToolbar>
-        <SearchInput placeholder="Поиск по названию и описанию" onChange={setSearch} />
-      </ListToolbar>
-
-      {loading ? (
-        <StateMessage state="loading" />
-      ) : error ? (
-        <StateMessage state="error" message={error} onRetry={() => void load()} />
-      ) : filtered.length === 0 ? (
-        <StateMessage state="empty" message={tenders.length === 0 ? 'Конкурсы не найдены' : 'Ничего не найдено'} />
-      ) : (
-        <Table columns={columns} data={filtered} rowKey={(t) => t.id} />
-      )}
+      <DataView
+        state={state}
+        mode="advanced"
+        search={{ placeholder: 'Поиск по названию и описанию' }}
+        columns={columns}
+        rows={sorted}
+        rowKey={(tender) => tender.id}
+        total={sorted.length}
+        paginated={false}
+        loading={loading}
+        error={error}
+        onRetry={() => void load()}
+        emptyText="Конкурсы не найдены"
+        noResultsText="Ничего не найдено"
+      />
 
       <TenderFormModal open={creating} initial={null} onClose={() => setCreating(false)} onSaved={reload} />
       <TenderFormModal

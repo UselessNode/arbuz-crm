@@ -1,10 +1,21 @@
 // Блок «Статусы заявок» в разделе «Настройки экспертизы».
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Button, Checkbox, ConfirmDialog, Container, Input, Modal, StateMessage, Table, useToast } from '../../components/ui';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import {
+  Badge,
+  Button,
+  Checkbox,
+  ConfirmDialog,
+  Container,
+  DataView,
+  Input,
+  Modal,
+  useDataViewState,
+  useToast,
+} from '../../components/ui';
 import type { TableColumn } from '../../components/ui';
 import { statusesApi, type ApplicationStatus } from '../../api/references';
 import { ApiError } from '../../api/client';
-import { Badge } from '../../components/ui';
+import { sortRows } from '../../lib/sort-rows';
 import styles from './References.module.css';
 
 function StatusFormModal({
@@ -101,6 +112,35 @@ export function StatusesSection() {
     void load();
   }, [load]);
 
+  const state = useDataViewState({ specs: [], defaultPageSize: 50 });
+  const { query } = state;
+
+  // Справочник небольшой — поиск и сортировка на клиенте.
+  const filtered = useMemo(() => {
+    const needle = query.search.trim().toLowerCase();
+    if (!needle) return statuses;
+    return statuses.filter((status) => [status.name, status.description ?? ''].join(' ').toLowerCase().includes(needle));
+  }, [statuses, query.search]);
+
+  const sorted = useMemo(
+    () =>
+      sortRows(filtered, query.sort, (status, field) => {
+        switch (field) {
+          case 'name':
+            return status.name.toLowerCase();
+          case 'editable':
+            return status.isEditable ? 1 : 0;
+          case 'deletable':
+            return status.isDeletable ? 1 : 0;
+          case 'description':
+            return status.description ?? '';
+          default:
+            return status.id;
+        }
+      }),
+    [filtered, query.sort],
+  );
+
   const handleDelete = async () => {
     if (!deleting) return;
     setDeleteSaving(true);
@@ -133,6 +173,7 @@ export function StatusesSection() {
       key: 'actions',
       header: '',
       width: '100px',
+      sortable: false,
       render: (s) => (
         <div className={styles.actions}>
           <Button size="sm" variant="ghost" icon="edit" aria-label="Изменить" onClick={() => setEditing(s)} />
@@ -151,15 +192,21 @@ export function StatusesSection() {
         </Button>
       }
     >
-      {loading ? (
-        <StateMessage state="loading" />
-      ) : error ? (
-        <StateMessage state="error" message={error} onRetry={() => void load()} />
-      ) : statuses.length === 0 ? (
-        <StateMessage state="empty" message="Статусы не найдены" />
-      ) : (
-        <Table columns={columns} data={statuses} rowKey={(s) => s.id} />
-      )}
+      <DataView
+        state={state}
+        mode="pro"
+        search={{ placeholder: 'Поиск по названию и описанию' }}
+        columns={columns}
+        rows={sorted}
+        rowKey={(status) => status.id}
+        total={sorted.length}
+        paginated={false}
+        loading={loading}
+        error={error}
+        onRetry={() => void load()}
+        emptyText="Статусы не найдены"
+        noResultsText="Ничего не найдено"
+      />
 
       <StatusFormModal open={creating} initial={null} onClose={() => setCreating(false)} onSaved={load} />
       <StatusFormModal open={editing !== null} initial={editing} onClose={() => setEditing(null)} onSaved={load} />

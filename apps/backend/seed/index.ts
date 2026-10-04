@@ -54,9 +54,12 @@ async function seedDemo(statuses: StatusMap, adminId: number, reviewStatusByName
     for (const plan of seedApp.plans ?? []) await ensurePlan(application.id, plan);
     for (const item of seedApp.budget ?? []) await ensureBudgetItem(application.id, item);
     for (const review of seedApp.reviews ?? []) {
-      await ensureReview(application.id, userIds[review.expertKey], {
+      const expertId = userIds[review.expertKey];
+      await ensureReview(application.id, expertId, {
         statusId: reviewStatusByName(review.statusName),
         text: review.text,
+        // Детерминированный балл — чтобы в списке/сводке были средние значения.
+        totalScore: 6 + ((application.id * 7 + expertId * 3) % 15),
       });
     }
   }

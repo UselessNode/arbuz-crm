@@ -1,9 +1,21 @@
 // Справочник «Направления».
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Button, ConfirmDialog, Container, Input, ListToolbar, Modal, SearchInput, Select, StateMessage, Table, useToast } from '../../components/ui';
-import type { SelectOption, TableColumn } from '../../components/ui';
+import {
+  Button,
+  ConfirmDialog,
+  Container,
+  DataView,
+  Input,
+  Modal,
+  Select,
+  useDataViewState,
+  useToast,
+} from '../../components/ui';
+import type { DateRangeValue, FilterSpec, SelectOption, TableColumn } from '../../components/ui';
 import { directionsApi, tendersApi, type Direction, type Tender } from '../../api/references';
 import { ApiError } from '../../api/client';
+import { formatDateTime } from '../../lib/format';
+import { sortRows } from '../../lib/sort-rows';
 import styles from './References.module.css';
 
 function DirectionFormModal({
@@ -96,8 +108,6 @@ export function DirectionsPage({ refreshToken = 0 }: DirectionsPageProps = {}) {
   const toast = useToast();
   const [directions, setDirections] = useState<Direction[]>([]);
   const [tenders, setTenders] = useState<Tender[]>([]);
-  const [search, setSearch] = useState('');
-  const [tenderFilter, setTenderFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -129,21 +139,87 @@ export function DirectionsPage({ refreshToken = 0 }: DirectionsPageProps = {}) {
     return (id: number | null) => (id ? map.get(id) ?? '—' : '—');
   }, [tenders]);
 
-  // Справочник небольшой — фильтруем на клиенте.
-  const filtered = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    return directions.filter((direction) => {
-      if (tenderFilter === 'none' && direction.tenderId !== null) return false;
-      if (tenderFilter && tenderFilter !== 'none' && direction.tenderId !== Number(tenderFilter)) return false;
-      if (!needle) return true;
-      return [direction.name, direction.description ?? ''].join(' ').toLowerCase().includes(needle);
-    });
-  }, [directions, search, tenderFilter]);
+  const specs = useMemo<FilterSpec[]>(
+    () => [
+      {
+        kind: 'multi-select',
+        field: 'name',
+        label: 'По названию',
+        placeholder: 'Название направления…',
+        loadOptions: async (search) => {
+          const needle = search.trim().toLowerCase();
+          return directions
+            .filter((direction) => !needle || direction.name.toLowerCase().includes(needle))
+            .map((direction) => ({ value: String(direction.id), label: direction.name }));
+        },
+      },
+      {
+        kind: 'multi-select',
+        field: 'tender',
+        label: 'По конкурсу',
+        placeholder: 'Название конкурса…',
+        loadOptions: async (search) => {
+          const needle = search.trim().toLowerCase();
+          const options = tenders
+            .filter((tender) => !needle || tender.name.toLowerCase().includes(needle))
+            .map((tender) => ({ value: String(tender.id), label: tender.name }));
+          return [{ value: 'none', label: 'Без привязки' }, ...options];
+        },
+      },
+      { kind: 'date-range', field: 'created', label: 'Дата создания', presets: true },
+      { kind: 'date-range', field: 'updated', label: 'Дата изменения', presets: true },
+    ],
+    [directions, tenders],
+  );
 
-  const tenderFilterOptions: readonly SelectOption<string>[] = [
-    ...tenders.map((tender) => ({ value: String(tender.id), label: tender.name })),
-    { value: 'none', label: 'Без привязки' },
-  ];
+  const state = useDataViewState({ specs, defaultPageSize: 50 });
+  const { query } = state;
+
+  // Справочник небольшой — фильтруем на клиенте по состоянию DataView.
+  const filtered = useMemo(() => {
+    const needle = query.search.trim().toLowerCase();
+    const names = (query.filters.name as string[] | undefined) ?? [];
+    const tenderIds = (query.filters.tender as string[] | undefined) ?? [];
+    const created = query.filters.created as DateRangeValue | undefined;
+    const updated = query.filters.updated as DateRangeValue | undefined;
+    return directions.filter((direction) => {
+      if (needle && ![direction.name, direction.description ?? ''].join(' ').toLowerCase().includes(needle)) return false;
+      if (names.length && !names.includes(String(direction.id))) return false;
+      if (tenderIds.length) {
+        const matchesNone = tenderIds.includes('none') && direction.tenderId === null;
+        const matchesId = direction.tenderId !== null && tenderIds.includes(String(direction.tenderId));
+        if (!matchesNone && !matchesId) return false;
+      }
+      const createdDay = direction.createdAt.slice(0, 10);
+      if (created?.from && createdDay < created.from) return false;
+      if (created?.to && createdDay > created.to) return false;
+      const updatedDay = direction.updatedAt.slice(0, 10);
+      if (updated?.from && updatedDay < updated.from) return false;
+      if (updated?.to && updatedDay > updated.to) return false;
+      return true;
+    });
+  }, [directions, query]);
+
+  const sorted = useMemo(
+    () =>
+      sortRows(filtered, query.sort, (direction, field) => {
+        switch (field) {
+          case 'name':
+            return direction.name.toLowerCase();
+          case 'tender':
+            return tenderName(direction.tenderId).toLowerCase();
+          case 'description':
+            return direction.description ?? '';
+          case 'created_at':
+            return direction.createdAt;
+          case 'updated_at':
+            return direction.updatedAt;
+          default:
+            return direction.id;
+        }
+      }),
+    [filtered, query.sort, tenderName],
+  );
 
   const handleDelete = async () => {
     if (!deleting) return;
@@ -162,16 +238,18 @@ export function DirectionsPage({ refreshToken = 0 }: DirectionsPageProps = {}) {
 
   const columns: TableColumn<Direction>[] = [
     { key: 'name', header: 'Название', field: 'name' },
-    { key: 'tender', header: 'Конкурс', render: (d) => tenderName(d.tenderId) },
-    { key: 'description', header: 'Описание', render: (d) => d.description ?? '—' },
+    { key: 'tender', header: 'Конкурс', render: (direction) => tenderName(direction.tenderId) },
+    { key: 'description', header: 'Описание', render: (direction) => direction.description ?? '—' },
+    { key: 'updated_at', header: 'Изменён', render: (direction) => formatDateTime(direction.updatedAt) },
     {
       key: 'actions',
       header: '',
       width: '100px',
-      render: (d) => (
+      sortable: false,
+      render: (direction) => (
         <div className={styles.actions}>
-          <Button size="sm" variant="ghost" icon="edit" aria-label="Изменить" onClick={() => setEditing(d)} />
-          <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => setDeleting(d)} />
+          <Button size="sm" variant="ghost" icon="edit" aria-label="Изменить" onClick={() => setEditing(direction)} />
+          <Button size="sm" variant="ghost" icon="delete" aria-label="Удалить" onClick={() => setDeleting(direction)} />
         </div>
       ),
     },
@@ -186,26 +264,21 @@ export function DirectionsPage({ refreshToken = 0 }: DirectionsPageProps = {}) {
         </Button>
       }
     >
-      <ListToolbar>
-        <SearchInput placeholder="Поиск по названию и описанию" onChange={setSearch} />
-        <Select
-          label="Конкурс"
-          placeholder="Все конкурсы"
-          value={tenderFilter}
-          onChange={setTenderFilter}
-          options={tenderFilterOptions}
-        />
-      </ListToolbar>
-
-      {loading ? (
-        <StateMessage state="loading" />
-      ) : error ? (
-        <StateMessage state="error" message={error} onRetry={() => void load()} />
-      ) : filtered.length === 0 ? (
-        <StateMessage state="empty" message={directions.length === 0 ? 'Направления не найдены' : 'Ничего не найдено'} />
-      ) : (
-        <Table columns={columns} data={filtered} rowKey={(d) => d.id} />
-      )}
+      <DataView
+        state={state}
+        mode="advanced"
+        search={{ placeholder: 'Поиск по названию и описанию' }}
+        columns={columns}
+        rows={sorted}
+        rowKey={(direction) => direction.id}
+        total={sorted.length}
+        paginated={false}
+        loading={loading}
+        error={error}
+        onRetry={() => void load()}
+        emptyText="Направления не найдены"
+        noResultsText="Ничего не найдено"
+      />
 
       <DirectionFormModal open={creating} initial={null} tenders={tenders} onClose={() => setCreating(false)} onSaved={load} />
       <DirectionFormModal open={editing !== null} initial={editing} tenders={tenders} onClose={() => setEditing(null)} onSaved={load} />

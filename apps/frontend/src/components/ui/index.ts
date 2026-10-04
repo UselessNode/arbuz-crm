@@ -90,6 +90,7 @@ export type {
   QueryDefaults,
   RangeSpec,
   RangeValue,
+  SelectSpec,
 } from './DataView';
 
 // Примитивы фильтрации (используются внутри DataView, доступны и отдельно).

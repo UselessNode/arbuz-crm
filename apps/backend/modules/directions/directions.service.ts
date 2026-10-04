@@ -35,15 +35,38 @@ async function ensureTenderExists(tenderId: number | null): Promise<void> {
   if (!tender) throw httpError(404, 'Конкурс не найден', 'TENDER_NOT_FOUND');
 }
 
-function serialize(direction: { id: number; name: string; description: string | null; tender_id: number | null }) {
-  return { id: direction.id, name: direction.name, description: direction.description, tenderId: direction.tender_id };
+const directionSelect = {
+  id: true,
+  name: true,
+  description: true,
+  tender_id: true,
+  created_at: true,
+  updated_at: true,
+} as const;
+
+function serialize(direction: {
+  id: number;
+  name: string;
+  description: string | null;
+  tender_id: number | null;
+  created_at: Date;
+  updated_at: Date;
+}) {
+  return {
+    id: direction.id,
+    name: direction.name,
+    description: direction.description,
+    tenderId: direction.tender_id,
+    createdAt: direction.created_at,
+    updatedAt: direction.updated_at,
+  };
 }
 
 export async function listDirections(tenderId?: number) {
   const directions = await prisma.directions.findMany({
     where: { deleted_at: null, ...(tenderId !== undefined ? { tender_id: tenderId } : {}) },
     orderBy: { id: 'asc' },
-    select: { id: true, name: true, description: true, tender_id: true },
+    select: directionSelect,
   });
   return directions.map(serialize);
 }
@@ -51,7 +74,7 @@ export async function listDirections(tenderId?: number) {
 export async function getDirectionOrThrow(directionId: number) {
   const direction = await prisma.directions.findFirst({
     where: { id: directionId, deleted_at: null },
-    select: { id: true, name: true, description: true, tender_id: true },
+    select: directionSelect,
   });
   if (!direction) throw httpError(404, 'Направление не найдено', 'DIRECTION_NOT_FOUND');
   return serialize(direction);
@@ -62,7 +85,7 @@ export async function createDirection(input: { name?: unknown; description?: unk
   await ensureTenderExists(tenderId);
   const direction = await prisma.directions.create({
     data: { name: requiredName(input.name), description: optionalText(input.description), tender_id: tenderId },
-    select: { id: true, name: true, description: true, tender_id: true },
+    select: directionSelect,
   });
   return serialize(direction);
 }
@@ -80,7 +103,7 @@ export async function updateDirection(directionId: number, patch: { name?: unkno
   const direction = await prisma.directions.update({
     where: { id: directionId },
     data,
-    select: { id: true, name: true, description: true, tender_id: true },
+    select: directionSelect,
   });
   return serialize(direction);
 }

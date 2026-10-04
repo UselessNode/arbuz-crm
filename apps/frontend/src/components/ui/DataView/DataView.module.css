@@ -109,6 +109,33 @@
   cursor: grab;
 }
 
+/* Область результатов: фиксированная мин. высота и оверлей загрузки без размонтирования таблицы. */
+.results {
+  position: relative;
+  min-height: 220px;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 64px;
+  background-color: color-mix(in srgb, var(--color-surface) 55%, transparent);
+}
+
+.spin {
+  color: var(--color-muted);
+  animation: data-view-spin 0.8s linear infinite;
+}
+
+@keyframes data-view-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .emptyReset {
   display: flex;
   justify-content: center;
