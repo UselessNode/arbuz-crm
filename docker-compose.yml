@@ -1,0 +1,55 @@
+services:
+  arbuz-postgres:
+    image: postgres:16
+    container_name: arbuz-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - arbuz_pg_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+    networks:
+      - arbuz_network
+
+  arbuz-backend:
+    image: ghcr.io/uselessnode/arbuz-crm/backend:latest
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: arbuz-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    ports:
+      - "127.0.0.1:8084:3000"
+    depends_on:
+      - arbuz-postgres
+    networks:
+      - arbuz_network
+
+  arbuz-frontend:
+    image: ghcr.io/uselessnode/arbuz-crm/frontend:latest
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    container_name: arbuz-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3002:80"
+    depends_on:
+      - arbuz-backend
+    networks:
+      - arbuz_network
+
+volumes:
+  arbuz_pg_data:
+
+networks:
+  arbuz_network:

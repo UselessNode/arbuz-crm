@@ -1,0 +1,14 @@
+.env
+.env.*
+.git
+.gitignore
+node_modules
+**/node_modules
+**/dist
+apps/frontend/dist
+uploads
+logs
+*.log
+docs
+notes
+postman
