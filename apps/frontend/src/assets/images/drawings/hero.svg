@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="Арбузный грант">
+  <title>Arbuzov Grant</title>
+  <circle cx="200" cy="200" r="180" fill="#e63946"/>
+  <circle cx="200" cy="200" r="180" fill="none" stroke="#2e8b3f" stroke-width="8"/>
+  <path d="M200 40 Q 220 15 250 25 Q 220 55 200 55 Z" fill="#2e8b3f"/>
+  <circle cx="160" cy="180" r="12" fill="#111"/>
+  <circle cx="240" cy="180" r="12" fill="#111"/>
+  <path d="M150 260 Q 200 300 250 260" stroke="#111" stroke-width="8" fill="none" stroke-linecap="round"/>
+</svg>
