@@ -1,0 +1,51 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI & Publish Images"]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to production
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script_stop: true
+          command_timeout: 10m
+          script: |
+            set -e
+            cd ~/arbuz-crm
+
+            echo ">>> Fetching latest repo state"
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo ">>> Pulling new images"
+            docker compose pull arbuz-backend arbuz-frontend
+
+            echo ">>> Syncing database schema"
+            docker compose run --rm -w /app arbuz-backend bun db:push
+
+            echo ">>> Restarting services"
+            docker compose up -d --remove-orphans
+
+            echo ">>> Cleaning old images"
+            docker image prune -f
+
+            echo ">>> Health check"
+            sleep 3
+            curl -fsS http://127.0.0.1:8084/health
+            echo ""
+            echo ">>> Deploy complete"
