@@ -45,8 +45,8 @@ export type { TextareaProps } from './Form';
 export { Checkbox } from './Form';
 export type { CheckboxProps } from './Form';
 
-export { Table } from './Table';
-export type { TableColumn, TableProps } from './Table';
+export { Table, useTableReorder } from './Table';
+export type { TableColumn, TableProps, TableReorderApi, TableReorderOptions } from './Table';
 
 export { ListToolbar, SearchInput } from './ListToolbar';
 export type { ListToolbarProps, SearchInputProps } from './ListToolbar';
@@ -66,6 +66,10 @@ export type { SectionHintProps } from './SectionHint';
 
 export { KebabMenu } from './Menu/KebabMenu';
 export type { KebabMenuProps, KebabMenuItem } from './Menu/KebabMenu';
+
+export { RowActions } from './RowActions';
+export type { RowActionItem } from './RowActions';
+export { useIsMobile } from './Hooks/useIsMobile';
 
 // `MarkdownEditor` намеренно не реэкспортируется: он тянет MDXEditor (~700 КБ).
 // Статический реэкспорт из barrel втянул бы редактор в основной чанк для всех страниц.

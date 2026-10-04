@@ -28,15 +28,57 @@ export interface IconProps {
   name: string;
   size?: number;
   className?: string;
+  /** Поворот относительно центра в градусах */
+  rotate?: number;
+  /** Отзеркалить по вертикали */
+  flipVertical?: boolean;
+  /** Отзеркалить по горизонтали */
+  flipHorizontal?: boolean;
+  /** Прозрачность от 0 до 1 */
+  opacity?: number;
+  /** Цвет фона контейнера иконки */
+  backgroundColor?: string;
 }
 
-export function Icon({ name, size = 16, className }: IconProps) {
+function buildTransform(props: Pick<IconProps, 'rotate' | 'flipVertical' | 'flipHorizontal'>): string | undefined {
+  const parts: string[] = [];
+  if (props.flipHorizontal) parts.push('scaleX(-1)');
+  if (props.flipVertical) parts.push('scaleY(-1)');
+  if (props.rotate != null && props.rotate !== 0) parts.push(`rotate(${props.rotate}deg)`);
+  return parts.length ? parts.join(' ') : undefined;
+}
+
+export function Icon({
+  name,
+  size = 16,
+  className,
+  rotate,
+  flipVertical,
+  flipHorizontal,
+  opacity,
+  backgroundColor,
+}: IconProps) {
   const raw = CUSTOM_SVG[name];
   const cls = className ? `${styles.icon} ${className}` : styles.icon;
 
+  const transform = buildTransform({ rotate, flipVertical, flipHorizontal });
+
+  const style: React.CSSProperties = {
+    width: size,
+    height: size,
+    opacity: opacity ?? undefined,
+    backgroundColor: backgroundColor ?? undefined,
+    ...(transform ? { transform } : {}),
+  };
+
   if (raw) {
     return (
-      <span className={cls} style={{ width: size, height: size }} aria-hidden="true" dangerouslySetInnerHTML={{ __html: raw }} />
+      <span
+        className={cls}
+        style={style}
+        aria-hidden="true"
+        dangerouslySetInnerHTML={{ __html: raw }}
+      />
     );
   }
 

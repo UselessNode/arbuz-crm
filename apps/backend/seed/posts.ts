@@ -28,6 +28,8 @@ export async function ensurePost(post: SeedPost, authorId: number): Promise<void
       title: post.title,
       content: post.content,
       hide_author: post.hideAuthor ?? false,
+      pinned: post.pinned ?? false,
+      sort_order: post.sortOrder ?? 0,
       created_by: authorId,
       ...statusFields(post),
     },

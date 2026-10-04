@@ -1,40 +1,15 @@
-/* Действия в строке таблицы: кнопки-иконки + kebab-меню. */
-.actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-1);
-  align-items: center;
-}
-
-.actions > button {
-  width: 100%;
-  justify-content: center;
-}
-
-/* Кнопки-иконки (десктоп) с kebab-меню в конце. */
-.actionsIcons {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-/* Мобильная обёртка: одна kebab-кнопка, прижатая вправо. */
-.actionsMobile {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-/* Ручка перетаскивания порядка. */
 .dragHandle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
   color: var(--color-muted);
   cursor: grab;
+  user-select: none;
+  touch-action: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .dragHandle:hover {
@@ -51,25 +26,75 @@
   outline-offset: -2px;
 }
 
-/* Ячейка «Заголовок»: название и пояснительные пометки под ним. */
+.dragHandleActive {
+  color: var(--color-primary);
+  background-color: var(--tone-blue-bg-light);
+}
+
+.rowDragging {
+  background-color: var(--color-surface);
+  box-shadow:
+    0 1px 0 0 var(--color-border),
+    0 -1px 0 0 var(--color-border),
+    0 12px 28px -10px rgba(31, 41, 51, 0.28),
+    var(--shadow-md);
+  cursor: grabbing;
+}
+
+.rowDragging > td {
+  background-color: var(--color-surface);
+}
+
+.rowShifting {
+  transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
+}
+
 .cellMain {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
-.postTitle {
-  font-weight: 600;
-}
-
-/* Строка заголовка: название и отметка закрепления. */
 .titleRow {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  min-width: 0;
 }
 
-.note {
+.pinIcon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-warning);
+  flex-shrink: 0;
+}
+
+.postTitle {
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
   font-size: 12px;
+  line-height: 1.4;
   color: var(--color-muted);
+}
+
+.metaDot {
+  color: var(--color-border);
+  user-select: none;
+}
+
+.metaAccent {
+  color: var(--color-warning);
+  font-weight: 500;
 }

@@ -1,5 +1,5 @@
 // Таблица: колонки с произвольным рендером ячеек (можно вкладывать бейджи, кнопки и т.д.).
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { Checkbox } from '../Form';
 import styles from './Table.module.css';
 
@@ -17,15 +17,8 @@ export interface TableColumn<T> {
 }
 
 export interface TableSelection<T> {
-  /**
-   * Выбрана ли строка. Состояние выбора принадлежит вызывающей странице,
-   * поэтому таблица не выводит ключи сама: раньше она сверяла их со своим
-   * `rowKey`, и любое расхождение в типе (id-число против id-строки) тихо
-   * ломало отметки.
-   */
   isSelected: (row: T) => boolean;
   onToggle: (row: T) => void;
-  /** Заголовок колонки выбора (пусто — только чекбоксы). */
   header?: ReactNode;
 }
 
@@ -36,13 +29,18 @@ export interface TableProps<T> {
   rowKey?: (row: T, index: number) => string | number;
   onRowClick?: (row: T, index: number) => void;
   emptyText?: string;
-  /** Столбец чекбоксов (только для администратора — режим работы с выборкой). */
+  separateBorders?: boolean;
   selection?: TableSelection<T>;
-  /** Колонка, по которой сейчас идёт сортировка (подсветка и aria-sort). */
   sortKey?: string | null;
   sortDirection?: 'asc' | 'desc';
-  /** Клик по заголовку колонки: asc → desc → без сортировки. */
   onSort?: (key: string) => void;
+
+  // --- Новое для drag-reorder и кастомной подсветки строк ---
+
+  /** Класс строки. Мержится с внутренним `clickable`. */
+  rowClassName?: (row: T, index: number) => string | undefined;
+  /** Inline-стили строки (для transform во время перетаскивания). */
+  rowStyle?: (row: T, index: number) => CSSProperties | undefined;
 }
 
 export function Table<T>({
@@ -55,6 +53,8 @@ export function Table<T>({
   sortKey,
   sortDirection = 'asc',
   onSort,
+  rowClassName,
+  rowStyle,
 }: TableProps<T>) {
   const keyOf = (row: T, index: number) => rowKey?.(row, index) ?? index;
   const totalColumns = columns.length + (selection ? 1 : 0);
@@ -110,44 +110,53 @@ export function Table<T>({
               </td>
             </tr>
           ) : (
-            data.map((row, index) => (
-              <tr
-                key={keyOf(row, index)}
-                className={onRowClick ? styles.clickable : undefined}
-                onClick={onRowClick ? () => onRowClick(row, index) : undefined}
-                role={onRowClick ? 'button' : undefined}
-                tabIndex={onRowClick ? 0 : undefined}
-                onKeyDown={
-                  onRowClick
-                    ? (event) => {
-                        if (event.key === 'Enter') {
-                          onRowClick(row, index);
-                        } else if (event.key === ' ' || event.key === 'Space') {
-                          // Space не должен прокручивать страницу.
-                          event.preventDefault();
-                          onRowClick(row, index);
+            data.map((row, index) => {
+              const external = rowClassName?.(row, index);
+              const classes = [onRowClick ? styles.clickable : '', external ?? '']
+                .filter(Boolean)
+                .join(' ');
+              return (
+                <tr
+                  key={keyOf(row, index)}
+                  className={classes || undefined}
+                  style={rowStyle?.(row, index)}
+                  onClick={onRowClick ? () => onRowClick(row, index) : undefined}
+                  role={onRowClick ? 'button' : undefined}
+                  tabIndex={onRowClick ? 0 : undefined}
+                  onKeyDown={
+                    onRowClick
+                      ? (event) => {
+                          if (event.key === 'Enter') {
+                            onRowClick(row, index);
+                          } else if (event.key === ' ' || event.key === 'Space') {
+                            event.preventDefault();
+                            onRowClick(row, index);
+                          }
                         }
-                      }
-                    : undefined
-                }
-              >
-                {selection ? (
-                  // Клик по чекбоксу не должен открывать строку — гасим всплытие.
-                  <td className={styles.checkCell} onClick={(event) => event.stopPropagation()}>
-                    <Checkbox
-                      label=""
-                      checked={selection.isSelected(row)}
-                      onChange={() => selection.onToggle(row)}
-                    />
-                  </td>
-                ) : null}
-                {columns.map((column) => (
-                  <td key={column.key}>
-                    {column.render ? column.render(row, index) : column.field ? String((row as Record<string, unknown>)[column.field] ?? '') : null}
-                  </td>
-                ))}
-              </tr>
-            ))
+                      : undefined
+                  }
+                >
+                  {selection ? (
+                    <td className={styles.checkCell} onClick={(event) => event.stopPropagation()}>
+                      <Checkbox
+                        label=""
+                        checked={selection.isSelected(row)}
+                        onChange={() => selection.onToggle(row)}
+                      />
+                    </td>
+                  ) : null}
+                  {columns.map((column) => (
+                    <td key={column.key}>
+                      {column.render
+                        ? column.render(row, index)
+                        : column.field
+                          ? String((row as Record<string, unknown>)[column.field] ?? '')
+                          : null}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>

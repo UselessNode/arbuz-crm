@@ -34,7 +34,6 @@
   background-color: var(--tone-blue-bg);
 }
 
-/* Визуальный отклик на нажатие */
 .clickable:active {
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
 }
@@ -44,13 +43,11 @@
   outline-offset: -2px;
 }
 
-/* Столбец чекбоксов: узкий, клик по нему не открывает строку. */
 .checkCell {
   width: 44px;
   text-align: center;
 }
 
-/* Кнопка-заголовок для сортировки: asc → desc → исходный порядок. */
 .sortButton {
   display: inline-flex;
   align-items: center;
@@ -87,4 +84,33 @@
   text-align: center;
   color: var(--color-muted);
   padding: var(--space-5);
+}
+
+/*
+ * Опциональный режим для таблиц с drag-reorder.
+ * Включается пропом `separateBorders`.
+ *
+ * Зачем: при `border-collapse: collapse` браузеры (особенно Safari)
+ * не рисуют `box-shadow` на `<tr>` — тень «приподнятой» строки пропадает.
+ * При `separate` тень видна полностью.
+ *
+ * Чтобы шапка не «проседала», в этом режиме:
+ *  - у th добавляем нижнюю границу (в collapse она схлопывалась с td);
+ *  - у первой строки tbody убираем border-top (он бы дублировал границу th).
+ */
+.tableSeparate {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.tableSeparate th {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tableSeparate td {
+  border-top: 1px solid var(--color-border);
+}
+
+.tableSeparate tbody tr:first-child td {
+  border-top: none;
 }

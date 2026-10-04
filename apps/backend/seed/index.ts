@@ -13,7 +13,7 @@
 import { RoleType } from '@arbuz/shared';
 import { prisma } from '../lib/prisma';
 import { log } from '../lib/logger';
-import { SEED_APPLICATIONS, SEED_POSTS, SEED_TENDER, SEED_USERS, type SeedUserKey } from './data';
+import { SEED_APPLICATIONS, SEED_DOCUMENTS, SEED_POSTS, SEED_TENDER, SEED_USERS, type SeedUserKey } from './data';
 import { ensureApplicationStatuses, ensureReviewStatuses, type StatusMap } from './reference';
 import { ensureConsentDocuments } from './consents';
 import { ensureUser, resolveSeedUser } from './users';
@@ -21,6 +21,7 @@ import { ensureTender } from './tenders';
 import { ensureApplication, ensureBudgetItem, ensureMember, ensurePlan } from './applications';
 import { ensureReview } from './reviews';
 import { ensurePost } from './posts';
+import { ensureDocument } from './documents';
 
 /** Создаёт демо-набор: пользователи, конкурс, заявки с вложенными частями, публикации. */
 async function seedDemo(statuses: StatusMap, adminId: number, reviewStatusByName: (name: string) => number): Promise<void> {
@@ -61,6 +62,8 @@ async function seedDemo(statuses: StatusMap, adminId: number, reviewStatusByName
   }
 
   for (const post of SEED_POSTS) await ensurePost(post, adminId);
+
+  for (const [index, document] of SEED_DOCUMENTS.entries()) await ensureDocument(document, index);
 
   log.info('seed: демо-данные готовы');
 }

@@ -4,7 +4,7 @@ CRM-система для некоммерческой организации: �
 заявок. Основной объект — **заявка** (`applications`): конкурс и направление, состав команды
 с файлами согласий, план мероприятий, бюджет, материалы, экспертизы, статусы и публикации.
 
-Монорепозиторий на Bun workspaces. Текущая версия — **1.24.0**
+Монорепозиторий на Bun workspaces. Текущая версия — **1.25.0**
 (см. [`CHANGELOG.md`](CHANGELOG.md)); MVP собран, идёт подготовка к деплою.
 План работ и заметки заказчика держим локально (не коммитятся).
 
@@ -103,14 +103,23 @@ bun dev
 
 Демо-пользователи создаются командой `bun seed` (только dev):
 
-| Роль      | Email                 | Пароль         |
-| --------- | --------------------- | -------------- |
-| applicant | `demo@arbuz.local`    | `demo12345`    |
-| expert    | `expert@arbuz.local`  | `expert12345`  |
-| expert    | `expert2@arbuz.local` | `expert12345`  |
+| Роль      | Email                    | Пароль         |
+| --------- | ------------------------ | -------------- |
+| applicant | `demo@arbuz.local`       | `demo12345`    |
+| applicant | `demo2@arbuz.local`      | `demo12345`    |
+| applicant | `demo3@arbuz.local`      | `demo12345`    |
+| expert    | `expert@arbuz.local`     | `expert12345`  |
+| expert    | `expert2@arbuz.local`    | `expert12345`  |
+| expert    | `expert3@arbuz.local`    | `expert12345`  |
+| expert    | `expert4@arbuz.local`    | `expert12345`  |
+
+`seed` создаёт загрузочный набор (33 заявки со связями, 32 публикации, документы) — этого
+достаточно, чтобы проверить пагинацию списков и ленты, а также порядок закреплённых публикаций.
+Скрипт идемпотентен: повторный запуск не создаёт дубликаты; для чистого набора — `bun db:reset`.
 
 Email и пароли переопределяются через `.env`: `DEMO_EMAIL`/`DEMO_PASSWORD`,
-`EXPERT_EMAIL`/`EXPERT_PASSWORD`, `EXPERT2_EMAIL`/`EXPERT2_PASSWORD`.
+`EXPERT_EMAIL`/`EXPERT_PASSWORD`, `EXPERT2_EMAIL`/`EXPERT2_PASSWORD` (для новых аккаунтов —
+`DEMO2_*`, `DEMO3_*`, `EXPERT3_*`, `EXPERT4_*`, если нужно).
 
 **Администратор `seed` не создаёт из демо-набора** — он берётся из `ADMIN_EMAIL` и
 `ADMIN_PASSWORD` вашего `.env` (в текущем dev-окружении это `admin@arbuz.local` / `admin12345`).
@@ -249,7 +258,6 @@ arbuz-crm/
 ├── postman/                            # Коллекция запросов для Postman
 ├── prisma.config.ts                    # Конфигурация Prisma 7 (пути к схеме и миграциям)
 ├── AGENTS.md                           # Рабочий контекст для ИИ-агента (краткая сводка и договорённости)
-├── COMPLETED_PLANS.md                  # Архив: дорожная карта MVP и заметки по прошедшим сессиям
 ├── CHANGELOG.md                        # История версий
 └── package.json                        # Скрипты и dev-зависимости корня
 ```
@@ -474,8 +482,9 @@ arbuz-crm/
 `src/components/ui` с единым barrel-импортом: `Icon`, `Button`, `Badge`/`StatusBadge`
 (+ `ROLE_OPTIONS`, `toBadgeTone`), `Container`/`Accordion`/`Carousel`, `DragDrop`,
 `Input`/`NumberInput`/`Slider`/`RangeSlider`/`DatePicker`/`DateInput`/`RangeDatePicker`/
-`DateRangeInput`/`Select`/`Textarea`/`Checkbox`, `Table`, `ListToolbar`/`SearchInput`,
-`StateMessage`/`Modal`/`ConfirmDialog`, `SectionHint`, `Pagination`, `KebabMenu`.
+`DateRangeInput`/`Select`/`Textarea`/`Checkbox`, `Table` (+ `useTableReorder`),
+`ListToolbar`/`SearchInput`, `StateMessage`/`Modal`/`ConfirmDialog`, `SectionHint`,
+`Pagination`, `KebabMenu`, `RowActions` (+ `useIsMobile`).
 
 Тяжёлый `MarkdownEditor` (MDXEditor) лежит в `components/ui`, но **в barrel намеренно не входит**
 и подключается только через `lazy` — иначе ~750 КБ редактора уезжают в основной чанк.
@@ -610,14 +619,14 @@ Postman Runner / Newman, в том числе в CI.
 | ----------------------------- | -------------------------------------------------------------- |
 | `README.md`                   | Эта страница: запуск, структура, конвенции                     |
 | `CHANGELOG.md`                | Что изменилось в каждой версии (по нему удобно искать «почему так») |
-| `COMPLETED_PLANS.md`          | Архив: дорожная карта MVP, продуктовые решения, заметки по сессиям |
 | `AGENTS.md`                   | Сжатая сводка проекта и договорённости (вход для ИИ-агента)     |
 | `docs/technical-debt.md`      | Осознанные упрощения и отложенные решения                      |
 | `docs/api-testing-postman.md` | Как проверить API через Postman                                |
 | `apps/backend/tests/README.md`| Состав и правила смоук-тестов                                  |
 
-> `PLANS.md` и `NOTES.md` (активный план и заметки заказчика по E2E) исключены из репозитория
-> и ведутся локально – в git не коммитятся.
+> Планы, заметки заказчика и финальная сводка вынесены в локальную папку `notes/`
+> (не коммитится): `SUMMARY.md`, `PLANS.md`, `NOTES.md`, `COMPLETED_PLANS.md`,
+> `Short notes.md`, `About User Agreement.md`.
 
 > `docs/api-contract.md` — исторический документ: подробный контракт Session 4 с дописками по
 > 1.18.0. Эндпоинты 1.19–1.21 в нём не отражены, актуальное описание API — в этом README и в коде.
