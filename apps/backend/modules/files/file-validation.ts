@@ -4,7 +4,6 @@
 // В БД (колонки file_type, VARCHAR(50)) хранится короткий токен типа
 // (pdf/docx/jpg/png/mp4) — полный MIME у DOCX длиннее 50 символов.
 // MIME вычисляется при отдаче файла (см. fileMime).
-import path from 'node:path';
 import { httpError } from '../../lib/http';
 
 export const FileTypes = {
@@ -84,7 +83,8 @@ function sniff(buffer: Buffer): FileType | undefined {
 
 /** Санитизирует имя файла (без путей и управляющих символов). */
 export function safeOriginalName(filename: string): string {
-  const base = path.basename(String(filename ?? '').trim()).replace(/[\u0000-\u001f\u007f]/g, '');
+  const trimmed = String(filename ?? '').trim();
+  const base = (trimmed.split(/[/\\]/).pop() ?? '').replace(/[\u0000-\u001f\u007f]/g, '');
   return base.length > 200 ? base.slice(0, 200) : base;
 }
 
