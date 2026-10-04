@@ -132,6 +132,8 @@ function applicationsOrderBy(sort: SortSpec | null | undefined): Prisma.applicat
       return [{ application_statuses: { name: direction } }];
     case 'owner':
       return [{ users: { surname: direction } }, { users: { name: direction } }];
+    case 'tender':
+      return [{ tenders: { name: direction } }];
     default:
       return [{ created_at: 'desc' }];
   }

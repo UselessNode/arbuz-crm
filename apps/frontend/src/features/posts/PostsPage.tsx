@@ -1,26 +1,22 @@
 // Раздел «Публикации»: список со статусами, быстрыми действиями и drag-reorder.
 // Создание и правка публикации — на отдельной странице (`/admin/posts/new`, `/admin/posts/:id`).
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button,
   ConfirmDialog,
   Container,
+  DataView,
   Icon,
-  ListToolbar,
-  Pagination,
   RowActions,
-  SearchInput,
-  Select,
-  StateMessage,
   StatusBadge,
-  Table,
+  useDataViewState,
   useTableReorder,
 } from '../../components/ui';
-import type { TableColumn } from '../../components/ui';
+import type { FilterSpec, TableColumn } from '../../components/ui';
 import { PostStatuses } from '../../lib/post-status';
-import type { PostStatus } from '@arbuz/shared';
 import type { Post } from '../../api/posts';
+import { postsApi } from '../../api/posts';
 import { formatDateTime } from '../../lib/format';
 import { POST_FILTER_OPTIONS, POST_STATUS_OPTIONS } from './posts-helpers';
 import { buildPostRowActions } from './PostRowActions';
@@ -31,8 +27,38 @@ const LIST_PATH = '/admin/posts';
 
 export function PostsPage() {
   const navigate = useNavigate();
-  const list = usePosts();
   const [deleting, setDeleting] = useState<Post | null>(null);
+
+  const specs = useMemo<FilterSpec[]>(
+    () => [
+      {
+        kind: 'multi-select',
+        field: 'post',
+        label: 'По публикации',
+        placeholder: 'Заголовок…',
+        loadOptions: async (search) => {
+          const response = await postsApi.list({ search: search || undefined, limit: 20, offset: 0 });
+          return response.posts.map((post) => ({ value: String(post.id), label: post.title }));
+        },
+      },
+      {
+        kind: 'checkbox-group',
+        field: 'status',
+        label: 'Статус публикации',
+        options: POST_FILTER_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
+      },
+      { kind: 'date-range', field: 'scheduled', label: 'Дата запланирования', presets: true },
+      { kind: 'date-range', field: 'edited', label: 'Дата изменения', presets: true },
+      { kind: 'date-range', field: 'created', label: 'Дата создания', presets: true },
+    ],
+    [],
+  );
+
+  const state = useDataViewState({ specs, defaultPageSize: 20 });
+  const list = usePosts(state.query);
+
+  // Порядок можно менять только в «естественном» виде — при активных фильтрах drag отключён.
+  const reorderDisabled = state.hasActiveFilters;
 
   const reorder = useTableReorder<Post>({
     items: list.posts,
@@ -43,37 +69,40 @@ export function PostsPage() {
   });
 
   const columns: TableColumn<Post>[] = [
-    {
-      key: 'drag',
-      header: '',
-      width: '36px',
-      render: (post, index) => (
-        <span
-          {...reorder.getHandleProps(post, index)}
-          className={[
-            styles.dragHandle,
-            reorder.isDraggedItem(post) ? styles.dragHandleActive : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          role="button"
-          tabIndex={0}
-          title="Перетащите, чтобы изменить порядок"
-          aria-label="Перетащите, чтобы изменить порядок"
-          onKeyDown={(e) => {
-            if (e.key === 'ArrowUp') {
-              e.preventDefault();
-              list.move(post, 'up');
-            } else if (e.key === 'ArrowDown') {
-              e.preventDefault();
-              list.move(post, 'down');
-            }
-          }}
-        >
-          <Icon name="drag-vertical" size={16} />
-        </span>
-      ),
-    },
+    // Ручка перетаскивания — только когда фильтров нет (иначе порядок не имеет смысла).
+    ...(reorderDisabled
+      ? []
+      : [
+          {
+            key: 'drag',
+            header: '',
+            width: '36px',
+            sortable: false,
+            render: (post: Post, index: number) => (
+              <span
+                {...reorder.getHandleProps(post, index)}
+                className={[styles.dragHandle, reorder.isDraggedItem(post) ? styles.dragHandleActive : '']
+                  .filter(Boolean)
+                  .join(' ')}
+                role="button"
+                tabIndex={0}
+                title="Перетащите, чтобы изменить порядок"
+                aria-label="Перетащите, чтобы изменить порядок"
+                onKeyDown={(event) => {
+                  if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    list.move(post, 'up');
+                  } else if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    list.move(post, 'down');
+                  }
+                }}
+              >
+                <Icon name="drag-vertical" size={16} />
+              </span>
+            ),
+          } satisfies TableColumn<Post>,
+        ]),
     {
       key: 'title',
       header: 'Публикация',
@@ -125,17 +154,18 @@ export function PostsPage() {
       key: 'actions',
       header: '',
       width: '150px',
+      sortable: false,
       render: (post) => {
         const items = buildPostRowActions(post, {
           busy: list.busyId === post.id,
-          canMove: list.canMove,
-          onEdit: (p) => navigate(`${LIST_PATH}/${p.id}`),
-          onTogglePin: (p) => void list.togglePin(p),
-          onCopyLink: (p) => void list.copyLink(p),
-          onPublishNow: (p) => void list.publishNow(p),
-          onApplyChange: (p, override, msg) => void list.applyChange(p, override, msg),
-          onDelete: (p) => setDeleting(p),
-          onMove: (p, dir) => list.move(p, dir),
+          canMove: reorderDisabled ? () => false : list.canMove,
+          onEdit: (target) => navigate(`${LIST_PATH}/${target.id}`),
+          onTogglePin: (target) => void list.togglePin(target),
+          onCopyLink: (target) => void list.copyLink(target),
+          onPublishNow: (target) => void list.publishNow(target),
+          onApplyChange: (target, override, message) => void list.applyChange(target, override, message),
+          onDelete: (target) => setDeleting(target),
+          onMove: (target, direction) => list.move(target, direction),
         });
         return <RowActions ariaLabel="Действия с публикацией" items={items} />;
       },
@@ -151,53 +181,24 @@ export function PostsPage() {
         </Button>
       }
     >
-      <ListToolbar>
-        <SearchInput
-          placeholder="Поиск по заголовку"
-          onChange={(value) => {
-            list.setSearch(value);
-            list.setPage(1);
-          }}
-        />
-        <Select
-          label="Статус"
-          placeholder="Все публикации"
-          value={list.statusFilter}
-          onChange={(value) => {
-            list.setStatusFilter(value as PostStatus | '');
-            list.setPage(1);
-          }}
-          options={POST_FILTER_OPTIONS}
-        />
-      </ListToolbar>
-
-      {list.loading ? (
-        <StateMessage state="loading" />
-      ) : list.error ? (
-        <StateMessage state="error" message={list.error} onRetry={() => void list.load()} />
-      ) : list.posts.length === 0 ? (
-        <StateMessage state="empty" message="Публикаций пока нет" />
-      ) : (
-        <>
-          <Table
-            columns={columns}
-            data={list.posts}
-            rowKey={(post) => post.id}
-            rowStyle={reorder.getRowStyle}
-            rowClassName={reorder.getRowClassName}
-            separateBorders
-            sortable={false}
-          />
-          <Pagination
-            page={list.page}
-            pageSize={list.pageSize}
-            total={list.total}
-            onPageChange={list.setPage}
-            onPageSizeChange={list.setPageSize}
-            pageSizeOptions={list.PAGE_SIZE_OPTIONS}
-          />
-        </>
-      )}
+      <DataView
+        state={state}
+        mode="advanced"
+        search={{ placeholder: 'Поиск по заголовку' }}
+        columns={columns}
+        rows={list.posts}
+        rowKey={(post) => post.id}
+        total={list.total}
+        loading={list.loading}
+        error={list.error}
+        onRetry={() => void list.load()}
+        sortable={false}
+        separateBorders
+        reorder={reorder}
+        reorderDisabled={reorderDisabled}
+        emptyText="Публикаций пока нет"
+        noResultsText="Ничего не найдено"
+      />
 
       <ConfirmDialog
         open={deleting !== null}

@@ -31,6 +31,8 @@ export interface DataViewProps<T> {
   mode: DataViewMode;
   /** Настройки поиска; `false` — скрыть. */
   search?: { placeholder?: string } | false;
+  /** Дополнительные элементы в панели инструментов (например, выбор группировки). */
+  toolbarExtras?: ReactNode;
   columns: DataViewColumn<T>[];
   rows: T[];
   rowKey: (row: T, index: number) => string | number;
@@ -41,16 +43,22 @@ export interface DataViewProps<T> {
   onRowClick?: (row: T, index: number) => void;
   /** Серверная сортировка по клику на заголовок (по умолчанию включена). */
   sortable?: boolean;
+  /** Раздельные границы ячеек (нужно для тени drag-строки, см. Table). */
+  separateBorders?: boolean;
   selection?: TableSelection<T>;
   /** API перетаскивания строк (когда порядок задаётся вручную). */
   reorder?: TableReorderApi<T>;
   /** Перетаскивание выключено (например, при активных фильтрах). */
   reorderDisabled?: boolean;
+  /** Дополнительный класс строки (подсветка и т.п.); мержится с классом drag-строки. */
+  rowClassName?: (row: T, index: number) => string | undefined;
   bulkActions?: ReactNode;
   selectedCount?: number;
   emptyText?: string;
   noResultsText?: string;
   pageSizeOptions?: readonly number[];
+  /** Показывать пагинацию. `false` — список загружен целиком (например, для сводок). */
+  paginated?: boolean;
 }
 
 const DEFAULT_PAGE_SIZES = [20, 50, 100] as const;
@@ -59,6 +67,7 @@ export function DataView<T>({
   state,
   mode,
   search,
+  toolbarExtras,
   columns,
   rows,
   rowKey,
@@ -68,14 +77,17 @@ export function DataView<T>({
   onRetry,
   onRowClick,
   sortable = true,
+  separateBorders = false,
   selection,
   reorder,
   reorderDisabled = false,
+  rowClassName,
   bulkActions,
   selectedCount,
   emptyText = 'Нет данных',
   noResultsText = 'Ничего не найдено по вашим фильтрам',
   pageSizeOptions = DEFAULT_PAGE_SIZES,
+  paginated = true,
 }: DataViewProps<T>) {
   const [filtersOpen, setFiltersOpen] = useState(mode === 'pro');
   const [searchExpanded, setSearchExpanded] = useState(mode === 'standard');
@@ -147,6 +159,8 @@ export function DataView<T>({
           </button>
         ) : null}
 
+        {toolbarExtras}
+
         <span className={styles.count} aria-live="polite">
           {loading ? 'Загрузка…' : `Найдено: ${total}`}
         </span>
@@ -189,16 +203,17 @@ export function DataView<T>({
             onRowClick={onRowClick}
             emptyText={state.hasActiveFilters ? noResultsText : emptyText}
             selection={selectionProps}
+            separateBorders={separateBorders}
             sortable={sortable}
             sortKey={sortable ? (state.query.sort?.field ?? null) : undefined}
             sortDirection={state.query.sort?.direction ?? 'asc'}
             onSort={sortable ? state.toggleSort : undefined}
             rowStyle={reorder && !reorderDisabled ? (row, index) => reorder.getRowStyle(row, index) : undefined}
-            rowClassName={
-              reorder && !reorderDisabled
-                ? (row, index) => [reorder.getRowClassName(row, index), styles.draggableRow].filter(Boolean).join(' ')
-                : undefined
-            }
+            rowClassName={(row, index) => {
+              const parts = [rowClassName?.(row, index)];
+              if (reorder && !reorderDisabled) parts.push(reorder.getRowClassName(row, index), styles.draggableRow);
+              return parts.filter(Boolean).join(' ') || undefined;
+            }}
           />
           {rows.length === 0 && state.hasActiveFilters ? (
             <div className={styles.emptyReset}>
@@ -207,14 +222,16 @@ export function DataView<T>({
               </button>
             </div>
           ) : null}
-          <Pagination
-            page={state.query.page}
-            pageSize={state.query.pageSize}
-            total={total}
-            onPageChange={state.setPage}
-            onPageSizeChange={state.setPageSize}
-            pageSizeOptions={pageSizeOptions}
-          />
+          {paginated ? (
+            <Pagination
+              page={state.query.page}
+              pageSize={state.query.pageSize}
+              total={total}
+              onPageChange={state.setPage}
+              onPageSizeChange={state.setPageSize}
+              pageSizeOptions={pageSizeOptions}
+            />
+          ) : null}
         </>
       )}
     </div>

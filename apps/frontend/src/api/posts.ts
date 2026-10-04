@@ -62,8 +62,16 @@ export interface PostListParams {
   offset?: number;
   /** Поиск по заголовку (раздел «Публикации»). */
   search?: string;
-  /** Фильтр по вычисляемому статусу (раздел «Публикации»). */
-  status?: PostStatus;
+  /** Мультивыбор вычисляемых статусов (раздел «Публикации»). */
+  statuses?: PostStatus[];
+  /** Конкретные публикации (автокомплит по заголовку). */
+  postIds?: number[];
+  scheduledFrom?: string;
+  scheduledTo?: string;
+  editedFrom?: string;
+  editedTo?: string;
+  createdFrom?: string;
+  createdTo?: string;
 }
 
 export const postsApi = {
@@ -76,13 +84,20 @@ export const postsApi = {
     const suffix = query.toString() ? `?${query.toString()}` : '';
     return api.get<{ posts: Post[]; total: number }>(`/posts/feed${suffix}`);
   },
-  /** Список раздела «Публикации» (админ): все статусы. */
+  /** Список раздела «Публикации» (админ): фильтры и пагинация. */
   list: (params?: PostListParams) => {
     const query = new URLSearchParams();
     if (params?.limit !== undefined) query.set('limit', String(params.limit));
     if (params?.offset !== undefined) query.set('offset', String(params.offset));
     if (params?.search) query.set('q', params.search);
-    if (params?.status) query.set('status', params.status);
+    if (params?.statuses?.length) query.set('statuses', params.statuses.join(','));
+    if (params?.postIds?.length) query.set('ids', params.postIds.join(','));
+    if (params?.scheduledFrom) query.set('scheduled_from', params.scheduledFrom);
+    if (params?.scheduledTo) query.set('scheduled_to', params.scheduledTo);
+    if (params?.editedFrom) query.set('edited_from', params.editedFrom);
+    if (params?.editedTo) query.set('edited_to', params.editedTo);
+    if (params?.createdFrom) query.set('created_from', params.createdFrom);
+    if (params?.createdTo) query.set('created_to', params.createdTo);
     const suffix = query.toString() ? `?${query.toString()}` : '';
     return api.get<{ posts: Post[]; total: number }>(`/posts${suffix}`);
   },

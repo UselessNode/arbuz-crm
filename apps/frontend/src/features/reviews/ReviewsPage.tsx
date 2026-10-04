@@ -1,36 +1,30 @@
-// Список экспертиз (админ): режимы таблицы, группировка, выбор строк и отчёты.
+// Список экспертиз (админ): фильтры, режимы таблицы, группировка, выбор строк и отчёты.
 //
-// Режимы:
-//   0 — обычная таблица (По умолчанию);
-//   1 — то же, но и появляются чекбоксы для набора отчёта;
-//   N — строки-группы (по эксперту / вердикту / оценке / дате); в каждой строке
-//       набор экспертиз, который можно выгрузить одним отчётом.
-// Группировка, поиск и фильтры живут в панели инструментов: таблица — представление,
-// а не источник правил (см. `lib/review-grouping.ts`).
+// Панель управления — общий `DataView` (поиск/фильтры/чипы/сортировка/URL). Группировка —
+// отдельный режим (селект в панели), таблица остаётся представлением, не источником правил
+// (см. `lib/review-grouping.ts`).
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Badge,
   Button,
   Container,
-  EMPTY_DATE_RANGE,
-  ListToolbar,
-  RangeDatePicker,
-  RangeSlider,
-  SearchInput,
+  DataView,
   Select,
-  StateMessage,
   StatusBadge,
-  Table,
   toBadgeTone,
+  useDataViewState,
 } from '../../components/ui';
-import type { DateRange, NumericRange, StatusOption, TableColumn } from '../../components/ui';
+import type { DateRangeValue, FilterSpec, RangeValue, StatusOption, TableColumn } from '../../components/ui';
 import { reviewsApi, type ReviewListItem } from '../../api/reviews';
 import { reviewStatusesApi, type ReviewVerdict } from '../../api/references';
+import { applicationsApi } from '../../api/applications';
+import { usersApi } from '../../api/users';
 import { pdfExportApi } from '../../api/pdf-export';
 import { usePdfExport } from '../../lib/use-pdf-export';
 import { reviewsSummaryApi, type ReviewSummary, type ReviewSelection } from '../../api/reviews-summary';
 import { ApiError } from '../../api/client';
+import { Roles } from '../../lib/roles';
 import { formatDateTime, formatUserName } from '../../lib/format';
 import {
   REVIEW_GROUPING_OPTIONS,
@@ -44,6 +38,9 @@ import {
 import styles from './ReviewsPage.module.css';
 
 type SortState = { key: string; direction: 'asc' | 'desc' } | null;
+
+/** Максимум слайдера балла по умолчанию (если в данных нет больших оценок). */
+const SCORE_FALLBACK_MAX = 100;
 
 /**
  * Приводит строку списка к форме, которой оперирует группировка.
@@ -80,87 +77,120 @@ export function ReviewsPage() {
 
   const [reviews, setReviews] = useState<ReviewListItem[]>([]);
   const [verdicts, setVerdicts] = useState<ReviewVerdict[]>([]);
-  const [search, setSearch] = useState('');
-  const [verdictFilter, setVerdictFilter] = useState('');
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [sort, setSort] = useState<SortState>(null);
-  // Диапазоны — дополнительные фильтры; показываются только в своей группировке.
-  const [scoreRange, setScoreRange] = useState<NumericRange | null>(null);
-  const [dateRange, setDateRange] = useState<DateRange>(EMPTY_DATE_RANGE);
   const [summary, setSummary] = useState<ReviewSummary | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Вердикты — редактируемый справочник: метки и цвета берём с сервера (один раз).
+  useEffect(() => {
+    reviewStatusesApi
+      .list()
+      .then((response) => setVerdicts(response.statuses))
+      .catch(() => undefined);
+  }, []);
+
+  const verdictOptions = useMemo<readonly StatusOption<string>[]>(
+    () => verdicts.map((verdict) => ({ value: String(verdict.id), label: verdict.name, tone: toBadgeTone(verdict.tone) })),
+    [verdicts],
+  );
+
+  const scoreMax = useMemo(
+    () => Math.max(SCORE_FALLBACK_MAX, ...reviews.map((review) => review.totalScore ?? 0), 0),
+    [reviews],
+  );
+
+  const specs = useMemo<FilterSpec[]>(
+    () => [
+      {
+        kind: 'multi-select',
+        field: 'application',
+        label: 'По заявке',
+        placeholder: 'Название заявки…',
+        loadOptions: async (search) => {
+          const response = await applicationsApi.list({ search: search || undefined, limit: 20, offset: 0 });
+          return response.applications.map((application) => ({ value: String(application.id), label: application.title }));
+        },
+      },
+      {
+        kind: 'multi-select',
+        field: 'expert',
+        label: 'По эксперту',
+        placeholder: 'ФИО или email…',
+        loadOptions: async (search) => {
+          const response = await usersApi.list({
+            roles: [Roles.expert],
+            search: search || undefined,
+            limit: 20,
+            offset: 0,
+          });
+          return response.users.map((user) => ({
+            value: String(user.id),
+            label: `${formatUserName(user)} (${user.email})`,
+          }));
+        },
+      },
+      {
+        kind: 'checkbox-group',
+        field: 'status',
+        label: 'Статус экспертизы',
+        options: verdicts.map((verdict) => ({ value: String(verdict.id), label: verdict.name })),
+      },
+      { kind: 'range', field: 'score', label: 'Балл', min: 0, max: scoreMax, step: 1 },
+      { kind: 'date-range', field: 'created', label: 'Дата создания', presets: true },
+      { kind: 'date-range', field: 'updated', label: 'Дата изменения', presets: true },
+    ],
+    [verdicts, scoreMax],
+  );
+
+  const state = useDataViewState({ specs, defaultPageSize: 50 });
+  const { query } = state;
+
   const load = useCallback(async () => {
+    const statusIds = (query.filters.status as string[] | undefined) ?? [];
+    const expertIds = (query.filters.expert as string[] | undefined) ?? [];
+    const applicationIds = (query.filters.application as string[] | undefined) ?? [];
+    const score = query.filters.score as RangeValue | undefined;
+    const created = query.filters.created as DateRangeValue | undefined;
+    const updated = query.filters.updated as DateRangeValue | undefined;
+
     setLoading(true);
     setError(null);
     try {
-      const [reviewsResponse, statusesResponse] = await Promise.all([reviewsApi.list(), reviewStatusesApi.list()]);
-      setReviews(reviewsResponse.reviews);
-      setVerdicts(statusesResponse.statuses);
+      // Список грузим целиком (без пагинации): группировка и выбор отчёта работают по всему набору.
+      const response = await reviewsApi.list({
+        search: query.search || undefined,
+        statusIds: statusIds.map(Number),
+        expertIds: expertIds.map(Number),
+        applicationIds: applicationIds.map(Number),
+        scoreMin: score?.min ?? undefined,
+        scoreMax: score?.max ?? undefined,
+        createdFrom: created?.from || undefined,
+        createdTo: created?.to || undefined,
+        updatedFrom: updated?.from || undefined,
+        updatedTo: updated?.to || undefined,
+      });
+      setReviews(response.reviews);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить экспертизы');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [query]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  // Вердикты — редактируемый справочник: метки и цвета берём с сервера.
-  const verdictOptions: readonly StatusOption<string>[] = useMemo(
-    () => verdicts.map((verdict) => ({ value: String(verdict.id), label: verdict.name, tone: toBadgeTone(verdict.tone) })),
-    [verdicts],
-  );
+  // Сортировка — клиентская (групповые метрики не сортируются на сервере); ключ/направление берём из URL.
+  const sort: SortState = query.sort ? { key: query.sort.field, direction: query.sort.direction } : null;
 
-  // Границы диапазонов берём из данных: оценка нормируется от нуля до максимума в списке,
-  // период — от самой ранней даты обновления до самой поздней.
-  const scoreBounds = useMemo<NumericRange>(() => {
-    const scores = reviews.map((review) => review.totalScore).filter((score): score is number => score !== null);
-    return { from: 0, to: Math.max(...scores, 10) };
-  }, [reviews]);
+  const rows = useMemo(() => groupReviews(reviews.map(toGroupingRow), grouping), [reviews, grouping]);
+  const sortedRows = useMemo(() => sortGroupedRows(rows, sort), [rows, sort]);
+  const sortedReviews = useMemo(() => sortReviews(reviews, sort), [reviews, sort]);
 
-  const dateBounds = useMemo(() => {
-    const days = reviews
-      .map((review) => review.updatedAt.slice(0, 10))
-      .filter((day) => /^\d{4}-\d{2}-\d{2}$/.test(day))
-      .sort();
-    return { min: days[0] ?? '', max: days[days.length - 1] ?? '' };
-  }, [reviews]);
-
-  // Активный диапазон: ползунок оценки — только для группировки по оценке,
-  // период — только для группировки по дате. Пока пользователь не трогал диапазон,
-  // он не фильтрует: выбор группировки не должен менять состав списка.
-  const activeScoreRange = grouping === ReviewGrouping.score ? scoreRange : null;
-  const activeDateRange = grouping === ReviewGrouping.date ? dateRange : EMPTY_DATE_RANGE;
-
-  // Список небольшой (без пагинации) — фильтруем на клиенте.
-  const filtered = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    return reviews.filter((review) => {
-      if (verdictFilter && String(review.status?.id ?? '') !== verdictFilter) return false;
-      if (activeScoreRange) {
-        // Экспертизы без итогового балла в диапазон оценки не попадают.
-        if (review.totalScore === null) return false;
-        if (review.totalScore < activeScoreRange.from || review.totalScore > activeScoreRange.to) return false;
-      }
-      if (activeDateRange.from || activeDateRange.to) {
-        const day = review.updatedAt.slice(0, 10);
-        if (activeDateRange.from && day < activeDateRange.from) return false;
-        if (activeDateRange.to && day > activeDateRange.to) return false;
-      }
-      if (!needle) return true;
-      const haystack = [review.applicationTitle ?? '', review.expert ? formatUserName(review.expert) : ''].join(' ').toLowerCase();
-      return haystack.includes(needle);
-    });
-  }, [reviews, search, verdictFilter, activeScoreRange, activeDateRange]);
-
-  const rows = useMemo(() => groupReviews(filtered.map(toGroupingRow), grouping), [filtered, grouping]);
-
-  // Данные сводки берём с сервера — тот же источник, что и PDF (`/api/reviews/summary`).
+  // Данные сводки — с сервера: по активным фильтрам или по всей базе (тот же источник, что и PDF).
   useEffect(() => {
     if (!grouped) {
       setSummary(null);
@@ -168,12 +198,7 @@ export function ReviewsPage() {
       return;
     }
     let cancelled = false;
-    // Без фильтра вердикта отчёт строится по всей базе на сервере (`all`):
-    // список экспертиз не пагинирован, но сводка не должна зависеть
-    // от того, что успело загрузиться в браузер.
-    const selection: ReviewSelection = verdictFilter
-      ? { status_id: Number(verdictFilter) }
-      : { all: true };
+    const selection: ReviewSelection = state.hasActiveFilters ? { review_ids: reviews.map((review) => review.id) } : { all: true };
     reviewsSummaryApi
       .get(selection)
       .then(({ summary: value }) => {
@@ -188,15 +213,11 @@ export function ReviewsPage() {
     return () => {
       cancelled = true;
     };
-  }, [grouped, verdictFilter]);
-
-  const sortedRows = useMemo(() => sortGroupedRows(rows, sort), [rows, sort]);
-  const sortedReviews = useMemo(() => sortReviews(filtered, sort), [filtered, sort]);
+  }, [grouped, state.hasActiveFilters, reviews]);
 
   const setGrouping = (value: string) => {
     // Ключи строк в разных режимах имеют разную природу — выделение переносить некуда.
     setSelected(new Set());
-    setSort(null);
     const next = new URLSearchParams(searchParams);
     if (value === ReviewGrouping.none) next.delete('group');
     else next.set('group', value);
@@ -239,59 +260,51 @@ export function ReviewsPage() {
 
   const { busy, run } = usePdfExport({ start: startReport, errorMessage: 'Не удалось сформировать отчёт' });
 
-  const openSummary = (query: Record<string, string>) => {
-    navigate(`/admin/reviews/summary?${new URLSearchParams(query).toString()}`);
+  const openSummary = (query2: Record<string, string>) => {
+    navigate(`/admin/reviews/summary?${new URLSearchParams(query2).toString()}`);
   };
 
-  const columns: TableColumn<GroupedRow>[] = grouped
-    ? [
-        {
-          key: 'group',
-          header: GROUPING_HEADERS[grouping],
-          render: (row) => <span className={styles.groupLabel}>{row.label}</span>,
-        },
-        { key: 'count', header: 'Экспертиз', width: '110px', render: (row) => row.count },
-        { key: 'applications', header: 'Заявок', width: '100px', render: (row) => row.applications },
-        {
-          key: 'average',
-          header: 'Средний балл',
-          width: '140px',
-          render: (row) => (row.averageScore === null ? '—' : row.averageScore.toLocaleString('ru-RU')),
-        },
-        {
-          key: 'verdicts',
-          header: 'Вердикты',
-          sortable: false,
-          render: (row) => <VerdictList rows={row.rows} verdictOptions={verdictOptions} />,
-        },
-        {
-          key: 'actions',
-          header: '',
-          width: '120px',
-          sortable: false,
-          render: (row) => (
-            <Button size="sm" variant="secondary" icon="eye" onClick={() => openSummary(selectionQuery(row))}>
-              Сводка
-            </Button>
-          ),
-        },
-      ]
-    : [
-        { key: 'application', header: 'Заявка', render: (row) => row.rows[0].applicationTitle ?? `Заявка #${row.rows[0].applicationId}` },
-        { key: 'expert', header: 'Эксперт', render: (row) => row.rows[0].expertName },
-        {
-          key: 'status',
-          header: 'Вердикт',
-          render: (row) =>
-            row.rows[0].verdictId !== null ? (
-              <StatusBadge value={String(row.rows[0].verdictId)} options={verdictOptions} />
-            ) : (
-              <Badge tone="neutral">—</Badge>
-            ),
-        },
-        { key: 'score', header: 'Балл', width: '90px', render: (row) => row.rows[0].totalScore ?? '—' },
-        { key: 'updated', header: 'Обновлена', render: (row) => formatDateTime(row.rows[0].updatedAt) },
-      ];
+  const groupedColumns: TableColumn<GroupedRow>[] = [
+    {
+      key: 'group',
+      header: GROUPING_HEADERS[grouping as Exclude<ReviewGrouping, 'none'>],
+      render: (row) => <span className={styles.groupLabel}>{row.label}</span>,
+    },
+    { key: 'count', header: 'Экспертиз', width: '110px', render: (row) => row.count },
+    { key: 'applications', header: 'Заявок', width: '100px', render: (row) => row.applications },
+    {
+      key: 'average',
+      header: 'Средний балл',
+      width: '140px',
+      render: (row) => (row.averageScore === null ? '—' : row.averageScore.toLocaleString('ru-RU')),
+    },
+    {
+      key: 'verdicts',
+      header: 'Вердикты',
+      sortable: false,
+      render: (row) => <VerdictList rows={row.rows} verdictOptions={verdictOptions} />,
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: '120px',
+      sortable: false,
+      render: (row) => (
+        <Button size="sm" variant="secondary" icon="eye" onClick={() => openSummary(selectionQuery(row))}>
+          Сводка
+        </Button>
+      ),
+    },
+  ];
+
+  const toolbarExtras = (
+    <Select
+      label="Группировка"
+      value={grouping}
+      onChange={setGrouping}
+      options={REVIEW_GROUPING_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+    />
+  );
 
   return (
     <Container
@@ -312,93 +325,49 @@ export function ReviewsPage() {
         Вердикты и оценки выставляются экспертами; назначение экспертов и финальный статус — в карточке заявки.
       </div>
 
-      <ListToolbar>
-        <SearchInput placeholder="Поиск по заявке и эксперту" onChange={setSearch} />
-        <Select label="Вердикт" placeholder="Все вердикты" value={verdictFilter} onChange={setVerdictFilter} options={verdictOptions} />
-        <Select
-          label="Группировка"
-          value={grouping}
-          onChange={setGrouping}
-          options={REVIEW_GROUPING_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
-        />
-        {/* Поля диапазонов появляются только в своей группировке. */}
-        {grouping === ReviewGrouping.score ? (
-          <>
-            <RangeSlider
-              label="Диапазон оценки"
-              value={activeScoreRange ?? scoreBounds}
-              onChange={(next) => setScoreRange(next)}
-              min={scoreBounds.from}
-              max={scoreBounds.to}
-              step={1}
-            />
-            {scoreRange ? (
-              <Button size="sm" variant="ghost" onClick={() => setScoreRange(null)}>
-                Весь диапазон
-              </Button>
-            ) : null}
-          </>
-        ) : null}
-        {grouping === ReviewGrouping.date ? (
-          <>
-            <RangeDatePicker
-              label="Период обновления"
-              value={dateRange}
-              onChange={setDateRange}
-              min={dateBounds.min || undefined}
-              max={dateBounds.max || undefined}
-            />
-            {dateRange.from || dateRange.to ? (
-              <Button size="sm" variant="ghost" onClick={() => setDateRange(EMPTY_DATE_RANGE)}>
-                Весь период
-              </Button>
-            ) : null}
-          </>
-        ) : null}
-      </ListToolbar>
-
       {grouped && summary ? <SummaryTotals summary={summary} /> : null}
       {summaryError ? <div className={styles.error}>{summaryError}</div> : null}
 
-      {loading ? (
-        <StateMessage state="loading" />
-      ) : error ? (
-        <StateMessage state="error" message={error} onRetry={() => void load()} />
-      ) : (grouped ? sortedRows.length === 0 : sortedReviews.length === 0) ? (
-        <StateMessage state="empty" message={reviews.length === 0 ? 'Экспертиз пока нет' : 'Ничего не найдено'} />
-      ) : grouped ? (
-        <>
-          <Table
-            columns={columns}
-            data={sortedRows}
-            rowKey={(row) => row.key}
-            sortKey={sort?.key ?? null}
-            sortDirection={sort?.direction ?? 'asc'}
-            onSort={(key) => setSort((prev) => cycleSort(prev, key))}
-            selection={{ isSelected: (row) => selected.has(row.key), onToggle: toggleGroupRow }}
-          />
-          <SelectionHint
-            count={selectedCount}
-            reviews={selectedReviewsCount}
-            onClear={() => setSelected(new Set())}
-          />
-        </>
+      {grouped ? (
+        <DataView<GroupedRow>
+          state={state}
+          mode="advanced"
+          search={{ placeholder: 'Поиск по заявке и эксперту' }}
+          toolbarExtras={toolbarExtras}
+          columns={groupedColumns}
+          rows={sortedRows}
+          rowKey={(row) => row.key}
+          total={sortedRows.length}
+          paginated={false}
+          loading={loading}
+          error={error}
+          onRetry={() => void load()}
+          selection={{ isSelected: (row) => selected.has(row.key), onToggle: toggleGroupRow }}
+          emptyText="Экспертиз пока нет"
+          noResultsText="Ничего не найдено"
+        />
       ) : (
-        <>
-          <Table
-            columns={reviewColumns(verdictOptions, openSummary)}
-            data={sortedReviews}
-            rowKey={(row) => row.id}
-            // Как и раньше: клик по строке ведёт в заявку; сводка — отдельной кнопкой.
-            onRowClick={(row) => navigate(`/admin/applications/${row.applicationId}`)}
-            sortKey={sort?.key ?? null}
-            sortDirection={sort?.direction ?? 'asc'}
-            onSort={(key) => setSort((prev) => cycleSort(prev, key))}
-            selection={{ isSelected: (row) => selected.has(String(row.id)), onToggle: toggleReviewRow }}
-          />
-          <SelectionHint count={selectedCount} reviews={selectedReviewsCount} onClear={() => setSelected(new Set())} />
-        </>
+        <DataView<ReviewListItem>
+          state={state}
+          mode="advanced"
+          search={{ placeholder: 'Поиск по заявке и эксперту' }}
+          toolbarExtras={toolbarExtras}
+          columns={reviewColumns(verdictOptions, openSummary)}
+          rows={sortedReviews}
+          rowKey={(row) => row.id}
+          total={sortedReviews.length}
+          paginated={false}
+          loading={loading}
+          error={error}
+          onRetry={() => void load()}
+          onRowClick={(row) => navigate(`/admin/applications/${row.applicationId}`)}
+          selection={{ isSelected: (row) => selected.has(String(row.id)), onToggle: toggleReviewRow }}
+          emptyText="Экспертиз пока нет"
+          noResultsText="Ничего не найдено"
+        />
       )}
+
+      <SelectionHint count={selectedCount} reviews={selectedReviewsCount} onClear={() => setSelected(new Set())} />
     </Container>
   );
 }
@@ -514,13 +483,6 @@ function toggle(prev: ReadonlySet<string>, key: string): ReadonlySet<string> {
   if (next.has(key)) next.delete(key);
   else next.add(key);
   return next;
-}
-
-/** asc → desc → без сортировки. */
-function cycleSort(current: SortState, key: string): SortState {
-  if (!current || current.key !== key) return { key, direction: 'asc' };
-  if (current.direction === 'asc') return { key, direction: 'desc' };
-  return null;
 }
 
 /** Сортировка агрегатных строк по активной колонке. */

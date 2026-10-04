@@ -28,7 +28,7 @@ import {
 export const applicationsRouter = Router();
 applicationsRouter.use(requireAuth);
 
-const APPLICATION_SORT_FIELDS = ['created_at', 'updated_at', 'title', 'status', 'owner'] as const;
+const APPLICATION_SORT_FIELDS = ['created_at', 'updated_at', 'title', 'status', 'owner', 'tender'] as const;
 
 applicationsRouter.get(
   '/',

@@ -62,7 +62,7 @@ export function ApplicationFormModal({ open, mode, application, canAssignOwner =
     ];
     if (canAssignOwner && mode === 'create') {
       requests.push(
-        usersApi.list({ role: Roles.applicant, limit: 100, offset: 0 }).then((response) => {
+        usersApi.list({ roles: [Roles.applicant], limit: 100, offset: 0 }).then((response) => {
           setOwnerOptions(
             response.users.map((user) => ({ value: String(user.id), label: `${formatUserName(user)} (${user.email})` })),
           );

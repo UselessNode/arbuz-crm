@@ -64,6 +64,7 @@ export {
   activeFilters,
   cycleSort,
   hasActiveFilters,
+  isDataViewParam,
   isFilterValueEmpty,
   readQuery,
   removeFilterValue,

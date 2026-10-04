@@ -1,35 +1,44 @@
+// Данные раздела «Публикации» и операции над ними. Параметры списка приходят из DataView-состояния.
 import { useCallback, useEffect, useState } from 'react';
 import type { PostStatus } from '@arbuz/shared';
+import type { DataViewQuery, DateRangeValue } from '../../components/ui';
 import { postsApi, type Post, type PostPayload } from '../../api/posts';
 import { ApiError } from '../../api/client';
 import { useToast } from '../../components/ui';
 import { copyToClipboard } from '../../lib/clipboard';
 import { buildPostPayload, reorderForDrop, sortPosts } from './posts-helpers';
 
-const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
-
-export function usePosts() {
+export function usePosts(query: DataViewQuery) {
   const toast = useToast();
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<PostStatus | ''>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
+    const statuses = (query.filters.status as string[] | undefined) ?? [];
+    const postIds = (query.filters.post as string[] | undefined) ?? [];
+    const scheduled = query.filters.scheduled as DateRangeValue | undefined;
+    const edited = query.filters.edited as DateRangeValue | undefined;
+    const created = query.filters.created as DateRangeValue | undefined;
+
     setLoading(true);
     setError(null);
     try {
       const response = await postsApi.list({
-        limit: pageSize,
-        offset: (page - 1) * pageSize,
-        search: search || undefined,
-        status: statusFilter || undefined,
+        limit: query.pageSize,
+        offset: (query.page - 1) * query.pageSize,
+        search: query.search || undefined,
+        statuses: statuses.length ? (statuses as PostStatus[]) : undefined,
+        postIds: postIds.map(Number),
+        scheduledFrom: scheduled?.from || undefined,
+        scheduledTo: scheduled?.to || undefined,
+        editedFrom: edited?.from || undefined,
+        editedTo: edited?.to || undefined,
+        createdFrom: created?.from || undefined,
+        createdTo: created?.to || undefined,
       });
       setPosts(response.posts);
       setTotal(response.total);
@@ -38,7 +47,7 @@ export function usePosts() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, statusFilter]);
+  }, [query]);
 
   useEffect(() => {
     void load();
@@ -164,12 +173,20 @@ export function usePosts() {
 
   return {
     // data
-    posts, total, page, pageSize, search, statusFilter,
-    loading, error, busyId,
-    PAGE_SIZE_OPTIONS,
-    // setters
-    setPage, setPageSize, setSearch, setStatusFilter,
+    posts,
+    total,
+    loading,
+    error,
+    busyId,
     // actions
-    load, togglePin, applyChange, publishNow, copyLink, remove, reorder, move, canMove,
+    load,
+    togglePin,
+    applyChange,
+    publishNow,
+    copyLink,
+    remove,
+    reorder,
+    move,
+    canMove,
   };
 }

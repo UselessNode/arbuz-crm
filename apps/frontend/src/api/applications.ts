@@ -175,16 +175,38 @@ export interface ApplicationListParams {
   offset: number;
   /** Поиск по названию заявки и заявителю. */
   search?: string;
-  statusId?: number;
-  tenderId?: number;
+  /** Мультивыбор статусов. */
+  statusIds?: number[];
+  /** Мультивыбор конкурсов. */
+  tenderIds?: number[];
+  /** Мультивыбор заявителей. */
+  ownerIds?: number[];
+  /** Конкретные заявки (автокомплит по названию). */
+  applicationIds?: number[];
+  /** Диапазон даты создания (yyyy-mm-dd). */
+  createdFrom?: string;
+  createdTo?: string;
+  /** Диапазон даты изменения (yyyy-mm-dd). */
+  updatedFrom?: string;
+  updatedTo?: string;
+  sort?: string;
+  order?: 'asc' | 'desc';
 }
 
 export const applicationsApi = {
   list: (params: ApplicationListParams) => {
     const query = new URLSearchParams({ limit: String(params.limit), offset: String(params.offset) });
     if (params.search) query.set('q', params.search);
-    if (params.statusId) query.set('status_id', String(params.statusId));
-    if (params.tenderId) query.set('tender_id', String(params.tenderId));
+    if (params.statusIds?.length) query.set('status_ids', params.statusIds.join(','));
+    if (params.tenderIds?.length) query.set('tender_ids', params.tenderIds.join(','));
+    if (params.ownerIds?.length) query.set('owner_ids', params.ownerIds.join(','));
+    if (params.applicationIds?.length) query.set('application_ids', params.applicationIds.join(','));
+    if (params.createdFrom) query.set('created_from', params.createdFrom);
+    if (params.createdTo) query.set('created_to', params.createdTo);
+    if (params.updatedFrom) query.set('updated_from', params.updatedFrom);
+    if (params.updatedTo) query.set('updated_to', params.updatedTo);
+    if (params.sort) query.set('sort', params.sort);
+    if (params.order) query.set('order', params.order);
     return api.get<{ applications: ApplicationSummary[]; total: number }>(`/applications?${query.toString()}`);
   },
   get: (id: number) => api.get<{ application: ApplicationDetail }>(`/applications/${id}`),

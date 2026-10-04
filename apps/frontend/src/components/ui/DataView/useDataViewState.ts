@@ -1,7 +1,15 @@
 // Состояние DataView с синхронизацией в URL: поиск, фильтры, сортировка, страница, размер.
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { activeFilters, cycleSort, hasActiveFilters, readQuery, removeFilterValue, writeQuery } from './data-view-query';
+import {
+  activeFilters,
+  cycleSort,
+  hasActiveFilters,
+  isDataViewParam,
+  readQuery,
+  removeFilterValue,
+  writeQuery,
+} from './data-view-query';
 import type { ActiveFilter, DataViewQuery, FilterSpec, FilterValue } from './types';
 
 export interface DataViewStateOptions {
@@ -46,9 +54,15 @@ export function useDataViewState({ specs, defaultPageSize }: DataViewStateOption
 
   const commit = useCallback(
     (next: DataViewQuery) => {
-      setSearchParams(writeQuery(next, specsRef.current, { pageSize: defaultPageSize }), { replace: true });
+      const params = writeQuery(next, specsRef.current, { pageSize: defaultPageSize });
+      // Сохраняем посторонние параметры адреса (например, `group` в экспертизах),
+      // которыми DataView не управляет.
+      searchParams.forEach((value, key) => {
+        if (!isDataViewParam(key, specsRef.current) && !params.has(key)) params.set(key, value);
+      });
+      setSearchParams(params, { replace: true });
     },
-    [setSearchParams, defaultPageSize],
+    [searchParams, setSearchParams, defaultPageSize],
   );
 
   const setSearch = useCallback((value: string) => commit({ ...query, search: value, page: 1 }), [commit, query]);
@@ -92,8 +106,10 @@ export function useDataViewState({ specs, defaultPageSize }: DataViewStateOption
     });
   }, []);
 
-  const active = useMemo(() => activeFilters(query, specsRef.current, labels), [query, labels]);
-  const activeFlag = useMemo(() => hasActiveFilters(query), [query]);
+  // Считаем на каждом рендере: подписи чипов зависят от актуальных `specs`
+  // (справочники подгружаются асинхронно и меняют схему фильтров).
+  const active = activeFilters(query, specsRef.current, labels);
+  const activeFlag = hasActiveFilters(query);
 
   return {
     query,

@@ -195,6 +195,18 @@ export function hasActiveFilters(query: DataViewQuery): boolean {
   return Object.values(query.filters).some((value) => !isFilterValueEmpty(value));
 }
 
+/** Ключи, которыми управляет DataView (нужны, чтобы сохранять посторонние параметры URL). */
+const BASE_PARAMS = ['q', 'page', 'pageSize', 'sort', 'order'];
+
+export function isDataViewParam(key: string, specs: readonly FilterSpec[]): boolean {
+  if (BASE_PARAMS.includes(key)) return true;
+  return specs.some((spec) => {
+    if (spec.kind === 'checkbox-group' || spec.kind === 'multi-select') return key === spec.field;
+    if (spec.kind === 'date-range') return key === `${spec.field}_from` || key === `${spec.field}_to`;
+    return key === `${spec.field}_min` || key === `${spec.field}_max`;
+  });
+}
+
 export function isFilterValueEmpty(value: FilterValue): boolean {
   if (Array.isArray(value)) return value.length === 0;
   if ('from' in value) return !value.from && !value.to;

@@ -6,23 +6,17 @@ import {
   Button,
   ConfirmDialog,
   Container,
-  DateRangeInput,
-  EMPTY_DATE_RANGE,
+  DataView,
   Input,
-  isDateRangeEmpty,
-  ListToolbar,
   Modal,
-  Pagination,
   ROLE_OPTIONS,
-  SearchInput,
   Select,
-  StateMessage,
   StatusBadge,
-  Table,
   Textarea,
+  useDataViewState,
   useToast,
 } from '../../components/ui';
-import type { DateRange, SelectOption, TableColumn } from '../../components/ui';
+import type { DateRangeValue, FilterSpec, RangeValue, SelectOption, TableColumn } from '../../components/ui';
 import { usersApi } from '../../api/users';
 import type { UserListItem } from '../../api/types';
 import { ApiError } from '../../api/client';
@@ -31,22 +25,13 @@ import { Roles } from '../../lib/roles';
 import { formatDate, formatDateTime, formatUserName } from '../../lib/format';
 import styles from './UsersPage.module.css';
 
-const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
-
-/** Необязательное неотрицательное целое из строки поля. */
-function parseCountInput(value: string): number | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const num = Number(trimmed);
-  return Number.isFinite(num) ? Math.max(0, Math.trunc(num)) : undefined;
-}
-
 /** Сколько полных дней прошло с момента создания аккаунта. */
 function daysSince(iso: string): number {
   const created = new Date(iso).getTime();
   if (Number.isNaN(created)) return 0;
   return Math.max(0, Math.floor((Date.now() - created) / 86_400_000));
 }
+
 const ROLE_SELECT_OPTIONS: readonly SelectOption<RoleType>[] = ROLE_OPTIONS.map((option) => ({
   value: option.value,
   label: option.label,
@@ -291,36 +276,68 @@ function NotifyModal({
 export function UsersPage() {
   const { user: currentUser } = useAuth();
   const toast = useToast();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
-  const [roleFilter, setRoleFilter] = useState<RoleType | ''>('');
-  const [search, setSearch] = useState('');
-  const [createdRange, setCreatedRange] = useState<DateRange>(EMPTY_DATE_RANGE);
-  const [activeRange, setActiveRange] = useState<DateRange>(EMPTY_DATE_RANGE);
-  const [appsMin, setAppsMin] = useState('');
-  const [appsMax, setAppsMax] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+
+  const specs = useMemo<FilterSpec[]>(
+    () => [
+      {
+        kind: 'checkbox-group',
+        field: 'activated',
+        label: 'Статус аккаунта',
+        options: [
+          { value: 'active', label: 'Активирован' },
+          { value: 'inactive', label: 'Неактивен' },
+        ],
+      },
+      {
+        kind: 'checkbox-group',
+        field: 'roles',
+        label: 'Роль аккаунта',
+        options: [
+          { value: Roles.expert, label: 'Эксперт' },
+          { value: Roles.applicant, label: 'Пользователь' },
+          { value: Roles.admin, label: 'Администратор' },
+        ],
+      },
+      { kind: 'date-range', field: 'created', label: 'Дата создания аккаунта', presets: true },
+      { kind: 'date-range', field: 'activity', label: 'Последняя активность', presets: true },
+      { kind: 'range', field: 'apps', label: 'Количество заявок', min: 0, max: 100, step: 1 },
+    ],
+    [],
+  );
+  const state = useDataViewState({ specs, defaultPageSize: 20 });
+
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const { query } = state;
+
   const load = useCallback(async () => {
+    const activatedValues = (query.filters.activated as string[] | undefined) ?? [];
+    const roles = (query.filters.roles as string[] | undefined) ?? [];
+    const created = query.filters.created as DateRangeValue | undefined;
+    const activity = query.filters.activity as DateRangeValue | undefined;
+    const apps = query.filters.apps as RangeValue | undefined;
+
     setLoading(true);
     setError(null);
     try {
       const response = await usersApi.list({
-        role: roleFilter || undefined,
-        search: search || undefined,
-        createdFrom: createdRange.from || undefined,
-        createdTo: createdRange.to || undefined,
-        activityFrom: activeRange.from || undefined,
-        activityTo: activeRange.to || undefined,
-        appsMin: parseCountInput(appsMin),
-        appsMax: parseCountInput(appsMax),
-        limit: pageSize,
-        offset: (page - 1) * pageSize,
+        search: query.search || undefined,
+        roles: roles.length ? (roles as RoleType[]) : undefined,
+        activated: activatedValues.length === 1 ? activatedValues[0] === 'active' : undefined,
+        createdFrom: created?.from || undefined,
+        createdTo: created?.to || undefined,
+        activityFrom: activity?.from || undefined,
+        activityTo: activity?.to || undefined,
+        appsMin: apps?.min ?? undefined,
+        appsMax: apps?.max ?? undefined,
+        sort: query.sort?.field,
+        order: query.sort?.direction,
+        limit: query.pageSize,
+        offset: (query.page - 1) * query.pageSize,
       });
       setUsers(response.users);
       setTotal(response.total);
@@ -329,21 +346,7 @@ export function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, roleFilter, search, createdRange, activeRange, appsMin, appsMax]);
-
-  const activeFilterCount =
-    (!isDateRangeEmpty(createdRange) ? 1 : 0) +
-    (!isDateRangeEmpty(activeRange) ? 1 : 0) +
-    (appsMin.trim() !== '' ? 1 : 0) +
-    (appsMax.trim() !== '' ? 1 : 0);
-
-  const resetFilters = () => {
-    setCreatedRange(EMPTY_DATE_RANGE);
-    setActiveRange(EMPTY_DATE_RANGE);
-    setAppsMin('');
-    setAppsMax('');
-    setPage(1);
-  };
+  }, [query]);
 
   useEffect(() => {
     void load();
@@ -411,7 +414,7 @@ export function UsersPage() {
       { key: 'name', header: 'ФИО', render: (user) => formatUserName(user), sortValue: (user) => formatUserName(user).toLowerCase() },
       { key: 'email', header: 'Email', field: 'email' as const }, // <-- as const
       {
-        key: 'activation',
+        key: 'activated_at',
         header: 'Активация',
         width: '200px',
         sortValue: (user) => (user.activatedAt ? 1 : 0),
@@ -439,7 +442,7 @@ export function UsersPage() {
           ),
       },
       {
-        key: 'created',
+        key: 'created_at',
         header: 'Создан',
         render: (user) => formatDate(user.createdAt),
         sortValue: (user) => user.createdAt,
@@ -451,7 +454,7 @@ export function UsersPage() {
         render: (user) => user.applicationsCount,
         sortValue: (user) => user.applicationsCount,
       },
-      { key: 'activity', header: 'Активность', render: (user) => formatDateTime(user.lastActivity), sortValue: (user) => user.lastActivity },
+      { key: 'last_activity', header: 'Активность', render: (user) => formatDateTime(user.lastActivity) },
       {
         key: 'actions',
         header: '',
@@ -489,114 +492,28 @@ export function UsersPage() {
         </Button>
       }
     >
-      <ListToolbar>
-        <SearchInput
-          placeholder="Поиск по ФИО и email"
-          onChange={(value) => {
-            setSearch(value);
-            setPage(1);
-          }}
-        />
-        <Select
-          label="Фильтр по роли"
-          placeholder="Все роли"
-          value={roleFilter}
-          onChange={(value) => {
-            setRoleFilter(value as RoleType | '');
-            setPage(1);
-          }}
-          options={ROLE_SELECT_OPTIONS}
-        />
-        <Button
-          variant="secondary"
-          icon="filter"
-          aria-expanded={showFilters}
-          onClick={() => setShowFilters((value) => !value)}
-        >
-          Фильтры{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-        </Button>
-      </ListToolbar>
-
-      {showFilters ? (
-        <div className={styles.filtersPanel}>
-          <DateRangeInput
-            label="Дата создания"
-            value={createdRange}
-            onChange={(value) => {
-              setCreatedRange(value);
-              setPage(1);
-            }}
-          />
-          <DateRangeInput
-            label="Последняя активность"
-            value={activeRange}
-            onChange={(value) => {
-              setActiveRange(value);
-              setPage(1);
-            }}
-          />
-          <div className={styles.countRange}>
-            <Input
-              label="Заявок от"
-              type="number"
-              min={0}
-              value={appsMin}
-              onChange={(event) => {
-                setAppsMin(event.target.value);
-                setPage(1);
-              }}
-            />
-            <Input
-              label="до"
-              type="number"
-              min={0}
-              value={appsMax}
-              onChange={(event) => {
-                setAppsMax(event.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-          {activeFilterCount > 0 ? (
-            <Button variant="ghost" icon="close" onClick={resetFilters}>
-              Сбросить
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-
       {actionError ? <div className={styles.error}>{actionError}</div> : null}
 
-      {loading ? (
-        <StateMessage state="loading" />
-      ) : error ? (
-        <StateMessage state="error" message={error} onRetry={() => void load()} />
-      ) : users.length === 0 ? (
-        <StateMessage state="empty" message="Пользователи не найдены" />
-      ) : (
-        <>
-          <Table
-            columns={columns}
-            data={users}
-            rowKey={(user) => user.id}
-            rowClassName={(user) => {
-              if (user.activatedAt) return undefined;
-              const days = daysSince(user.createdAt);
-              if (days > 7) return styles.rowInactiveDanger;
-              if (days > 3) return styles.rowInactiveWarning;
-              return undefined;
-            }}
-          />
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            total={total}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
-          />
-        </>
-      )}
+      <DataView
+        state={state}
+        mode="advanced"
+        search={{ placeholder: 'Поиск по ФИО и email' }}
+        columns={columns}
+        rows={users}
+        rowKey={(user) => user.id}
+        total={total}
+        loading={loading}
+        error={error}
+        onRetry={() => void load()}
+        emptyText="Пользователи не найдены"
+        rowClassName={(user) => {
+          if (user.activatedAt) return undefined;
+          const days = daysSince(user.createdAt);
+          if (days > 7) return styles.rowInactiveDanger;
+          if (days > 3) return styles.rowInactiveWarning;
+          return undefined;
+        }}
+      />
 
       <UserFormModal
         open={creating}
