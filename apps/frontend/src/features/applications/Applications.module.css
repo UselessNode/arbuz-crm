@@ -67,6 +67,16 @@
 }
 
 /* Замечания проверки после явного «Сохранить» (сохранению не мешают). */
+.notice {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background-color: var(--tone-blue-bg-light);
+  color: var(--tone-blue-text);
+  font-size: 13px;
+}
+
 .saveIssues {
   display: flex;
   flex-direction: column;

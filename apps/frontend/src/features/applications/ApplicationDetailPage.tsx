@@ -368,8 +368,8 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
     return <StateMessage state="error" message={error ?? 'Заявка не найдена'} onRetry={() => void load()} />;
   }
 
-  // Владелец (в т.ч. назначенный админом) и админ редактируют; эксперт — только чтение.
-  const canEdit = !isExpertArea;
+  // После отправки заявку редактирует только администратор; эксперт — только чтение.
+  const canEdit = isAdmin || (!isExpertArea && !application.submittedAt);
   const canDelete = !isExpertArea && (isAdmin || !application.submittedAt);
   const canSubmit = !isExpertArea && !application.submittedAt;
 
@@ -525,6 +525,12 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
         }
       >
         {actionError ? <div className={styles.error}>{actionError}</div> : null}
+        {!canEdit && !isExpertArea ? (
+          <div className={styles.notice}>
+            Заявка отправлена на проверку — редактирование недоступно. За изменениями обратитесь к
+            администратору.
+          </div>
+        ) : null}
         {saveIssues && !saveIssues.valid ? (
           <div className={styles.saveIssues}>
             <strong>Замечания проверки ({saveIssues.issues.length})</strong>

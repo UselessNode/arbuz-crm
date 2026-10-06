@@ -78,10 +78,11 @@ export async function getApplicationForAccess(
   }
 
   if (mode === 'edit') {
-    // Владелец может редактировать свою заявку (в т.ч. созданную администратором для него)
-    // независимо от факта отправки; администратор — всегда.
-    if (!isAdmin && !isOwner) {
-      throw httpError(403, 'Заявку нельзя редактировать', 'APPLICATION_NOT_EDITABLE');
+    // Владелец правит свою заявку, пока она не отправлена на проверку (в т.ч. созданную
+    // администратором для него); после отправки редактировать может только администратор.
+    const ownerCanEdit = isOwner && !application.submitted_at;
+    if (!isAdmin && !ownerCanEdit) {
+      throw httpError(403, 'Отправленную заявку редактирует только администратор', 'APPLICATION_NOT_EDITABLE');
     }
     return application;
   }
