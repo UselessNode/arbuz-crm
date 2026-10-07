@@ -36,7 +36,7 @@ jobs:
             docker compose pull arbuz-backend arbuz-frontend
 
             echo ">>> Syncing database schema"
-            docker compose run --rm -w /app arbuz-backend bun db:push
+            docker compose run --rm -w /app arbuz-backend bun db:push --accept-data-loss
 
             echo ">>> Restarting services"
             docker compose up -d --remove-orphans
