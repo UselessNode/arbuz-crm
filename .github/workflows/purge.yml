@@ -56,10 +56,10 @@ jobs:
 
             if [ "${{ github.event.inputs.mode }}" = "apply" ]; then
               echo ">>> APPLY: физическое удаление тестовых данных"
-              docker compose run --rm -w /app arbuz-backend bun scripts/purge-demo.ts --apply
+              docker compose run --rm -w /app arbuz-backend bun apps/backend/scripts/purge-demo.ts --apply
             else
               echo ">>> DRY-RUN: только отчёт (ничего не удаляется)"
-              docker compose run --rm -w /app arbuz-backend bun scripts/purge-demo.ts
+              docker compose run --rm -w /app arbuz-backend bun apps/backend/scripts/purge-demo.ts
             fi
 
             echo ">>> Purge complete"
