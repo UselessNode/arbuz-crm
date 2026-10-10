@@ -38,7 +38,7 @@ jobs:
           script_stop: true
           command_timeout: 10m
           script: |
-            set -e
+            set -ex
             cd ~/arbuz-crm
 
             echo ">>> Fetching latest repo state"
@@ -51,8 +51,11 @@ jobs:
             echo ">>> Backing up database and files"
             bash scripts/backup.sh
 
-            echo ">>> Pulling backend image"
-            docker compose pull arbuz-backend
+            echo ">>> Pulling backend image (не критично при сбое)"
+            docker compose pull arbuz-backend || true
+
+            echo ">>> Checking purge script is present in image"
+            docker compose run --rm -w /app arbuz-backend ls -l apps/backend/scripts/purge-demo.ts
 
             if [ "${{ github.event.inputs.mode }}" = "apply" ]; then
               echo ">>> APPLY: физическое удаление тестовых данных"
