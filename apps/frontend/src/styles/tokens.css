@@ -143,7 +143,7 @@
    * Значения читает useAppBackgroundPattern (src/theme) и собирает из них
    * SVG-плитку. Меняйте вид фона только здесь.
    */
-  --bg-pattern-seed-step: 40;      /* шаг сетки, px */
+  --bg-pattern-seed-step: 72;      /* шаг сетки, px */
   --bg-pattern-seed-size: 12;      /* размер семечка, px */
   --bg-pattern-seed-angle: 45;     /* наклон, градусы */
   --bg-pattern-seed-opacity: 0.05; /* прозрачность плитки */
