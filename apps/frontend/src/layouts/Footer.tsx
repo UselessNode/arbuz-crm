@@ -28,6 +28,10 @@ export function Footer() {
         <div className={styles.copy}>
           © {year} Фонд «Мир Добра» ·{' '}
           <ExternalLink href="https://vk.ru/mirdobra19">Мы во ВКонтакте</ExternalLink>
+          {/* Версия сборки — для быстрой проверки, что задеплоено (не для пользователей). */}
+          <span className={styles.version} title="Версия приложения">
+            v{__APP_VERSION__}
+          </span>
         </div>
       </div>
       {hasFooterText ? (

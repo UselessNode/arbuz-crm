@@ -1,9 +1,16 @@
 // C:\project\arbuz-crm\apps\frontend\vite.config.ts
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// Версия фронтенда из package.json — подставляется в бандл как __APP_VERSION__.
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as { version: string };
+
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   server: {
     // Явный IPv4: по умолчанию Vite слушает только [::1] (IPv6),
     // и браузер не может открыть localhost, если ходит по IPv4.

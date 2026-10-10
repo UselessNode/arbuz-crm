@@ -6,6 +6,7 @@ import type { DateRangeFilter, NumberRangeFilter, SortSpec } from '../../lib/que
 import { hashPassword } from '../auth/auth.service';
 import { parseEmail, parsePassword } from '../auth/credentials';
 import { notifyRole, notifyNewUserAboutRecentPosts } from '../notifications/notifications.service';
+import { hardDeleteApplication } from '../applications/applications.service';
 
 export interface PublicUser {
   id: number;
@@ -305,11 +306,40 @@ export async function resetPassword(_actorId: number, userId: number, rawPasswor
   await prisma.users.update({ where: { id: userId }, data: { password_hash: await hashPassword(password) } });
 }
 
+/**
+ * Физически удаляет пользователя со всеми связанными данными:
+ *   • его заявки — целиком (каскад: команда, согласия, планы, бюджет, экспертизы, файлы);
+ *   • его вердикты как эксперта (на чужих заявках);
+ *   • авторство в контенте обезличивается (`created_by`/`updated_by` → null);
+ *   • сам пользователь — уведомления-получателя и журнал согласий уходят каскадом.
+ * Без проверки прав — вызывать после проверки роли/самозащиты.
+ */
+export async function hardDeleteUser(userId: number): Promise<void> {
+  // 1. Заявки пользователя (вместе с составом, согласиями, экспертизами и файлами на диске).
+  const owned = await prisma.applications.findMany({ where: { owner_id: userId }, select: { id: true } });
+  for (const application of owned) await hardDeleteApplication(application.id);
+
+  // 2. Вердикты эксперта на чужих заявках (обязательный FK `application_reviews.expert_id`).
+  await prisma.application_reviews.deleteMany({ where: { expert_id: userId } });
+
+  // 3. Авторство в контенте — обезличиваем (эти FK без каскада).
+  await Promise.all([
+    prisma.posts.updateMany({ where: { created_by: userId }, data: { created_by: null } }),
+    prisma.consent_documents.updateMany({ where: { created_by: userId }, data: { created_by: null } }),
+    prisma.notifications.updateMany({ where: { created_by: userId }, data: { created_by: null } }),
+    prisma.site_settings.updateMany({ where: { updated_by: userId }, data: { updated_by: null } }),
+    prisma.change_logs.updateMany({ where: { user_id: userId }, data: { user_id: null } }),
+  ]);
+
+  // 4. Сам пользователь (каскадом — его уведомления и consent_events).
+  await prisma.users.delete({ where: { id: userId } });
+}
+
 export async function deleteUser(actorId: number, userId: number): Promise<void> {
   if (userId === actorId) {
     throw httpError(403, 'Нельзя удалить собственную учётную запись', 'SELF_DELETE_FORBIDDEN');
   }
   const existing = await prisma.users.findFirst({ where: { id: userId, deleted_at: null }, select: { id: true } });
   if (!existing) throw httpError(404, 'Пользователь не найден', 'USER_NOT_FOUND');
-  await prisma.users.update({ where: { id: userId }, data: { deleted_at: new Date() } });
+  await hardDeleteUser(userId);
 }

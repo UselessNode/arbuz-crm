@@ -43,6 +43,13 @@
   white-space: nowrap;
 }
 
+/* Версия сборки: неброско, для проверки задеплоенного релиза. */
+.version {
+  margin-left: var(--space-2);
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
 .contacts a,
 .copy a {
   color: var(--color-muted);

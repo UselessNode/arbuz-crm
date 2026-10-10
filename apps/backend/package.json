@@ -1,7 +1,7 @@
 {
   "name": "@arbuz/backend",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "type": "module",
   "scripts": {
     "dev": "bun --watch index.ts",
@@ -10,6 +10,7 @@
     "test:smoke": "bun tests/run.ts",
     "db:reset": "bun scripts/reset-db.ts",
     "storage:cleanup": "bun scripts/cleanup-storage.ts",
+    "purge:demo": "bun scripts/purge-demo.ts",
     "build": "echo 'Бэкенд на Bun не требует сборки, запускается напрямую из TS'",
     "typecheck": "tsc --noEmit"
   },

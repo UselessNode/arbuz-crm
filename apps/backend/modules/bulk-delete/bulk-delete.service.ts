@@ -2,9 +2,8 @@
 //
 // Операция необратимо удаляет много записей сразу, поэтому требует повторного
 // ввода пароля текущего администратора — защита от случайного клика и от чужого
-// доступа к открытой админ-сессии. Для экспертиз/заявок/публикаций удаление
-// физическое (вместе с файлами), как и одиночное удаление в разделах;
-// пользователи пока удаляются мягко.
+// доступа к открытой админ-сессии. Удаление физическое (вместе с файлами и связями)
+// во всех сущностях, как и одиночное удаление в разделах.
 import { RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
@@ -12,6 +11,7 @@ import { parseId } from '../../lib/parse';
 import { verifyPassword } from '../auth/auth.service';
 import { hardDeleteApplication } from '../applications/applications.service';
 import { hardDeletePost } from '../posts/posts.service';
+import { hardDeleteUser } from '../users/users.service';
 import type { CurrentUser } from '../files/files.service';
 
 /** Сущности, поддерживающие массовое удаление. */
@@ -73,12 +73,13 @@ async function purgeEntity(entity: BulkEntity, actor: CurrentUser, ids: number[]
       return existing.length;
     }
     case 'users': {
-      // Пользователи пока удаляются мягко — жёсткое удаление с каскадом вынесено в отдельную задачу.
-      const result = await prisma.users.updateMany({
+      // Себя удалять нельзя; остальных — физически (каскад вычищает их данные).
+      const existing = await prisma.users.findMany({
         where: { id: { in: ids.filter((id) => id !== actor.id) }, deleted_at: null },
-        data: { deleted_at: new Date() },
+        select: { id: true },
       });
-      return result.count;
+      for (const user of existing) await hardDeleteUser(user.id);
+      return existing.length;
     }
   }
 }
