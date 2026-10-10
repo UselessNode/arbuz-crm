@@ -73,7 +73,14 @@ export async function buildReviewSummary(user: CurrentUser, params: ReviewSelect
   requireAdmin(user);
 
   const reviews = await prisma.application_reviews.findMany({
-    where: { deleted_at: null, ...selectionWhere(params) },
+    where: {
+      deleted_at: null,
+      // Исключаем удалённые заявки и удалённых экспертов — иначе сводка/PDF
+      // учитывают «висящие» экспертизы (см. listReviews).
+      applications: { deleted_at: null },
+      users: { deleted_at: null },
+      ...selectionWhere(params),
+    },
     orderBy: { id: 'asc' },
     include: {
       applications: {

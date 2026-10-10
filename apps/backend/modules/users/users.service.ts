@@ -104,7 +104,9 @@ function userSelect() {
     last_activity: true,
     created_at: true,
     activated_at: true,
-    _count: { select: { applications: true } },
+    // Считаем только неудалённые заявки (soft-delete), иначе у пользователя
+    // остаётся «количество заявок» даже после их удаления.
+    _count: { select: { applications: { where: { deleted_at: null } } } },
   } as const;
 }
 

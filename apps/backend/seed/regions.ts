@@ -7,6 +7,18 @@ import { log } from '../lib/logger';
 /** Название региона по умолчанию — подставляется в формах. */
 export const DEFAULT_REGION_NAME = 'Республика Хакасия';
 
+/**
+ * Регионы, которые показываем первыми (оператор и соседние/частые регионы Сибири) —
+ * в этом порядке. Остальные идут после (по алфавиту исходного списка).
+ */
+export const PRIORITY_REGION_NAMES: readonly string[] = [
+  'Республика Хакасия',
+  'Красноярский край',
+  'Республика Тыва',
+  'Республика Бурятия',
+  'Кемеровская область — Кузбасс',
+];
+
 /** Базовый список субъектов РФ (можно дополнять/переименовывать через админку). */
 export const REGION_NAMES: readonly string[] = [
   'Республика Адыгея',
@@ -98,20 +110,46 @@ export const REGION_NAMES: readonly string[] = [
   'Ямало-Ненецкий автономный округ',
 ];
 
+/**
+ * Порядок отображения региона: приоритетные — 0..N (в заданном порядке),
+ * остальные — после них (по индексу в `REGION_NAMES`), чтобы не конфликтовать.
+ */
+function priorityRank(name: string): number {
+  const priorityIndex = PRIORITY_REGION_NAMES.indexOf(name);
+  if (priorityIndex !== -1) return priorityIndex;
+  const listIndex = REGION_NAMES.indexOf(name);
+  return PRIORITY_REGION_NAMES.length + (listIndex === -1 ? REGION_NAMES.length : listIndex);
+}
+
 /** Создаёт отсутствующие регионы, не трогая уже сохранённые. */
 export async function ensureRegions(): Promise<void> {
   const existing = await prisma.regions.findMany({ select: { name: true } });
   const present = new Set(existing.map((row) => row.name));
   const missing = REGION_NAMES.filter((name) => !present.has(name));
   if (missing.length > 0) {
+    // Приоритетные регионы (оператор и соседние) — вперёд, остальные — после них
+    // (в порядке исходного списка). Индекс берётся от полного списка, чтобы не пересекался.
     await prisma.regions.createMany({
-      data: missing.map((name, index) => ({
+      data: missing.map((name) => ({
         name,
         is_default: name === DEFAULT_REGION_NAME,
-        sort_order: index,
+        sort_order: priorityRank(name),
       })),
     });
   }
+  // Выравниваем sort_order у ВСЕХ существующих регионов по правилу приоритета
+  // (порядок в UI не редактируется вручную, так что перезапись безопасна).
+  // Нужно и для прода, где сид уже отработал со старым порядком.
+  const allExisting = await prisma.regions.findMany({
+    where: { deleted_at: null },
+    select: { id: true, name: true, sort_order: true },
+  });
+  await Promise.all(
+    allExisting
+      .filter((row) => row.sort_order !== priorityRank(row.name))
+      .map((row) => prisma.regions.update({ where: { id: row.id }, data: { sort_order: priorityRank(row.name) } })),
+  );
+
   // Гарантируем, что регион по умолчанию задан (даже если список уже был).
   const hasDefault = await prisma.regions.findFirst({ where: { is_default: true, deleted_at: null }, select: { id: true } });
   if (!hasDefault) {

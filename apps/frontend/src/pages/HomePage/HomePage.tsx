@@ -20,10 +20,8 @@ import { Roles } from '../../lib/roles';
 import { PostStatuses } from '../../lib/post-status';
 import { formatDateTime } from '../../lib/format';
 import { copyToClipboard } from '../../lib/clipboard';
-import { ORGANIZER_CONTACTS } from '../../lib/contacts';
 import { useSiteSetting } from '../../lib/site/use-site-setting';
 import { PostContent } from '../../features/posts/PostContent';
-import heroLogo from '../../assets/images/drawings/hero.svg';
 import styles from './HomePage.module.css';
 
 const PAGE_SIZE = 5;
@@ -375,47 +373,17 @@ export function HomePage() {
         <aside className={styles.aside} aria-label="Контакты">
           <section className={styles.sideCard} aria-label="Контакты организации">
             <h2 className={styles.sectionTitle}>Контакты</h2>
-            {/* Содержимое блока правит администратор (настройки сайта, ключ `home_contacts`).
-                Если текст не задан — показываем контакты по умолчанию (клик копирует). */}
+            {/* Весь блок (текст и картинка) задаётся администратором
+                в «Настройках сайта» (ключ `home_contacts`, Markdown). */}
             {contacts.text.trim() ? (
               <div className={styles.contactsDoc} dangerouslySetInnerHTML={{ __html: contacts.html }} />
             ) : (
-              <>
-                <ContactValue label="Телефон" value={ORGANIZER_CONTACTS.phone} />
-                <ContactValue label="Электронная почта" value={ORGANIZER_CONTACTS.email} />
-                <ContactValue label="Социальные сети - ВК" value={ORGANIZER_CONTACTS.vk} />
-              </>
+              <p className={styles.contactsEmpty}>Контакты не заполнены</p>
             )}
-            <div className={styles.imgContainer}>
-              <img src={heroLogo} alt="#Арбузныйгрант" className={styles.heroLogo} />
-            </div>
           </section>
         </aside>
       </div>
     </div>
-  );
-}
-
-/** Контакт организаторов: клик копирует значение в буфер обмена. */
-function ContactValue({ label, value }: { label: string; value: string }) {
-  const toast = useToast();
-
-  const handleCopy = async () => {
-    const copied = await copyToClipboard(value);
-    toast.showToast({
-      message: copied ? 'Контакт скопирован в буфер обмена' : 'Не удалось скопировать',
-      tone: copied ? 'success' : 'error',
-    });
-  };
-
-  return (
-    <p className={styles.contactsText}>
-      {label}:
-      <br />
-      <button type="button" className={styles.contactValue} onClick={() => void handleCopy()} title="Скопировать">
-        {value}
-      </button>
-    </p>
   );
 }
 

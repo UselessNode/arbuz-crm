@@ -359,7 +359,10 @@ export function PostEditorPage() {
             Вставьте подряд несколько изображений — в ленте они покажутся каруселью с листанием.
           </p>
           <Suspense fallback={<StateMessage state="loading" />}>
+            {/* key по публикации: при переходе на другой пост редактор пересоздаётся,
+                чтобы не оставалась история отмены от предыдущего текста. */}
             <MarkdownEditor
+              key={postId ?? 'new'}
               markdown={content}
               onChange={setContent}
               uploadImage={uploadImage}

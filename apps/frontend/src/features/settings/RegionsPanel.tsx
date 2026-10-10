@@ -73,7 +73,7 @@ export function RegionsPanel() {
     <Container
       title="Регионы"
       actions={
-        <Button icon="add" onClick={() => setCreating(true)}>
+        <Button size="sm" icon="add" onClick={() => setCreating(true)}>
           Добавить регион
         </Button>
       }

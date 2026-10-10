@@ -177,16 +177,17 @@ function reviewsOrderBy(sort: SortSpec | null | undefined): Prisma.application_r
 }
 
 export async function listReviews(user: CurrentUser, filter: ReviewsFilter) {
-  const accessWhere: Prisma.application_reviewsWhereInput =
-    user.role === RoleType.admin
-      ? {}
-      : user.role === RoleType.expert
-        ? { expert_id: user.id }
-        : { applications: { owner_id: user.id } };
+  // Для заявителя ограничиваем своими заявками; эксперт — только свои экспертизы.
+  const applicationsWhere: Prisma.applicationsWhereInput =
+    user.role === RoleType.applicant ? { owner_id: user.id } : {};
 
   const where: Prisma.application_reviewsWhereInput = {
     deleted_at: null,
-    ...accessWhere,
+    // Не показываем экспертизы по удалённым (soft-delete) заявкам и от удалённых экспертов —
+    // иначе они «висят» в списке после удаления заявки/пользователя.
+    applications: { ...applicationsWhere, deleted_at: null },
+    users: { deleted_at: null },
+    ...(user.role === RoleType.expert ? { expert_id: user.id } : {}),
     ...(filter.statusIds?.length ? { status_id: { in: filter.statusIds } } : {}),
     ...(filter.expertIds?.length ? { expert_id: { in: filter.expertIds } } : {}),
     ...(filter.applicationIds?.length ? { application_id: { in: filter.applicationIds } } : {}),

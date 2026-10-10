@@ -4,7 +4,7 @@
   padding: var(--space-5) var(--space-5) var(--space-6);
 }
 
-/* Верхний блок: логотип, заголовок и краткое описание. */
+/* Верхний блок: заголовок и краткое описание. */
 .hero {
   display: flex;
   align-items: center;
@@ -14,28 +14,11 @@
   margin-bottom: var(--space-5);
 }
 
-.heroLogo {
-  width: 256px;
-  height: 256px;
-  flex-shrink: 0;
-  object-fit: contain;
-}
-
 @media (max-width: 640px) {
   .hero {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-3);
-  }
-
-  .imgContainer {
-      margin-top: var(--space-3); /* Уменьшаем отступ на мобильных */
-      padding: var(--space-2);
-  }
-
-  .heroLogo {
-    width: 88px;
-    height: 88px;
   }
 }
 
@@ -411,12 +394,6 @@
   line-height: 1.5;
 }
 
-.contactsHint {
-  margin: var(--space-2) 0 0;
-  color: var(--color-muted);
-  font-size: 12px;
-}
-
 /* Контакты, заданные администратором (markdown → HTML) в настройках сайта. */
 .contactsDoc {
   color: var(--color-text);
@@ -433,7 +410,7 @@
 }
 
 .contactsDoc a {
-  color: var(--color-primary);
+  color: var(--color-link);
   overflow-wrap: anywhere;
 }
 
@@ -443,47 +420,11 @@
   border-radius: var(--radius-sm);
 }
 
-/* Подложка под логотип в блоке контактов. */
-.imgContainer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: var(--space-4);
-  padding: var(--space-3);
-  background-color: var(--tone-neutral-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-
-/* Контакт: клик копирует значение в буфер обмена. */
-.contactValue {
-  display: inline-block;
-  margin-top: var(--space-1);
-  padding: 0;
-  border: none;
-  background-color: transparent;
-  color: var(--color-primary);
-  font-family: inherit;
+/* Заглушка, когда администратор ещё не заполнил блок контактов. */
+.contactsEmpty {
+  margin: 0;
+  color: var(--color-muted);
   font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.contactValue:hover {
-  color: var(--color-primary-hover);
-  text-decoration: underline;
-}
-
-/* Визуальный отклик на нажатие */
-.contactValue:active {
-  opacity: 0.8;
-}
-
-.contactValue:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
 }
 
 /* --- Адаптив --- */

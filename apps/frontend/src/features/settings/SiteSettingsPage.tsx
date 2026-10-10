@@ -107,7 +107,13 @@ function TextsPanel({ activeKey }: { activeKey: SiteSettingKey }) {
         источники указывайте в виде <code>[подпись](https://…)</code>.
       </p>
       <Suspense fallback={<StateMessage state="loading" />}>
+        {/*
+         * key по активной вкладке: заставляет пересоздать редактор при смене настройки.
+         * Без этого MDXEditor переиспользует экземпляр, и в нём остаётся история отмены
+         * (Ctrl+Z) от предыдущего блока — правки «смешиваются» между вкладками.
+         */}
         <MarkdownEditor
+          key={activeKey}
           markdown={drafts[activeKey] ?? ''}
           onChange={(value) => setDrafts((prev) => ({ ...prev, [activeKey]: value }))}
           uploadImage={uploadImage(activeKey)}
