@@ -3,7 +3,7 @@
 // Рантайм-значения зеркалим локально, как роли (`lib/roles.ts`) и статусы публикаций
 // (`lib/post-status.ts`): импорт значений из `@arbuz/shared` тянет в бандл сгенерированный
 // Prisma-клиент (CommonJS) и ломает браузер. Тип — только type-only.
-import type { NotificationType as NotificationTypeValue } from '@arbuz/shared';
+import type { NotificationType as NotificationTypeValue, RoleType } from '@arbuz/shared';
 import type { BadgeTone, IconName } from '../components/ui';
 
 export const NotificationTypes = {
@@ -38,3 +38,19 @@ export const NOTIFICATION_TYPE_META: Record<NotificationType, NotificationTypeMe
 
 /** Порядок типов в фильтре (как в справочнике). */
 export const NOTIFICATION_TYPES: readonly NotificationType[] = Object.values(NotificationTypes);
+
+/**
+ * Типы, видимые в фильтре для конкретной роли.
+ * Служебные категории не показываем тем, кто их не получает:
+ *  • `account_created`/`account_inactive` — только админ;
+ *  • `expert_assignment` — эксперт и админ (вердикты экспертов заявителю не видны).
+ * Админ видит всё.
+ */
+export function notificationTypesForRole(role: RoleType): NotificationType[] {
+  if (role === 'admin') return [...NOTIFICATION_TYPES];
+  if (role === 'expert') {
+    return ['application_status', 'expert_assignment', 'publication', 'document', 'admin_message'];
+  }
+  // Заявитель (и прочие роли): без служебных категорий и без экспертизы.
+  return ['application_status', 'publication', 'document', 'admin_message'];
+}

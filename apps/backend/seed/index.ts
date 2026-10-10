@@ -17,6 +17,8 @@ import { SEED_APPLICATIONS, SEED_DOCUMENTS, SEED_POSTS, SEED_TENDER, SEED_USERS,
 import { ensureApplicationStatuses, ensureReviewStatuses, type StatusMap } from './reference';
 import { ensureConsentDocuments } from './consents';
 import { ensureSectionHints } from './section-hints';
+import { ensureRegions } from './regions';
+import { ensureSiteSettings } from './site-settings';
 import { ensureUser, resolveSeedUser } from './users';
 import { ensureTender } from './tenders';
 import { ensureApplication, ensureBudgetItem, ensureMember, ensurePlan } from './applications';
@@ -86,6 +88,10 @@ async function main(): Promise<void> {
   await ensureConsentDocuments();
   // Подсказки к разделам формы заявки — тоже базовые данные (админ их потом правит).
   await ensureSectionHints();
+  // Регионы — базовый справочник (Хакасия — по умолчанию).
+  await ensureRegions();
+  // Тексты сайта («О проекте», контакты, подвал) — базовые значения.
+  await ensureSiteSettings();
   const admin = await ensureUser({ email: adminEmail, password: adminPassword, role: RoleType.admin });
 
   const demoDisabled = process.env.SEED_DEMO === 'false' || process.env.NODE_ENV === 'production';

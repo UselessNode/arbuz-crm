@@ -117,6 +117,9 @@ export type { PaginationProps } from './Pagination';
 export { SectionHint } from './SectionHint';
 export type { SectionHintProps } from './SectionHint';
 
+export { ExternalLink } from './ExternalLink';
+export type { ExternalLinkProps } from './ExternalLink';
+
 export { KebabMenu } from './Menu/KebabMenu';
 export type { KebabMenuProps, KebabMenuItem } from './Menu/KebabMenu';
 

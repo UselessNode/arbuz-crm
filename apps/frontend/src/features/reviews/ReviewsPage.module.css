@@ -43,3 +43,13 @@
   font-size: 13px;
   margin-bottom: var(--space-3);
 }
+
+/* --- Адаптив --- */
+@media (max-width: 640px) {
+  /* Итоги и подсказка о выделении переносятся построчно. */
+  .totals,
+  .selectionHint {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

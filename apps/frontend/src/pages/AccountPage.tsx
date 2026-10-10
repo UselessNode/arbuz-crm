@@ -1,6 +1,6 @@
 // Личный кабинет (для заявителя/эксперта): профиль, контакты организаторов и выход.
 import { useNavigate } from 'react-router-dom';
-import { Button, Container, ROLE_OPTIONS, StateMessage, StatusBadge, useToast } from '../components/ui';
+import { Button, Container, ExternalLink, ROLE_OPTIONS, StateMessage, StatusBadge, useToast } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { copyToClipboard } from '../lib/clipboard';
 import { ORGANIZER_CONTACTS } from '../lib/contacts';
@@ -47,6 +47,10 @@ export function AccountPage() {
           <strong>{user.email}</strong>
         </div>
         <div className={styles.profileRow}>
+          <span>Регион</span>
+          <strong>{user.regionName ?? '—'}</strong>
+        </div>
+        <div className={styles.profileRow}>
           <span>Роль</span>
           <StatusBadge value={user.role} options={ROLE_OPTIONS} />
         </div>
@@ -62,6 +66,7 @@ export function AccountPage() {
           <button type="button" className={styles.contactValue} onClick={() => void handleCopy(ORGANIZER_CONTACTS.email)}>
             {ORGANIZER_CONTACTS.email}
           </button>
+          <ExternalLink href={ORGANIZER_CONTACTS.vk}>Мы во ВКонтакте</ExternalLink>
         </div>
 
         <div className={styles.profileActions}>

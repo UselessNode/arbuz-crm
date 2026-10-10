@@ -2,7 +2,7 @@
 // После создания заявки переходим в её карточку, где доступны остальные секции (команда, план и т.д.).
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Accordion, AccordionItem, Button, Container, SectionHint, useToast } from '../../components/ui';
+import { Accordion, AccordionItem, Button, Container, SectionHint, StateMessage, useToast } from '../../components/ui';
 import type { SelectOption } from '../../components/ui';
 import { applicationsApi, type ApplicationPayload } from '../../api/applications';
 import { directionsApi, tendersApi } from '../../api/references';
@@ -31,6 +31,15 @@ const emptyForm = (): ApplicationPayload => ({
   tender_id: null,
   direction_id: null,
 });
+
+/** Разделы формы — совпадают с карточкой заявки (см. ApplicationDetailPage). */
+const SECTIONS: ReadonlyArray<{ key: string; label: string }> = [
+  { key: 'main', label: 'Основное' },
+  { key: 'team', label: 'Команда' },
+  { key: 'plans', label: 'План мероприятий' },
+  { key: 'budget', label: 'Бюджет' },
+  { key: 'materials', label: 'Материалы' },
+];
 
 export function ApplicationCreatePage({ area = 'applicant' }: Props) {
   const navigate = useNavigate();
@@ -134,9 +143,18 @@ export function ApplicationCreatePage({ area = 'applicant' }: Props) {
       </div>
 
       <div className={styles.tabs} role="tablist" aria-label="Разделы заявки">
-        <Button size="sm" variant="primary" role="tab" aria-selected="true" className={hasErrors ? styles.tabError : undefined}>
-          Основное
-        </Button>
+        {SECTIONS.map((section) => (
+          <Button
+            key={section.key}
+            size="sm"
+            variant={section.key === 'main' ? 'primary' : 'secondary'}
+            className={section.key === 'main' && hasErrors ? styles.tabError : undefined}
+            disabled={section.key !== 'main'}
+            title={section.key === 'main' ? undefined : 'Станут доступны после создания заявки'}
+          >
+            {section.label}
+          </Button>
+        ))}
       </div>
 
       <Container
@@ -166,9 +184,18 @@ export function ApplicationCreatePage({ area = 'applicant' }: Props) {
               }
             />
             <p className={styles.pageHint}>
-              Команда, план мероприятий, бюджет и материалы станут доступны после создания заявки.
+              После создания заявки карточка откроется полностью — станут доступны разделы команды,
+              плана мероприятий, бюджета и материалов (ниже показано, что появится).
             </p>
           </AccordionItem>
+
+          {/* Остальные разделы в создании недоступны (нет ещё заявки), но показаны,
+              чтобы структура формы совпадала с формой редактирования. */}
+          {SECTIONS.filter((section) => section.key !== 'main').map((section) => (
+            <AccordionItem key={section.key} itemKey={section.key} title={section.label}>
+              <StateMessage state="empty" message="Раздел станет доступен после создания заявки" />
+            </AccordionItem>
+          ))}
         </Accordion>
       </Container>
     </>

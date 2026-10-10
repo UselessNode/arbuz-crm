@@ -37,3 +37,98 @@
   border-color: transparent;
   color: var(--tone-blue-text);
 }
+
+/* --- Вертикальный список (как сайдбар) --- */
+.filtersVertical {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.filterVertical {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 8px var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.filterVertical:hover {
+  background-color: var(--overlay-hover);
+}
+
+.filterVertical:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.filterVerticalActive {
+  background-color: var(--tone-blue-bg);
+  color: var(--tone-blue-text);
+}
+
+.filterVerticalLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Кружок-счётчик напротив категории. */
+.filterVerticalCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background-color: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.filterVerticalActive .filterVerticalCount {
+  background-color: var(--tone-blue-text);
+  color: var(--tone-blue-bg);
+}
+
+/*
+ * Свёрнутый вид: иконка сверху, счётчик под ней — узкий столбик по центру.
+ * Горизонтальная строка тут не годится: кружок «99+» шире кнопки и вылезал за края.
+ */
+.filtersVerticalCollapsed {
+  align-items: center;
+}
+
+.filtersVerticalCollapsed .filterVertical {
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 4px;
+  width: 100%;
+}
+
+/* В свёрнутом виде счётчик — компактная пилюля без лишних отступов. */
+.filtersVerticalCollapsed .filterVerticalCount {
+  min-width: 0;
+  height: auto;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 14px;
+}

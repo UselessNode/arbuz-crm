@@ -126,16 +126,66 @@ export async function notifyAll(payload: NotificationPayload, exceptUserId?: num
   );
 }
 
+/** Сколько последних публикаций видит новый пользователь в уведомлениях при создании аккаунта. */
+const NEW_USER_POST_LIMIT = 10;
+
+/**
+ * Уведомляет нового пользователя о последних опубликованных публикациях.
+ * Берём именно 10 НЕДАВНИХ (по дате публикации), чтобы новый аккаунт не получил
+ * весь архив новостей; закреплённые сами всплывут наверх в ленте.
+ * Best-effort: ошибки не пробрасываем — уведомление не критично для создания аккаунта.
+ */
+export async function notifyNewUserAboutRecentPosts(userId: number): Promise<void> {
+  try {
+    const now = new Date();
+    const posts = await prisma.posts.findMany({
+      where: {
+        deleted_at: null,
+        is_published: true,
+        archived_at: null,
+        OR: [{ scheduled_at: null }, { scheduled_at: { lte: now } }],
+      },
+      orderBy: [{ created_at: 'desc' }],
+      take: NEW_USER_POST_LIMIT,
+      select: { id: true, title: true },
+    });
+    for (const post of posts) {
+      await createNotification(userId, {
+        type: NotificationType.publication,
+        title: 'Новая публикация',
+        body: post.title,
+        link: `/#post-${post.id}`,
+        // Идемпотентность: повторное создание пользователя не задвоит уведомления.
+        dedupeKey: `new-user-post:${post.id}`,
+      });
+    }
+  } catch {
+    /* уведомление — не критичный побочный эффект */
+  }
+}
+
 export interface NotificationFilter {
   type?: NotificationType;
   limit: number;
   offset: number;
 }
 
+/** Количество НЕПРОЧИТАННЫХ уведомлений пользователя по типу (для счётчиков в фильтре). */
+async function countsByType(user: CurrentUser): Promise<Record<string, number>> {
+  const grouped = await prisma.notifications.groupBy({
+    by: ['type'],
+    where: { user_id: user.id, is_read: false },
+    _count: { _all: true },
+  });
+  const result: Record<string, number> = {};
+  for (const row of grouped) result[row.type] = row._count._all;
+  return result;
+}
+
 /** Список уведомлений текущего пользователя. */
 export async function listNotifications(user: CurrentUser, filter: NotificationFilter) {
   const where = { user_id: user.id, ...(filter.type ? { type: filter.type } : {}) };
-  const [rows, total, unread] = await Promise.all([
+  const [rows, total, unread, counts] = await Promise.all([
     prisma.notifications.findMany({
       where,
       orderBy: { created_at: 'desc' },
@@ -145,8 +195,11 @@ export async function listNotifications(user: CurrentUser, filter: NotificationF
     }),
     prisma.notifications.count({ where }),
     prisma.notifications.count({ where: { user_id: user.id, is_read: false } }),
+    countsByType(user),
   ]);
-  return { notifications: rows.map(serialize), total, unread };
+  // `all` — общее число непрочитанных (для варианта «Все»).
+  const allTotal = Object.values(counts).reduce((sum, value) => sum + value, 0);
+  return { notifications: rows.map(serialize), total, unread, counts: { ...counts, all: allTotal } };
 }
 
 export async function unreadCount(user: CurrentUser): Promise<number> {
@@ -164,9 +217,10 @@ export async function markRead(user: CurrentUser, notificationId: number): Promi
   }
 }
 
-export async function markAllRead(user: CurrentUser): Promise<void> {
+/** Помечает прочитанными все непрочитанные; при `type` — только этой категории. */
+export async function markAllRead(user: CurrentUser, type?: NotificationType): Promise<void> {
   await prisma.notifications.updateMany({
-    where: { user_id: user.id, is_read: false },
+    where: { user_id: user.id, is_read: false, ...(type ? { type } : {}) },
     data: { is_read: true, read_at: new Date() },
   });
 }

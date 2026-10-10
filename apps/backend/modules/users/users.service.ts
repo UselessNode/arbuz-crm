@@ -5,7 +5,7 @@ import { httpError } from '../../lib/http';
 import type { DateRangeFilter, NumberRangeFilter, SortSpec } from '../../lib/query';
 import { hashPassword } from '../auth/auth.service';
 import { parseEmail, parsePassword } from '../auth/credentials';
-import { notifyRole } from '../notifications/notifications.service';
+import { notifyRole, notifyNewUserAboutRecentPosts } from '../notifications/notifications.service';
 
 export interface PublicUser {
   id: number;
@@ -14,6 +14,8 @@ export interface PublicUser {
   surname: string | null;
   name: string | null;
   patronymic: string | null;
+  regionId: number | null;
+  regionName: string | null;
   lastActivity: Date;
   createdAt: Date;
   /** null — аккаунт создан админом и ещё не активирован пользователем. */
@@ -29,6 +31,7 @@ export interface UserInput {
   surname?: string | null;
   name?: string | null;
   patronymic?: string | null;
+  region_id?: number | null;
 }
 
 export const PASSWORD_MIN_LENGTH = 8;
@@ -48,6 +51,16 @@ function optionalText(value: unknown): string | null {
   return text.length ? text.slice(0, 100) : null;
 }
 
+/** Регион — id из справочника regions (или null). Проверяет, что регион существует. */
+async function parseRegionId(value: unknown): Promise<number | null> {
+  if (value === undefined || value === null || value === '') return null;
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) throw httpError(400, 'Некорректный регион', 'INVALID_REGION');
+  const region = await prisma.regions.findFirst({ where: { id, deleted_at: null }, select: { id: true } });
+  if (!region) throw httpError(404, 'Регион не найден', 'REGION_NOT_FOUND');
+  return id;
+}
+
 function serialize(user: {
   id: number;
   email: string;
@@ -55,6 +68,8 @@ function serialize(user: {
   surname: string | null;
   name: string | null;
   patronymic: string | null;
+  region_id: number | null;
+  region?: { name: string } | null;
   last_activity: Date;
   created_at: Date;
   activated_at: Date | null;
@@ -67,6 +82,8 @@ function serialize(user: {
     surname: user.surname,
     name: user.name,
     patronymic: user.patronymic,
+    regionId: user.region_id,
+    regionName: user.region?.name ?? null,
     lastActivity: user.last_activity,
     createdAt: user.created_at,
     activatedAt: user.activated_at,
@@ -82,6 +99,8 @@ function userSelect() {
     surname: true,
     name: true,
     patronymic: true,
+    region_id: true,
+    region: { select: { name: true } },
     last_activity: true,
     created_at: true,
     activated_at: true,
@@ -215,6 +234,7 @@ export async function createUser(actorId: number, input: UserInput): Promise<Pub
       surname: optionalText(input.surname),
       name: optionalText(input.name),
       patronymic: optionalText(input.patronymic),
+      region_id: await parseRegionId(input.region_id),
       // Администратор — сотрудник оператора: активен сразу. Остальные созданные
       // админом аккаунты неактивны до принятия ПС/ПДн самим пользователем.
       activated_at: role === RoleType.admin ? new Date() : null,
@@ -229,18 +249,27 @@ export async function createUser(actorId: number, input: UserInput): Promise<Pub
     body: `${email} (роль: ${role})`,
     link: '/admin/users',
   });
+  // Новому пользователю — уведомления о 10 последних новостях (включая закреплённые).
+  await notifyNewUserAboutRecentPosts(user.id);
   return serialize(user);
 }
 
 export async function updateUser(
   actorId: number,
   userId: number,
-  patch: { email?: unknown; role?: unknown; surname?: unknown; name?: unknown; patronymic?: unknown },
+  patch: { email?: unknown; role?: unknown; surname?: unknown; name?: unknown; patronymic?: unknown; region_id?: unknown },
 ): Promise<PublicUser> {
   const existing = await prisma.users.findFirst({ where: { id: userId, deleted_at: null } });
   if (!existing) throw httpError(404, 'Пользователь не найден', 'USER_NOT_FOUND');
 
-  const data: { email?: string; role?: RoleType; surname?: string | null; name?: string | null; patronymic?: string | null } = {};
+  const data: {
+    email?: string;
+    role?: RoleType;
+    surname?: string | null;
+    name?: string | null;
+    patronymic?: string | null;
+    region_id?: number | null;
+  } = {};
 
   if (patch.role !== undefined) {
     const role = parseRole(patch.role);
@@ -261,6 +290,7 @@ export async function updateUser(
   if (patch.surname !== undefined) data.surname = optionalText(patch.surname);
   if (patch.name !== undefined) data.name = optionalText(patch.name);
   if (patch.patronymic !== undefined) data.patronymic = optionalText(patch.patronymic);
+  if (patch.region_id !== undefined) data.region_id = await parseRegionId(patch.region_id);
 
   const user = await prisma.users.update({ where: { id: userId }, data, select: userSelect() });
   return serialize(user);

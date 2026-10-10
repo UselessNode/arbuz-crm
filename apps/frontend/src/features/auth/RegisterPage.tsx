@@ -1,11 +1,12 @@
 // Страница регистрации заявителя.
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Button, Checkbox, Container, Input } from '../../components/ui';
+import { Button, Checkbox, Container, Input, Select } from '../../components/ui';
 import { useAuth } from '../../auth/AuthContext';
 import { ApiError } from '../../api/client';
 import { ConsentDocumentType } from '../../api/consents';
 import { homePathForRole } from '../../lib/roles';
+import { useRegions } from '../../lib/use-regions';
 import { AgreementModal } from './AgreementModal';
 import melonLogo from '../../assets/images/Melon.png';
 import heroLogo from '../../assets/images/drawings/hero.svg';
@@ -28,11 +29,13 @@ const CONSENT_ITEMS = [
 export function RegisterPage() {
   const { user, loading, register } = useAuth();
   const navigate = useNavigate();
+  const { regions, loading: regionsLoading, defaultId } = useRegions();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [surname, setSurname] = useState('');
   const [name, setName] = useState('');
   const [patronymic, setPatronymic] = useState('');
+  const [regionId, setRegionId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [accepted, setAccepted] = useState<Record<ConsentDocumentType, boolean>>({
@@ -40,6 +43,11 @@ export function RegisterPage() {
     [ConsentDocumentType.personal_data_consent]: false,
   });
   const [openDocument, setOpenDocument] = useState<ConsentDocumentType | null>(null);
+
+  // Регион по умолчанию подставляем, когда список загрузился (и пользователь его не менял).
+  useEffect(() => {
+    setRegionId((current) => current || defaultId);
+  }, [defaultId]);
 
   if (!loading && user) {
     return <Navigate to={homePathForRole(user.role)} replace />;
@@ -59,6 +67,7 @@ export function RegisterPage() {
         surname: surname.trim() || null,
         name: name.trim() || null,
         patronymic: patronymic.trim() || null,
+        region_id: Number(regionId),
         accept_terms: accepted[ConsentDocumentType.terms],
         accept_personal_data_consent: accepted[ConsentDocumentType.personal_data_consent],
       });
@@ -80,9 +89,9 @@ export function RegisterPage() {
         </div>
 
         <div className={styles.brand}>
-          <img src={heroLogo} alt="Арбузный грант" className={styles.hero} />
+          <img src={heroLogo} alt="#Арбузныйгрант" className={styles.hero} />
           <div className={styles.brandRow}>
-            <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
+            <img src={melonLogo} alt="Логотип #Арбузныйгрант" className={styles.logo} />
             <h1 className={styles.title}>Регистрация</h1>
           </div>
           <p className={styles.subtitle}>Создайте аккаунт заявителя</p>
@@ -113,6 +122,13 @@ export function RegisterPage() {
             <Input label="Имя" value={name} onChange={(event) => setName(event.target.value)} />
           </div>
           <Input label="Отчество" value={patronymic} onChange={(event) => setPatronymic(event.target.value)} />
+          <Select
+            label="Ваш регион"
+            value={regionId}
+            onChange={setRegionId}
+            options={regions.map((region) => ({ value: String(region.id), label: region.name }))}
+            placeholder={regionsLoading ? 'Загрузка…' : 'Выберите регион'}
+          />
 
           {CONSENT_ITEMS.map((item) => (
             <div key={item.type} className={styles.agreement}>

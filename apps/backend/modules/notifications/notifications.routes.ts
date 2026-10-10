@@ -58,11 +58,12 @@ notificationsRouter.patch(
   }),
 );
 
+// Пометка прочитанными: без параметров — все; ?type=… — только выбранная категория.
 notificationsRouter.post(
   '/read-all',
   requireAuth,
   asyncHandler(async (req: Request, res: Response) => {
-    await markAllRead(req.user as CurrentUser);
+    await markAllRead(req.user as CurrentUser, parseType(req.query.type));
     res.json({ ok: true });
   }),
 );

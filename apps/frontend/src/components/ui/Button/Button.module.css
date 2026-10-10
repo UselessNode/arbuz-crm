@@ -19,7 +19,7 @@
 
 /* Визуальный отклик на нажатие */
 .button:active:not(:disabled) {
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 1px 3px var(--overlay-active);
 }
 
 .label {
@@ -51,7 +51,7 @@
 }
 
 .primary:active:not(:disabled) {
-  background-color: #1e3a8a; /* Темнее, чем hover */
+  background-color: var(--color-primary-active);
 }
 
 .secondary {
@@ -69,7 +69,7 @@
   color: var(--color-primary);
 }
 .ghost:hover:not(:disabled) {
-  background-color: var(--tone-blue-bg);
+  background-color: var(--overlay-hover);
 }
 
 .danger {
@@ -80,7 +80,7 @@
   background-color: var(--color-danger-hover);
 }
 .danger:active:not(:disabled) {
-  background-color: #991b1b; /* Темнее, чем hover */
+  background-color: var(--color-danger-active);
 }
 
 /* Размеры */

@@ -94,3 +94,10 @@
 .profileActions {
   margin-top: var(--space-4);
 }
+
+/* --- Адаптив --- */
+@media (max-width: 640px) {
+  .page {
+    padding: var(--space-3);
+  }
+}

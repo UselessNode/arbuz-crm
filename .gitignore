@@ -67,3 +67,9 @@ docs/media/
 notes/
 NOTES.md
 PLANS.md
+
+# --- Личные материалы заказчика (используется только hero.svg — он отслеживается отдельно) ---
+apps/frontend/src/assets/images/drawings/
+
+# --- Артефакты Playwright MCP (скриншоты/логи отладки агента) ---
+.playwright-mcp/

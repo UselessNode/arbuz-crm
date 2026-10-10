@@ -73,6 +73,7 @@ usersRouter.post(
       surname: req.body?.surname,
       name: req.body?.name,
       patronymic: req.body?.patronymic,
+      region_id: req.body?.region_id,
     });
     log.audit('users.create', { actorId: actor.id, userId: user.id, role: user.role });
     res.status(201).json({ user });
@@ -107,6 +108,7 @@ usersRouter.patch(
       surname: req.body?.surname,
       name: req.body?.name,
       patronymic: req.body?.patronymic,
+      region_id: req.body?.region_id,
     });
     log.audit('users.update', { actorId: actor.id, userId: user.id, role: user.role });
     res.json({ user });

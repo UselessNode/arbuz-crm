@@ -453,3 +453,27 @@
 .chipsReset:hover {
   text-decoration: underline;
 }
+
+/* --- Адаптив --- */
+@media (max-width: 640px) {
+  /* Поля фильтров не должны выезжать за экран. */
+  .search {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .multi,
+  .rangeWrap {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .panel {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+
+  .filterItem {
+    width: 100%;
+  }
+}

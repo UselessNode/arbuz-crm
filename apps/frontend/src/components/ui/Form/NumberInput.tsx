@@ -1,6 +1,6 @@
-// Поле ввода чисел: min/max/step и кнопки «±».
+// Числовое поле ввода: простой input с типом number (без кнопок «±»).
+// Числа вводятся вручную; на бэкенде ограничения всё равно проверяются.
 import { useId, type ReactNode } from 'react';
-import { Icon } from '../Icon';
 import styles from './Form.module.css';
 
 export interface NumberInputProps {
@@ -11,9 +11,22 @@ export interface NumberInputProps {
   max?: number;
   step?: number;
   disabled?: boolean;
+  /** Растянуть поле на всю ширину контейнера. */
+  fullWidth?: boolean;
+  placeholder?: string;
 }
 
-export function NumberInput({ label, value, onChange, min, max, step = 1, disabled = false }: NumberInputProps) {
+export function NumberInput({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  disabled = false,
+  fullWidth = false,
+  placeholder,
+}: NumberInputProps) {
   const autoId = useId();
   const inputId = `number-${autoId}`;
 
@@ -34,28 +47,24 @@ export function NumberInput({ label, value, onChange, min, max, step = 1, disabl
     onChange(clamp(parsed));
   };
 
+  const fieldClasses = [styles.field, fullWidth ? styles.fullWidth : ''].filter(Boolean).join(' ');
+
   return (
-    <span className={styles.field}>
+    <label className={fieldClasses} htmlFor={inputId}>
       {label ? <span className={styles.label}>{label}</span> : null}
-      <span className={styles.numberWrap}>
-        <button type="button" className={styles.stepButton} onClick={() => onChange(clamp(value - step))} disabled={disabled} aria-label="Уменьшить">
-          <Icon name="minus" size={14} />
-        </button>
-        <input
-          id={inputId}
-          type="number"
-          className={styles.numberInput}
-          value={value}
-          min={min}
-          max={max}
-          step={step}
-          disabled={disabled}
-          onChange={(event) => handleChange(event.target.value)}
-        />
-        <button type="button" className={styles.stepButton} onClick={() => onChange(clamp(value + step))} disabled={disabled} aria-label="Увеличить">
-          <Icon name="plus" size={14} />
-        </button>
-      </span>
-    </span>
+      <input
+        id={inputId}
+        type="number"
+        className={styles.input}
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        disabled={disabled}
+        placeholder={placeholder}
+        inputMode="numeric"
+        onChange={(event) => handleChange(event.target.value)}
+      />
+    </label>
   );
 }

@@ -10,9 +10,12 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-5);
-  /* Публичная зона и роль заявителя — синий (см. ролевые цвета в AppLayout). */
-  background-color: var(--tone-blue-bg);
-  color: var(--tone-blue-text);
+  /*
+   * Шапка нейтральная (как в кабинете): маркер роли живёт в сайдбаре,
+   * а публичная зона вообще без сайдбара — цветной шапке тут не место.
+   */
+  background-color: var(--color-surface);
+  color: var(--color-text);
   border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
@@ -23,40 +26,89 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  min-width: 0;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   color: inherit;
   text-decoration: none;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, filter 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .brand:hover {
-  /* Лёгкое затемнение — отклик на наведение без новых цветов (фон шапки ролевой). */
-  filter: brightness(0.94);
+  background-color: var(--overlay-hover);
 }
 
-/* Визуальный отклик на нажатие */
 .brand:active {
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+  background-color: var(--overlay-active);
 }
 
 .logo {
   width: 28px;
   height: 28px;
+  flex-shrink: 0;
   object-fit: contain;
 }
 
 .brandName {
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .actions {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/*
+ * Кнопки действий в шапке — полупрозрачный оверлей в тон шапки (без своего цвета
+ * поверхности), чтобы синяя публичная шапка и нейтральная кабинетная выглядели
+ * одинаково цельно. Отклик наведении — чуть плотнее.
+ */
+.themeToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.themeToggle:hover {
+  background-color: var(--overlay-hover);
+}
+
+.themeToggle:active {
+  background-color: var(--overlay-active);
 }
 
 .main {
   flex: 1;
   width: 100%;
+}
+
+/* --- Адаптив: узкие экраны --- */
+@media (max-width: 640px) {
+  .header {
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-2);
+  }
+
+  /* Название бренда в шапке скрываем — остаётся логотип, чтобы влезли действия. */
+  .brandName {
+    display: none;
+  }
+
+  .actions {
+    gap: var(--space-1);
+  }
 }

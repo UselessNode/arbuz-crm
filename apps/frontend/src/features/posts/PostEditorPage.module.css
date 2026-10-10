@@ -109,3 +109,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* --- Адаптив --- */
+@media (max-width: 640px) {
+  /* Поля строки формы растягиваются на всю ширину. */
+  .formRow > * {
+    flex-basis: 100%;
+  }
+
+  .fileName {
+    max-width: 100%;
+  }
+}

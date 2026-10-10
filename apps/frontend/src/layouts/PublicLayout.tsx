@@ -1,6 +1,7 @@
 // Публичный каркас (домашняя страница, «О проекте», политика): шапка, контент, футер.
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui';
+import { ThemeToggle } from '../theme/ThemeToggle';
 import { useAuth } from '../auth/AuthContext';
 import { homePathForRole } from '../lib/roles';
 import { NotificationsBell } from '../notifications/NotificationsBell';
@@ -18,13 +19,14 @@ export function PublicLayout() {
       <header className={styles.header}>
         <Link to="/" className={styles.brand}>
           <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
-          <span className={styles.brandName}>Arbuz CRM</span>
+          <span className={styles.brandName}>#Арбузныйгрант</span>
         </Link>
         <nav className={styles.actions}>
+          <ThemeToggle className={styles.themeToggle} />
           {!loading && user ? (
             <>
               <NotificationsBell />
-              <Button variant="secondary" size="sm" icon="user" onClick={() => navigate(cabinetPath)}>
+              <Button variant="ghost" size="sm" icon="user" onClick={() => navigate(cabinetPath)}>
                 Личный кабинет
               </Button>
             </>

@@ -9,10 +9,27 @@
 
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
+  --color-primary-active: #1e40af;
   --color-danger: #dc2626;
   --color-danger-hover: #b91c1c;
+  --color-danger-active: #991b1b;
   --color-success: #16a34a;
   --color-warning: #d97706;
+
+  /*
+   * Ссылки в текстах (уведомления, публикации). Отдельный токен, т.к. в тёмной
+   * теме яркий primary-акцент плохо читается на тёмном фоне — ссылки приглушены.
+   */
+  --color-link: #2563eb;
+  --color-link-hover: #1d4ed8;
+
+  /*
+   * Полупрозрачные оверлеи для интерактивных элементов на произвольном фоне
+   * (ролевой сайдбар, тона бейджей): в светлой теме — затемнение, в тёмной —
+   * осветление. Так отклик всегда отличим от фона.
+   */
+  --overlay-hover: rgba(15, 23, 42, 0.06);
+  --overlay-active: rgba(15, 23, 42, 0.12);
 
   /* Тона бейджей (Старые) */
   --tone-blue-bg: #dbeafe;
@@ -121,5 +138,76 @@
   --shadow-sm: 0 1px 2px rgba(31, 41, 51, 0.08);
   --shadow-md: 0 4px 12px rgba(31, 41, 51, 0.1);
 
+  /*
+   * Фоновый паттерн «семечки» — единый источник настройки.
+   * Значения читает useAppBackgroundPattern (src/theme) и собирает из них
+   * SVG-плитку. Меняйте вид фона только здесь.
+   */
+  --bg-pattern-seed-step: 40;      /* шаг сетки, px */
+  --bg-pattern-seed-size: 12;      /* размер семечка, px */
+  --bg-pattern-seed-angle: 45;     /* наклон, градусы */
+  --bg-pattern-seed-opacity: 0.05; /* прозрачность плитки */
+  --bg-pattern-seed-color: #12261b; /* цвет семечка (светлая тема) */
+
   --font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/*
+ * Тёмная тема. Переопределяются только базовые цвета и тона фонов/текста.
+ * Насыщенные тона бейджей (-light/-dark) в тёмной теме остаются теми же,
+ * но базовые пары bg/text притемняются для читаемости на тёмном фоне.
+ */
+[data-theme='dark'] {
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-border: #334155;
+  --color-text: #e2e8f0;
+  --color-muted: #94a3b8;
+
+  --color-primary: #60a5fa;
+  --color-primary-hover: #93c5fd;
+  --color-primary-active: #2563eb;
+  --color-danger: #f87171;
+  --color-danger-hover: #fca5a5;
+  --color-danger-active: #dc2626;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+
+  /* Ссылки в тёмной теме — приглушённее primary (мягче светятся). */
+  --color-link: #7cb3f0;
+  --color-link-hover: #a5c9f5;
+
+  /* В тёмной теме оверлеи осветляют (белый), а не затемняют. */
+  --overlay-hover: rgba(255, 255, 255, 0.08);
+  --overlay-active: rgba(255, 255, 255, 0.16);
+
+  /* Тона: светлые фоны становятся тёмно-прозрачными, тексты — осветляются. */
+  --tone-neutral-bg: #293548;  --tone-neutral-text: #cbd5e1;
+  --tone-gray-bg: #293548;     --tone-gray-text: #cbd5e1;
+  --tone-blue-bg: #1e3a5f;     --tone-blue-text: #93c5fd;
+  --tone-sky-bg: #14374d;      --tone-sky-text: #7dd3fc;
+  --tone-cyan-bg: #0e3b42;     --tone-cyan-text: #67e8f9;
+  --tone-teal-bg: #10403a;     --tone-teal-text: #5eead4;
+  --tone-green-bg: #143d2a;    --tone-green-text: #86efac;
+  --tone-lime-bg: #2a3a12;     --tone-lime-text: #bef264;
+  --tone-yellow-bg: #3d3413;   --tone-yellow-text: #fde047;
+  --tone-amber-bg: #402c14;    --tone-amber-text: #fcd34d;
+  --tone-orange-bg: #43220e;   --tone-orange-text: #fdba74;
+  --tone-red-bg: #43201f;      --tone-red-text: #fca5a5;
+  --tone-rose-bg: #431c2a;     --tone-rose-text: #fda4af;
+  --tone-pink-bg: #43193a;     --tone-pink-text: #f9a8d4;
+  --tone-fuchsia-bg: #43164a;  --tone-fuchsia-text: #f0abfc;
+  --tone-purple-bg: #33195a;   --tone-purple-text: #d8b4fe;
+  --tone-violet-bg: #2e205f;   --tone-violet-text: #c4b5fd;
+  --tone-indigo-bg: #232a5c;   --tone-indigo-text: #a5b4fc;
+
+  /* Светлые варианты тонов (используются как мягкий фон) в тёмной теме. */
+  --tone-neutral-bg-light: #222e42;
+  --tone-blue-bg-light: #1a3252;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+  /* Фоновый паттерн в тёмной теме: светлые семечки. */
+  --bg-pattern-seed-color: #cfe0ee;
 }

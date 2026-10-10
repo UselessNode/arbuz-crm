@@ -12,6 +12,9 @@ export interface UserBrief {
 
 export interface AuthUser extends UserBrief {
   role: RoleType;
+  /** Регион пользователя (справочник регионов). */
+  regionId: number | null;
+  regionName: string | null;
   /** null — аккаунт создан админом и ещё не активирован пользователем. */
   activatedAt: string | null;
 }

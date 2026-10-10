@@ -45,17 +45,17 @@ export function LoginPage() {
         </div>
 
         <div className={styles.brand}>
-          <img src={heroLogo} alt="Арбузный грант" className={styles.hero} />
+          <img src={heroLogo} alt="#Арбузныйгрант" className={styles.hero} />
           <div className={styles.brandRow}>
-            <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
-            <h1 className={styles.title}>Arbuz CRM</h1>
+            <img src={melonLogo} alt="Логотип #Арбузныйгрант" className={styles.logo} />
+            <h1 className={styles.title}>#Арбузныйгрант</h1>
           </div>
           <p className={styles.subtitle}>Вход в систему</p>
         </div>
 
         <form className={styles.form} onSubmit={handleSubmit}>
           <Input
-            label="Email"
+            label="Адрес электронной почты"
             type="email"
             icon="mail"
             autoComplete="username"

@@ -4,6 +4,7 @@
 // а провайдер держит только лёгкий счётчик, чтобы бейдж в шапке был актуален.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { notificationsApi } from '../api/notifications';
+import type { NotificationType } from '../lib/notification-types';
 import { useAuth } from '../auth/AuthContext';
 
 /** Период опроса счётчика непрочитанных (мс). Нагрузка мала (≤50 пользователей). */
@@ -16,8 +17,8 @@ interface NotificationsContextValue {
   refreshUnread: () => Promise<void>;
   /** Пометить одно уведомление прочитанным (счётчик уменьшается сразу). */
   markRead: (id: number) => Promise<void>;
-  /** Пометить все прочитанными. */
-  markAllRead: () => Promise<void>;
+  /** Пометить прочитанными: без типа — все; с типом — только выбранную категорию. */
+  markAllRead: (type?: NotificationType) => Promise<void>;
 }
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
@@ -62,10 +63,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setUnread((prev) => Math.max(0, prev - 1));
   }, []);
 
-  const markAllRead = useCallback(async () => {
-    await notificationsApi.markAllRead();
-    setUnread(0);
-  }, []);
+  const markAllRead = useCallback(async (type?: NotificationType) => {
+    await notificationsApi.markAllRead(type);
+    // Частичная пометка (по категории) — пересчитываем счётчик с сервера,
+    // а не обнуляем: остальные категории могли остаться непрочитанными.
+    await refreshUnread();
+  }, [refreshUnread]);
 
   const value = useMemo<NotificationsContextValue>(
     () => ({ unread, refreshUnread, markRead, markAllRead }),

@@ -5,8 +5,8 @@
 }
 
 /*
- * Тема задаётся переменными от контейнера шапки (`--header-control-*`), чтобы
- * колокольчик сочетался с ролевым фоном; вне шапки — обычный surface-стиль.
+ * Колокольчик в шапке — в едином стиле с остальными кнопками шапки
+ * (нейтральная поверхность, отклик на наведении через нейтральный тон).
  */
 .trigger {
   position: relative;
@@ -15,20 +15,24 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border: 1px solid var(--header-control-border, var(--color-border));
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  background-color: var(--header-control-bg, var(--color-surface));
+  background-color: transparent;
   color: inherit;
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .trigger:hover {
-  background-color: var(--header-control-bg-hover, var(--tone-neutral-bg));
+  background-color: var(--overlay-hover);
+}
+
+.trigger:active {
+  background-color: var(--overlay-active);
 }
 
 .trigger:focus-visible {
-  outline: 2px solid currentColor;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
@@ -54,8 +58,8 @@
   top: calc(100% + var(--space-2));
   right: 0;
   z-index: 210;
-  width: min(400px, calc(100vw - var(--space-5)));
-  max-height: min(520px, calc(100vh - 120px));
+  width: min(560px, calc(100vw - var(--space-5)));
+  max-height: min(560px, calc(100vh - 120px));
   display: flex;
   flex-direction: column;
   background-color: var(--color-surface);
@@ -76,11 +80,66 @@
 
 .panelTitle {
   font-weight: 700;
+  white-space: nowrap;
 }
 
-.filtersBar {
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--color-border);
+/* Двухколоночная область: слева список типов (как сайдбар), справа лента. */
+.panelBody {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.panelSidebar {
+  position: relative;
+  flex-shrink: 0;
+  width: 190px;
+  padding: var(--space-2);
+  border-right: 1px solid var(--color-border);
+  background-color: var(--tone-neutral-bg-light);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  transition: width 0.15s ease;
+}
+
+.panelSidebarCollapsed {
+  width: 64px;
+  align-items: center;
+}
+
+.panelSidebarCollapsed .collapseToggle {
+  align-self: center;
+}
+
+/* Кнопка свернуть/развернуть список типов. */
+.collapseToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-end;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.collapseToggle:hover {
+  background-color: var(--overlay-hover);
+  color: var(--color-text);
+}
+
+.panelMain {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list {
@@ -160,6 +219,17 @@
   overflow-wrap: anywhere;
 }
 
+/* Ссылки внутри текста уведомления: мягкий цвет темы вместо яркого браузерного. */
+.itemText :global(a) {
+  color: var(--color-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.itemText :global(a:hover) {
+  color: var(--color-link-hover);
+}
+
 /* Ограничиваем высоту вставленного Markdown внутри карточки. */
 .itemText :global(p) {
   margin: 0 0 0.25em;
@@ -217,7 +287,7 @@
   flex-shrink: 0;
   border: none;
   background-color: transparent;
-  color: var(--color-primary);
+  color: var(--color-link);
   font: inherit;
   font-weight: 600;
   cursor: pointer;

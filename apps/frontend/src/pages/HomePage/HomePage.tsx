@@ -21,6 +21,7 @@ import { PostStatuses } from '../../lib/post-status';
 import { formatDateTime } from '../../lib/format';
 import { copyToClipboard } from '../../lib/clipboard';
 import { ORGANIZER_CONTACTS } from '../../lib/contacts';
+import { useSiteSetting } from '../../lib/site/use-site-setting';
 import { PostContent } from '../../features/posts/PostContent';
 import heroLogo from '../../assets/images/drawings/hero.svg';
 import styles from './HomePage.module.css';
@@ -70,6 +71,8 @@ export function HomePage() {
   const [documents, setDocuments] = useState<PublicDocument[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(true);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
+  // Контакты организаторов правит администратор (настройки сайта).
+  const contacts = useSiteSetting('home_contacts');
 
   const loadPosts = useCallback(async () => {
     setLoading(true);
@@ -195,10 +198,9 @@ export function HomePage() {
     <div className={styles.page}>
       <section className={styles.hero}>
         <div>
-          <h1 className={styles.heroTitle}>Арбузный грант</h1>
+          <h1 className={styles.heroTitle}>#Арбузныйгрант</h1>
           <p className={styles.heroLead}>
-            Приём, экспертиза и рассмотрение заявок в одном месте. Войдите, чтобы подать заявку,
-            либо следите за новостями организации ниже.
+            Программа поддержки инициатив школьников
           </p>
         </div>
       </section>
@@ -272,7 +274,7 @@ export function HomePage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            icon="link"
+                            icon="chain"
                             aria-label="Скопировать ссылку на публикацию"
                             title="Скопировать ссылку"
                             onClick={() => {
@@ -359,7 +361,7 @@ export function HomePage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    icon="link"
+                    icon="chain"
                     aria-label="Скопировать ссылку на документ"
                     title="Скопировать ссылку"
                     onClick={() => void copyLink(`${window.location.origin}${documentsApi.downloadUrl(document.id)}`)}
@@ -373,10 +375,19 @@ export function HomePage() {
         <aside className={styles.aside} aria-label="Контакты">
           <section className={styles.sideCard} aria-label="Контакты организации">
             <h2 className={styles.sectionTitle}>Контакты</h2>
-            <ContactValue label="Телефон" value={ORGANIZER_CONTACTS.phone} />
-            <ContactValue label="Электронная почта" value={ORGANIZER_CONTACTS.email} />
+            {/* Содержимое блока правит администратор (настройки сайта, ключ `home_contacts`).
+                Если текст не задан — показываем контакты по умолчанию (клик копирует). */}
+            {contacts.text.trim() ? (
+              <div className={styles.contactsDoc} dangerouslySetInnerHTML={{ __html: contacts.html }} />
+            ) : (
+              <>
+                <ContactValue label="Телефон" value={ORGANIZER_CONTACTS.phone} />
+                <ContactValue label="Электронная почта" value={ORGANIZER_CONTACTS.email} />
+                <ContactValue label="Социальные сети - ВК" value={ORGANIZER_CONTACTS.vk} />
+              </>
+            )}
             <div className={styles.imgContainer}>
-              <img src={heroLogo} alt="Арбузный грант" className={styles.heroLogo} />
+              <img src={heroLogo} alt="#Арбузныйгрант" className={styles.heroLogo} />
             </div>
           </section>
         </aside>

@@ -1,9 +1,19 @@
-/* Страница центра уведомлений: сайдбар-список + текст выбранного. */
+/* Страница центра уведомлений: категории | список | текст выбранного. */
 .layout {
   display: flex;
   gap: var(--space-4);
   align-items: stretch;
   min-height: 60vh;
+}
+
+/* Колонка категорий — вертикальный список (как сайдбар). */
+.categories {
+  flex-shrink: 0;
+  width: 200px;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--tone-neutral-bg-light);
 }
 
 .sidebar {
@@ -16,11 +26,6 @@
   border-radius: var(--radius-md);
   background-color: var(--color-surface);
   overflow: hidden;
-}
-
-.filtersBar {
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--color-border);
 }
 
 .list {
@@ -172,10 +177,15 @@
   gap: var(--space-2);
 }
 
-/* Мобильные: один столбец, показываем либо список, либо выбранное уведомление. */
-@media (max-width: 767px) {
+/* Узкие экраны: категории сверху строкой, список и текст — по очереди. */
+@media (max-width: 900px) {
   .layout {
     flex-direction: column;
+  }
+
+  .categories {
+    width: 100%;
+    overflow-x: auto;
   }
 
   .sidebar {

@@ -330,6 +330,8 @@ model users {
   surname       String?        @db.VarChar(100)
   name          String?        @db.VarChar(100)
   patronymic    String?        @db.VarChar(100)
+  /// Регион пользователя (справочник regions). Nullable — у старых записей может быть пусто.
+  region_id     Int?
   role          RoleType       @default(applicant)
   last_activity DateTime       @default(now()) @db.Timestamptz(6)
   /// Активация учётной записи: null — аккаунт создан, но пользователь ещё не принял ПС/ПДн.
@@ -348,10 +350,30 @@ model users {
   consent_events    consent_events[]    @relation("ConsentEventUser")
   notifications     notifications[]     @relation("NotificationRecipient")
   notifications_sent notifications[]    @relation("NotificationAuthor")
+  region        regions?           @relation(fields: [region_id], references: [id], onUpdate: NoAction)
+  site_settings_updated site_settings[] @relation("SiteSettingAuthor")
 
   @@index([deleted_at], map: "idx_users_deleted", where: raw("(deleted_at IS NULL)"))
   @@index([last_activity], map: "idx_users_last_activity")
   @@index([role], map: "idx_users_role")
+  @@index([region_id], map: "idx_users_region")
+}
+
+/// Справочник регионов (субъекты РФ и прочие). Отдельная таблица — чтобы можно было
+/// добавлять/переименовывать регионы без изменения кода (юридическая устойчивость).
+model regions {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique @db.VarChar(200)
+  /// Регион по умолчанию (подставляется в формах) — ровно один.
+  is_default Boolean  @default(false)
+  /// Ручной порядок отображения (меньше — выше); при равенстве — по названию.
+  sort_order Int      @default(0)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  users      users[]
+
+  @@index([deleted_at], map: "idx_regions_deleted", where: raw("(deleted_at IS NULL)"))
 }
 
 model consent_files {
@@ -461,6 +483,19 @@ model documents {
   @@index([is_published, sort_order], map: "idx_documents_public")
   @@index([deleted_at], map: "idx_documents_deleted", where: raw("(deleted_at IS NULL)"))
   @@index([file_id], map: "idx_documents_file")
+}
+
+/// Настраиваемые администратором текстовые блоки сайта (ключ → значение, Markdown).
+/// Примеры ключей: 'about' (страница «О проекте»), 'home_contacts' (блок контактов на главной),
+/// 'footer' (содержимое подвала). Без версионирования — хранится только текущее значение.
+model site_settings {
+  key        String   @id @db.VarChar(50)
+  /// Текст в Markdown; фронтенду отдаётся безопасный HTML.
+  value      String   @db.Text
+  updated_by Int?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  author     users?   @relation("SiteSettingAuthor", fields: [updated_by], references: [id], onUpdate: NoAction)
 }
 
 // Настраиваемые администратором подсказки к разделам формы заявки (текст + ссылки на документы).

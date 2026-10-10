@@ -1,12 +1,13 @@
 // Активация аккаунта, созданного администратором: пользователь подтверждает данные,
 // при желании меняет пароль и обязательно принимает ПС и ПДн — только после этого аккаунт активен.
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Button, Checkbox, Container, Input, StateMessage } from '../../components/ui';
+import { Button, Checkbox, Container, Input, Select, StateMessage } from '../../components/ui';
 import { useAuth } from '../../auth/AuthContext';
 import { ApiError } from '../../api/client';
 import { ConsentDocumentType } from '../../api/consents';
 import { homePathForRole } from '../../lib/roles';
+import { useRegions } from '../../lib/use-regions';
 import type { AuthUser } from '../../api/types';
 import { AgreementModal } from './AgreementModal';
 import melonLogo from '../../assets/images/Melon.png';
@@ -42,6 +43,13 @@ function ActivateForm({ user }: { user: AuthUser }) {
   const [name, setName] = useState(user.name ?? '');
   const [patronymic, setPatronymic] = useState(user.patronymic ?? '');
   const [password, setPassword] = useState('');
+  const { regions, loading: regionsLoading, defaultId } = useRegions();
+  const [regionId, setRegionId] = useState(user.regionId ? String(user.regionId) : '');
+
+  // Если у аккаунта регион не задан — подставляем регион по умолчанию.
+  useEffect(() => {
+    setRegionId((current) => current || defaultId);
+  }, [defaultId]);
   const [accepted, setAccepted] = useState<Record<ConsentDocumentType, boolean>>({
     [ConsentDocumentType.terms]: false,
     [ConsentDocumentType.personal_data_consent]: false,
@@ -62,6 +70,7 @@ function ActivateForm({ user }: { user: AuthUser }) {
         surname: surname.trim() || null,
         name: name.trim() || null,
         patronymic: patronymic.trim() || null,
+        region_id: Number(regionId),
         password: password.trim() || undefined,
         accept_terms: accepted[ConsentDocumentType.terms],
         accept_personal_data_consent: accepted[ConsentDocumentType.personal_data_consent],
@@ -89,7 +98,7 @@ function ActivateForm({ user }: { user: AuthUser }) {
         </div>
 
         <div className={styles.brand}>
-          <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
+          <img src={melonLogo} alt="Логотип #Арбузныйгрант" className={styles.logo} />
           <h1 className={styles.title}>Активация аккаунта</h1>
           <p className={styles.subtitle}>
             Подтвердите данные и примите соглашения, чтобы начать работу
@@ -103,6 +112,13 @@ function ActivateForm({ user }: { user: AuthUser }) {
             <Input label="Имя" value={name} onChange={(event) => setName(event.target.value)} />
           </div>
           <Input label="Отчество" value={patronymic} onChange={(event) => setPatronymic(event.target.value)} />
+          <Select
+            label="Ваш регион"
+            value={regionId}
+            onChange={setRegionId}
+            options={regions.map((region) => ({ value: String(region.id), label: region.name }))}
+            placeholder={regionsLoading ? 'Загрузка…' : 'Выберите регион'}
+          />
           <Input
             label="Новый пароль"
             type="password"

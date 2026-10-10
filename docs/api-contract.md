@@ -9,20 +9,21 @@
 | Метод | Путь | Доступ | Запрос | Ответ |
 |---|---|---|---|---|
 | POST | `/api/auth/login` | все | `{ email, password }` | `200 { user }` + cookie |
-| POST | `/api/auth/register` | все (публично) | `{ email, password, surname?, name?, patronymic? }` | `201 { user }` + cookie (роль всегда `applicant`) |
+| POST | `/api/auth/register` | все (публично) | `{ email, password, surname?, name?, patronymic?, region_id?, accept_terms, accept_personal_data_consent }` | `201 { user }` + cookie (роль всегда `applicant`) |
+| POST | `/api/auth/activate` | неактивированный | `{ surname?, name?, patronymic?, region_id?, password?, accept_terms, accept_personal_data_consent }` | `{ user }` |
 | POST | `/api/auth/logout` | все | — | `{ ok: true }` |
 | GET | `/api/auth/me` | авторизованные | — | `{ user }` |
 
-`user`: `{ id, email, role, surname, name, patronymic }`
+`user`: `{ id, email, role, surname, name, patronymic, regionId, regionName, activatedAt }`
 
 ## Users (только admin)
 
 | Метод | Путь | Запрос | Ответ |
 |---|---|---|---|
 | GET | `/api/users?role=&limit=&offset=` | — | `{ users: User[], total: number }` |
-| POST | `/api/users` | `{ email, password, role, surname?, name?, patronymic? }` | `201 { user }` |
+| POST | `/api/users` | `{ email, password, role, surname?, name?, patronymic?, region_id? }` | `201 { user }` |
 | GET | `/api/users/:id` | — | `{ user }` |
-| PATCH | `/api/users/:id` | `{ email?, role?, surname?, name?, patronymic? }` | `{ user }` |
+| PATCH | `/api/users/:id` | `{ email?, role?, surname?, name?, patronymic?, region_id? }` | `{ user }` |
 | POST | `/api/users/:id/reset-password` | `{ password }` | `{ ok: true }` |
 | DELETE | `/api/users/:id` | — | `{ ok: true }` |
 | GET | `/api/users/experts` | admin | — | `{ experts: { id, email, name, surname, patronymic }[] }` (без пагинации) |
@@ -81,6 +82,19 @@ GET-эндпоинты (конкурсы, направления, статусы
 | GET/PATCH/DELETE | `/api/application-statuses/:id` | — |
 | GET/POST | `/api/review-statuses` | вердикты экспертиз: `{ name, description?, tone?, is_default? }` |
 | PATCH/DELETE | `/api/review-statuses/:id` | вердикт по умолчанию и используемый в экспертизах удалить нельзя |
+| GET/POST | `/api/regions` | `{ name, is_default?, sort_order? }` — справочник регионов |
+| GET/PATCH/DELETE | `/api/regions/:id` | — |
+
+## Site settings (тексты сайта)
+
+| Метод | Путь | Доступ | Запрос |
+|---|---|---|---|
+| GET | `/api/site-settings/:key` | **публично** | — → `{ setting }` (нужно главной, подвалу и странице «О проекте») |
+| GET | `/api/site-settings` | admin | — → `{ settings }` (все ключи) |
+| PUT | `/api/site-settings/:key` | admin | `{ text }` (Markdown; наружу отдаётся безопасный HTML) |
+
+Ключи (`SiteSettingKey`): `about` — страница «О проекте»; `home_contacts` — блок контактов на главной;
+`footer` — содержимое подвала (реквизиты). Без версионирования — хранится только текущее значение.
 
 ## Posts
 

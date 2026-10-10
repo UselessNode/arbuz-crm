@@ -34,8 +34,10 @@ import {
   toolbarPlugin,
   useCellValue,
   usePublisher,
+  type MDXEditorMethods,
 } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
+import { useEffect, useRef } from 'react';
 import { ruTranslation } from './translations';
 import styles from './MarkdownEditor.module.css';
 
@@ -70,11 +72,30 @@ function CalloutButton() {
 }
 
 export function MarkdownEditor({ markdown, onChange, uploadImage, placeholder, readOnly = false }: MarkdownEditorProps) {
+  const editorRef = useRef<MDXEditorMethods>(null);
+  // Последнее значение, которое редактор отдал наружу — чтобы не перетирать
+  // содержимое при вводе пользователем (markdown-проп меняется именно из-за него).
+  const lastEmitted = useRef(markdown);
+
+  // Внешнее изменение markdown (например, переключение вкладки или догрузка
+  // публикации): MDXEditor сам не реагирует на новый проп, поэтому применяем явно.
+  useEffect(() => {
+    if (markdown === lastEmitted.current) return;
+    lastEmitted.current = markdown;
+    editorRef.current?.setMarkdown(markdown);
+  }, [markdown]);
+
+  const handleChange = (value: string) => {
+    lastEmitted.current = value;
+    onChange(value);
+  };
+
   return (
     <div className={styles.editor}>
       <MDXEditor
+        ref={editorRef}
         markdown={markdown}
-        onChange={onChange}
+        onChange={handleChange}
         readOnly={readOnly}
         placeholder={placeholder}
         translation={ruTranslation}

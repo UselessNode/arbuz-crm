@@ -1,0 +1,20 @@
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.link:hover .text {
+  text-decoration: underline;
+}
+
+.icon {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.link:hover .icon {
+  opacity: 1;
+}

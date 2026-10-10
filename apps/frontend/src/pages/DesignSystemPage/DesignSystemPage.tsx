@@ -1,4 +1,4 @@
-// Дизайн-система Arbuz CRM: документация по компонентам и UI/UX.
+// Дизайн-система #Арбузныйгрант: документация по компонентам и UI/UX.
 //
 // Страница разбита на вкладки (основы, формы, данные, обратная связь, макет, иконки).
 // Каждый компонент описан текстом, показан живым примером (в пунктирной рамке — видно
@@ -312,7 +312,7 @@ function FormsTab() {
       <DocItem
         title="Input / NumberInput / Textarea"
         column
-        description="Текстовое поле с подписью, подсказкой и ошибкой. NumberInput добавляет шаг и границы; Textarea — многострочный ввод (в т.ч. Markdown)."
+        description="Текстовое поле с подписью, подсказкой и ошибкой. NumberInput — числовое поле (type=number) с границами; Textarea — многострочный ввод (в т.ч. Markdown)."
         code={`<Input label="Email" type="email" icon="mail" value={...} onChange={...} />
 <Input label="Ошибка" error="Обязательное поле" />
 <NumberInput label="Кол-во" value={3} min={0} onChange={...} />
@@ -885,7 +885,7 @@ function LayoutTab() {
           ariaLabel="Демонстрационные действия"
           items={[
             { key: 'edit', label: 'Изменить', icon: 'edit', onSelect: () => undefined },
-            { key: 'copy', label: 'Копировать', icon: 'link', onSelect: () => undefined },
+            { key: 'copy', label: 'Копировать', icon: 'chain', onSelect: () => undefined },
             { key: 'del', label: 'Удалить', icon: 'delete', danger: true, placement: 'menu', onSelect: () => undefined },
           ]}
         />

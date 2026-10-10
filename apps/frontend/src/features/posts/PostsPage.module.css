@@ -116,3 +116,11 @@
   color: var(--color-warning);
   font-weight: 500;
 }
+
+/* --- Адаптив --- */
+@media (max-width: 640px) {
+  .postTitle {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}

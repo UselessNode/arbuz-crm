@@ -1,5 +1,5 @@
 // Drag & drop поле для файлов: перетаскивание + клик для выбора.
-import { useRef, useState, type DragEvent, type InputHTMLAttributes, type ReactNode } from 'react';
+import { useState, type DragEvent, type ReactNode } from 'react';
 import { Icon } from '../Icon';
 import styles from './DragDrop.module.css';
 
@@ -13,8 +13,15 @@ export interface DragDropProps {
   hint?: ReactNode;
 }
 
+/**
+ * Зона загрузки файлов.
+ *
+ * Клик реализован через нативный `<label>` + скрытый `input[type=file]`, а не
+ * через программный `input.click()` с `hidden`: `display:none`-поле в части
+ * браузеров не открывает системный диалог (а внутри модального окна с
+ * фокус-ловушкой — тем более). Label-связка работает везде и доступна с клавиатуры.
+ */
 export function DragDrop({ onFiles, accept, multiple = true, disabled = false, hint }: DragDropProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
   const emit = (files: FileList | null) => {
@@ -22,27 +29,11 @@ export function DragDrop({ onFiles, accept, multiple = true, disabled = false, h
     onFiles?.(Array.from(files));
   };
 
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+  const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
     event.preventDefault();
     setDragging(false);
     if (disabled) return;
     emit(event.dataTransfer.files);
-  };
-
-  const openPicker = () => {
-    if (disabled) return;
-    inputRef.current?.click();
-  };
-
-  const inputProps: InputHTMLAttributes<HTMLInputElement> = {
-    type: 'file',
-    hidden: true,
-    multiple,
-    accept,
-    onChange: (event) => {
-      emit(event.target.files);
-      event.target.value = '';
-    },
   };
 
   const classes = [styles.zone, dragging ? styles.dragging : '', disabled ? styles.disabled : '']
@@ -50,25 +41,29 @@ export function DragDrop({ onFiles, accept, multiple = true, disabled = false, h
     .join(' ');
 
   return (
-    <div
+    <label
       className={classes}
-      onClick={openPicker}
       onDragOver={(event) => {
         event.preventDefault();
         if (!disabled) setDragging(true);
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
-      role="button"
-      tabIndex={disabled ? -1 : 0}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') openPicker();
-      }}
-      aria-label="Загрузить файлы"
+      aria-disabled={disabled || undefined}
     >
       <Icon name="upload" size={28} />
       <div className={styles.text}>{hint ?? 'Перетащите файлы сюда или нажмите для выбора'}</div>
-      <input ref={inputRef} {...inputProps} />
-    </div>
+      <input
+        className={styles.input}
+        type="file"
+        accept={accept}
+        multiple={multiple}
+        disabled={disabled}
+        onChange={(event) => {
+          emit(event.target.files);
+          event.target.value = '';
+        }}
+      />
+    </label>
   );
 }

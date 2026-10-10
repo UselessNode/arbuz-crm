@@ -1,4 +1,4 @@
-// Ролевое оформление каркаса: элементы навигации, цвет и заголовок шапки.
+// Ролевое оформление каркаса: элементы навигации, тон сайдбара и заголовок шапки.
 import type { RoleType } from '@arbuz/shared';
 import type { IconName } from '../components/ui';
 import { Roles } from '../lib/roles';
@@ -19,6 +19,7 @@ const ADMIN_NAV: NavItem[] = [
   { to: '/admin/documents',     label: 'Документы и согласия',   icon: 'document',   hidden: false },
   { to: '/admin/contests',      label: 'Конкурсы и направления',  icon: 'briefcase',  hidden: false },
   { to: '/admin/expertise',     label: 'Настройки экспертизы',    icon: 'filter',     hidden: false },
+  { to: '/admin/site',          label: 'Настройки сайта',        icon: 'settings',   hidden: false },
   { to: '/design-system',       label: 'Дизайн-система',          icon: 'settings',   hidden: true  },
 ];
 
@@ -43,10 +44,16 @@ export function navItemsForRole(role: RoleType): NavItem[] {
   return ACCOUNT_NAV;
 }
 
-export function headerClassForRole(role: RoleType): string {
-  if (role === Roles.admin) return styles.headerAdmin;
-  if (role === Roles.expert) return styles.headerExpert;
-  return styles.headerApplicant;
+/**
+ * Тон сайдбара зависит от роли — цветовой маркер роли перенесён со шапки
+ * на боковую панель. Шапка остаётся нейтральной (surface), чтобы интерфейс
+ * выглядел спокойнее и читался как рабочий инструмент.
+ */
+export function sidebarClassForRole(role: RoleType): string {
+  if (role === Roles.admin) return styles.sidebarAdmin;
+  if (role === Roles.expert) return styles.sidebarExpert;
+  if (role === Roles.applicant) return styles.sidebarApplicant;
+  return '';
 }
 
 export function titleForRole(role: RoleType): string {

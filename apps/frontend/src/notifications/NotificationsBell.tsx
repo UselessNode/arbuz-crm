@@ -7,7 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Icon, StateMessage, useIsMobile } from '../components/ui';
 import { notificationsApi, type NotificationItem } from '../api/notifications';
 import { ApiError } from '../api/client';
-import { NOTIFICATION_TYPE_META } from '../lib/notification-types';
+import { NOTIFICATION_TYPE_META, notificationTypesForRole } from '../lib/notification-types';
+import { useAuth } from '../auth/AuthContext';
 import { formatDateTime } from '../lib/format';
 import { NotificationFilters, type NotificationFilter } from './NotificationFilters';
 import { useNotifications } from './NotificationsContext';
@@ -16,18 +17,32 @@ import styles from './NotificationsBell.module.css';
 /** Сколько уведомлений подгружаем за раз при открытии панели. */
 const PAGE_SIZE = 50;
 
+/** Уменьшает счётчик категории и общий — после пометки одного уведомления прочитанным. */
+function decrementCounts(counts: Record<string, number>, type: NotificationItem['type']): Record<string, number> {
+  const next = { ...counts };
+  if (next[type]) next[type] = next[type] - 1;
+  if (next.all) next.all = next.all - 1;
+  return next;
+}
+
 export function NotificationsBell() {
   const { unread, refreshUnread, markRead, markAllRead } = useNotifications();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const panelId = useId();
+  // Служебные категории (и экспертиза для заявителя) в фильтре не показываем.
+  const availableTypes = user ? notificationTypesForRole(user.role) : [];
 
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<NotificationFilter>('all');
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Свёрнутый список типов (только иконки + счётчики).
+  const [collapsed, setCollapsed] = useState(false);
 
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -43,6 +58,7 @@ export function NotificationsBell() {
       });
       setItems(response.notifications);
       setTotal(response.total);
+      setCounts(response.counts ?? {});
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить уведомления');
     } finally {
@@ -99,6 +115,8 @@ export function NotificationsBell() {
       try {
         await markRead(item.id);
         setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, isRead: true } : row)));
+        // Счётчики категорий уменьшаем на месте (без перезагрузки списка).
+        setCounts((prev) => decrementCounts(prev, item.type));
       } catch {
         /* игнорируем: переход всё равно выполняем */
       }
@@ -115,16 +133,19 @@ export function NotificationsBell() {
     try {
       await markRead(item.id);
       setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, isRead: true } : row)));
+      setCounts((prev) => decrementCounts(prev, item.type));
     } catch {
       /* тихо */
     }
   };
 
+  // «Прочитать все» действует по активной категории: в «Все» — все уведомления,
+  // в конкретной категории — только она. Счётчики перезагружаем с сервера.
   const handleMarkAll = async () => {
-    if (unread === 0) return;
     try {
-      await markAllRead();
-      setItems((prev) => prev.map((row) => ({ ...row, isRead: true })));
+      await markAllRead(filter === 'all' ? undefined : filter);
+      setItems((prev) => prev.map((row) => (filter === 'all' || row.type === filter ? { ...row, isRead: true } : row)));
+      await load(filter);
     } catch {
       /* тихо */
     }
@@ -168,70 +189,90 @@ export function NotificationsBell() {
             </Button>
           </div>
 
-          <div className={styles.filtersBar}>
-            <NotificationFilters value={filter} onChange={setFilter} />
-          </div>
+          <div className={styles.panelBody}>
+            <aside className={`${styles.panelSidebar} ${collapsed ? styles.panelSidebarCollapsed : ''}`}>
+              <button
+                type="button"
+                className={styles.collapseToggle}
+                onClick={() => setCollapsed((prev) => !prev)}
+                aria-label={collapsed ? 'Развернуть список типов' : 'Свернуть список типов'}
+                title={collapsed ? 'Развернуть список типов' : 'Свернуть список типов'}
+              >
+                <Icon name={collapsed ? 'chevron-right' : 'chevron-left'} size={14} />
+              </button>
+              <NotificationFilters
+                value={filter}
+                onChange={setFilter}
+                vertical
+                collapsed={collapsed}
+                counts={counts}
+                types={availableTypes}
+              />
+            </aside>
 
-          <div className={styles.list}>
-            {loading ? (
-              <StateMessage state="loading" />
-            ) : error ? (
-              <StateMessage state="error" message={error} onRetry={() => void load(filter)} />
-            ) : items.length === 0 ? (
-              <StateMessage state="empty" message="Уведомлений нет" />
-            ) : (
-              items.map((item) => {
-                const meta = NOTIFICATION_TYPE_META[item.type];
-                return (
-                  <div
-                    key={item.id}
-                    className={`${styles.item} ${styles.itemClickable} ${item.isRead ? '' : styles.itemUnread}`}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => void handleRead(item)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        void handleRead(item);
-                      }
-                    }}
-                  >
-                    <span className={styles.itemIcon} aria-hidden="true">
-                      <Icon name={meta.icon} size={16} />
-                    </span>
-                    <div className={styles.itemBody}>
-                      <div className={styles.itemTop}>
-                        <span className={styles.itemTitle}>{item.title}</span>
-                        <span className={styles.itemDate}>{formatDateTime(item.createdAt)}</span>
-                      </div>
-                      {item.bodyHtml ? (
-                        <div className={styles.itemText} dangerouslySetInnerHTML={{ __html: item.bodyHtml }} />
-                      ) : null}
-                    </div>
-                    {!item.isRead ? (
-                      <button
-                        type="button"
-                        className={styles.markRead}
-                        title="Отметить прочитанным"
-                        aria-label="Отметить прочитанным"
-                        onClick={(event) => void handleMarkOne(event, item)}
+            <div className={styles.panelMain}>
+              <div className={styles.list}>
+                {loading ? (
+                  <StateMessage state="loading" />
+                ) : error ? (
+                  <StateMessage state="error" message={error} onRetry={() => void load(filter)} />
+                ) : items.length === 0 ? (
+                  <StateMessage state="empty" message="Уведомлений нет" />
+                ) : (
+                  items.map((item) => {
+                    const meta = NOTIFICATION_TYPE_META[item.type];
+                    return (
+                      <div
+                        key={item.id}
+                        className={`${styles.item} ${styles.itemClickable} ${item.isRead ? '' : styles.itemUnread}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => void handleRead(item)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            void handleRead(item);
+                          }
+                        }}
                       >
-                        <Icon name="check" size={14} />
-                      </button>
-                    ) : null}
-                  </div>
-                );
-              })
-            )}
-          </div>
+                        <span className={styles.itemIcon} aria-hidden="true">
+                          <Icon name={meta.icon} size={16} />
+                        </span>
+                        <div className={styles.itemBody}>
+                          <div className={styles.itemTop}>
+                            <span className={styles.itemTitle}>{item.title}</span>
+                            <span className={styles.itemDate}>{formatDateTime(item.createdAt)}</span>
+                          </div>
+                          {item.bodyHtml ? (
+                            <div className={styles.itemText} dangerouslySetInnerHTML={{ __html: item.bodyHtml }} />
+                          ) : null}
+                        </div>
+                        {!item.isRead ? (
+                          <button
+                            type="button"
+                            className={styles.markRead}
+                            title="Отметить прочитанным"
+                            aria-label="Отметить прочитанным"
+                            onClick={(event) => void handleMarkOne(event, item)}
+                          >
+                            <Icon name="check" size={14} />
+                          </button>
+                        ) : null}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
 
-          <div className={styles.footer}>
-            <span className={styles.footerInfo}>
-              {total > items.length ? `Показаны последние ${items.length} из ${total}` : ''}
-            </span>
-            <button type="button" className={styles.footerLink} onClick={goToPage}>
-              Все уведомления
-            </button>
+              <div className={styles.footer}>
+                <span className={styles.footerInfo}>
+                  {total > items.length ? `Показаны последние ${items.length} из ${total}` : ''}
+                </span>
+                <button type="button" className={styles.footerLink} onClick={goToPage}>
+                  Все уведомления
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}

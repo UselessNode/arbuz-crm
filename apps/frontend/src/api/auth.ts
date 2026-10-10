@@ -7,6 +7,8 @@ export interface RegisterPayload {
   surname?: string | null;
   name?: string | null;
   patronymic?: string | null;
+  /** Обязательный регион (id из справочника регионов). */
+  region_id: number;
   /** Обязательное принятие пользовательского соглашения. */
   accept_terms: boolean;
   /** Обязательное согласие на обработку персональных данных. */
@@ -17,6 +19,8 @@ export interface ActivatePayload {
   surname?: string | null;
   name?: string | null;
   patronymic?: string | null;
+  /** Обязательный регион (id из справочника регионов). */
+  region_id: number;
   /** Необязательная смена пароля. */
   password?: string;
   accept_terms: boolean;

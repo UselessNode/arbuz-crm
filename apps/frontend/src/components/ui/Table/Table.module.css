@@ -120,3 +120,13 @@
 .tableSeparate tbody tr:first-child td {
   border-top: none;
 }
+
+/* --- Адаптив --- */
+/* Компактнее ячейки на телефоне: заголовок всё равно не переносится,
+   а `.wrapper` уже умеет горизонтальный скролл. */
+@media (max-width: 640px) {
+  .table th,
+  .table td {
+    padding: var(--space-2);
+  }
+}

@@ -87,3 +87,11 @@
   color: var(--color-muted);
   font-size: 13px;
 }
+
+/* --- Адаптив --- */
+@media (max-width: 640px) {
+  /* Формы справочников идут в один столбец. */
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+}

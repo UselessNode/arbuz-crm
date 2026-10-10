@@ -19,9 +19,11 @@ import { DocumentsPage } from '../features/documents/DocumentsPage';
 import { NotificationsPage } from '../notifications/NotificationsPage';
 import { ContestSettingsPage } from '../features/references/ContestSettingsPage';
 import { ExpertiseSettingsPage } from '../features/references/ExpertiseSettingsPage';
+import { SiteSettingsPage } from '../features/settings/SiteSettingsPage';
 import { DesignSystemPage } from '../pages/DesignSystemPage/DesignSystemPage';
 import { HomePage } from '../pages/HomePage/HomePage';
 import { AboutPage } from '../pages/AboutPage';
+import { ErrorReportPage } from '../pages/ErrorReportPage';
 import { PrivacyPolicyPage } from '../pages/PrivacyPolicyPage';
 import { AccountPage } from '../pages/AccountPage';
 import { ForbiddenPage } from '../pages/ForbiddenPage';
@@ -40,6 +42,7 @@ export function AppRouter() {
       <Route element={<PublicLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/errors" element={<ErrorReportPage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
       </Route>
 
@@ -96,6 +99,7 @@ export function AppRouter() {
         <Route path="tenders" element={<Navigate to="/admin/contests" replace />} />
         <Route path="directions" element={<Navigate to="/admin/contests" replace />} />
         <Route path="expertise" element={<ExpertiseSettingsPage />} />
+        <Route path="site" element={<SiteSettingsPage />} />
         <Route path="statuses" element={<Navigate to="/admin/expertise" replace />} />
       </Route>
 

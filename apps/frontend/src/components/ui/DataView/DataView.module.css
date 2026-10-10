@@ -162,3 +162,22 @@
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* --- Адаптив --- */
+@media (max-width: 640px) {
+  /* Панель фильтров в одну колонку, отступы компактнее. */
+  .panel {
+    gap: var(--space-3);
+    padding: var(--space-3);
+  }
+
+  /* Счётчик не выталкивает кнопки в отдельную строку. */
+  .count {
+    margin-left: 0;
+  }
+
+  .bulk {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+}

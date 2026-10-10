@@ -12,7 +12,7 @@ import {
   requireRegistrationConsents,
   type ConsentRequestMeta,
 } from '../consents/consents.service';
-import { notifyRole } from '../notifications/notifications.service';
+import { notifyRole, notifyNewUserAboutRecentPosts } from '../notifications/notifications.service';
 
 export interface SessionUser {
   id: number;
@@ -26,6 +26,8 @@ export interface PublicUser {
   surname: string | null;
   name: string | null;
   patronymic: string | null;
+  regionId: number | null;
+  regionName: string | null;
   /** null — аккаунт создан админом и ещё не активирован пользователем. */
   activatedAt: Date | null;
 }
@@ -78,10 +80,21 @@ export interface RegisterInput {
   surname?: unknown;
   name?: unknown;
   patronymic?: unknown;
+  region_id?: unknown;
   /** Обязательное принятие пользовательского соглашения. */
   accept_terms?: unknown;
   /** Обязательное согласие на обработку персональных данных. */
   accept_personal_data_consent?: unknown;
+}
+
+/** Резолвит id региона (или null); проверяет существование. */
+async function resolveRegionId(value: unknown): Promise<number | null> {
+  if (value === undefined || value === null || value === '') return null;
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) throw httpError(400, 'Некорректный регион', 'INVALID_REGION');
+  const region = await prisma.regions.findFirst({ where: { id, deleted_at: null }, select: { id: true } });
+  if (!region) throw httpError(404, 'Регион не найден', 'REGION_NOT_FOUND');
+  return id;
 }
 
 /** Саморегистрация заявителя (роль всегда applicant). */
@@ -99,6 +112,7 @@ export async function registerApplicant(input: RegisterInput, meta: ConsentReque
     accept_personal_data_consent: input.accept_personal_data_consent,
   });
   const passwordHash = await hashPassword(password);
+  const regionId = await resolveRegionId(input.region_id);
 
   const user = await prisma.$transaction(async (tx) => {
     const created = await tx.users.create({
@@ -109,6 +123,7 @@ export async function registerApplicant(input: RegisterInput, meta: ConsentReque
         surname: optionalName(input.surname),
         name: optionalName(input.name),
         patronymic: optionalName(input.patronymic),
+        region_id: regionId,
         // Саморегистрация: пользователь сразу принял ПС/ПДн → аккаунт активен.
         activated_at: new Date(),
       },
@@ -124,6 +139,8 @@ export async function registerApplicant(input: RegisterInput, meta: ConsentReque
     body: `${email} зарегистрировался самостоятельно.`,
     link: '/admin/users',
   });
+  // Новому пользователю — уведомления о 10 последних новостях (включая закреплённые).
+  await notifyNewUserAboutRecentPosts(user.id);
 
   return user;
 }
@@ -132,6 +149,7 @@ export interface ActivateInput {
   surname?: unknown;
   name?: unknown;
   patronymic?: unknown;
+  region_id?: unknown;
   /** Необязательная смена пароля (если задан — должен проходить политику). */
   password?: unknown;
   accept_terms?: unknown;
@@ -161,12 +179,14 @@ export async function activateAccount(userId: number, input: ActivateInput, meta
     surname?: string | null;
     name?: string | null;
     patronymic?: string | null;
+    region_id?: number | null;
     password_hash?: string;
   } = { activated_at: new Date() };
 
   if (input.surname !== undefined) data.surname = optionalName(input.surname);
   if (input.name !== undefined) data.name = optionalName(input.name);
   if (input.patronymic !== undefined) data.patronymic = optionalName(input.patronymic);
+  if (input.region_id !== undefined) data.region_id = await resolveRegionId(input.region_id);
   if (input.password !== undefined && input.password !== null && String(input.password) !== '') {
     data.password_hash = await hashPassword(parsePassword(input.password));
   }

@@ -1,14 +1,15 @@
-// Каркас авторизованной части: сайдбар с навигацией по ролям, цветная шапка, футер.
+// Каркас авторизованной части: сайдбар с навигацией по ролям и ролевым тоном, шапка, футер.
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Icon } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
+import { ThemeToggle } from '../theme/ThemeToggle';
 import { formatUserName } from '../lib/format';
 import { NotificationsBell } from '../notifications/NotificationsBell';
 import melonLogo from '../assets/images/Melon.png';
 import { Footer } from './Footer';
 import { ScrollToTopButton } from './ScrollToTopButton';
-import { headerClassForRole, navItemsForRole, titleForRole } from './roleTheme';
+import { sidebarClassForRole, navItemsForRole, titleForRole } from './roleTheme';
 import styles from './AppLayout.module.css';
 
 const SIDEBAR_STORAGE_KEY = 'arbuz.sidebarCollapsed';
@@ -26,6 +27,8 @@ export function AppLayout() {
       return false;
     }
   });
+  // Мобильное меню: сайдбар выезжает оверлеем поверх контента.
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -35,6 +38,9 @@ export function AppLayout() {
     }
   }, [collapsed]);
 
+  // На мобильном меню закрывается при смене маршрута (клик по ссылке).
+  const closeMobile = () => setMobileOpen(false);
+
   if (!user) return null; // доступ защищён ProtectedRoute
 
   const handleLogout = async () => {
@@ -43,14 +49,22 @@ export function AppLayout() {
   };
 
   return (
-    <div className={styles.layout}>
+    <div className={`${styles.layout} ${mobileOpen ? styles.layoutMenuOpen : ''}`}>
+      {mobileOpen ? (
+        <button
+          type="button"
+          className={styles.scrim}
+          aria-label="Закрыть меню"
+          onClick={closeMobile}
+        />
+      ) : null}
       <aside
         id="app-sidebar"
-        className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''}`}
+        className={`${styles.sidebar} ${sidebarClassForRole(user.role)} ${collapsed ? styles.sidebarCollapsed : ''} ${mobileOpen ? styles.sidebarMobileOpen : ''}`}
       >
-        <Link to="/" className={styles.brand} title="Arbuz CRM">
-          <img src={melonLogo} alt="Логотип Arbuz CRM" className={styles.logo} />
-          <span className={styles.brandName}>Arbuz CRM</span>
+        <Link to="/" className={styles.brand} title="#Арбузныйгрант" onClick={closeMobile}>
+          <img src={melonLogo} alt="Логотип #Арбузныйгрант" className={styles.logo} />
+          <span className={styles.brandName}>#Арбузныйгрант</span>
         </Link>
 
         <button
@@ -72,6 +86,7 @@ export function AppLayout() {
               <NavLink
                 key={item.to}
                 to={item.to}
+                onClick={closeMobile}
                 className={({ isActive }) =>
                   isActive ? `${styles.navItem} ${styles.navItemActive}` : styles.navItem
                 }
@@ -87,15 +102,28 @@ export function AppLayout() {
       </aside>
 
       <div className={styles.main}>
-        <header className={`${styles.header} ${headerClassForRole(user.role)}`}>
-          <span className={styles.headerTitle}>{titleForRole(user.role)}</span>
+        <header className={styles.header}>
+          <div className={styles.headerLeft}>
+            <button
+              type="button"
+              className={styles.menuToggle}
+              aria-label="Открыть меню"
+              aria-controls="app-sidebar"
+              aria-expanded={mobileOpen}
+              onClick={() => setMobileOpen(true)}
+            >
+              <Icon name="menu" size={18} />
+            </button>
+            <span className={styles.headerTitle}>{titleForRole(user.role)}</span>
+          </div>
           <div className={styles.user}>
             <span className={styles.userName}>{formatUserName(user)}</span>
             <div className={styles.headerControls}>
+              <ThemeToggle className={styles.headerButton} />
               <NotificationsBell />
-              <button type="button" className={styles.headerButton} onClick={handleLogout}>
+              <button type="button" className={styles.headerButton} onClick={handleLogout} aria-label="Выйти">
                 <Icon name="logout" size={16} />
-                <span>Выйти</span>
+                <span className={styles.buttonLabel}>Выйти</span>
               </button>
             </div>
           </div>

@@ -23,6 +23,7 @@ import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { Roles } from '../../lib/roles';
 import { formatDate, formatDateTime, formatUserName } from '../../lib/format';
+import { useRegions } from '../../lib/use-regions';
 import styles from './UsersPage.module.css';
 
 /** Сколько полных дней прошло с момента создания аккаунта. */
@@ -58,8 +59,10 @@ function UserFormModal({
   const [surname, setSurname] = useState('');
   const [name, setName] = useState('');
   const [patronymic, setPatronymic] = useState('');
+  const [regionId, setRegionId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const { regions } = useRegions();
 
   useEffect(() => {
     if (!open) return;
@@ -69,6 +72,7 @@ function UserFormModal({
     setSurname(initial?.surname ?? '');
     setName(initial?.name ?? '');
     setPatronymic(initial?.patronymic ?? '');
+    setRegionId(initial?.regionId ? String(initial.regionId) : '');
     setError(null);
   }, [open, initial]);
 
@@ -83,6 +87,7 @@ function UserFormModal({
         surname: surname.trim() || null,
         name: name.trim() || null,
         patronymic: patronymic.trim() || null,
+        region_id: regionId ? Number(regionId) : null,
       };
       if (isEdit && initial) {
         await usersApi.update(initial.id, payload);
@@ -124,6 +129,13 @@ function UserFormModal({
         <Input label="Фамилия" value={surname} onChange={(e) => setSurname(e.target.value)} />
         <Input label="Имя" value={name} onChange={(e) => setName(e.target.value)} />
         <Input label="Отчество" value={patronymic} onChange={(e) => setPatronymic(e.target.value)} />
+        <Select
+          label="Регион"
+          value={regionId}
+          onChange={setRegionId}
+          options={regions.map((region) => ({ value: String(region.id), label: region.name }))}
+          placeholder="Не указан"
+        />
         {error ? <div className={styles.error}>{error}</div> : null}
         <div className={styles.formActions}>
           <Button variant="secondary" type="button" onClick={onClose} disabled={saving}>
@@ -414,21 +426,11 @@ export function UsersPage() {
       { key: 'name', header: 'ФИО', render: (user) => formatUserName(user), sortValue: (user) => formatUserName(user).toLowerCase() },
       { key: 'email', header: 'Email', field: 'email' as const }, // <-- as const
       {
-        key: 'activated_at',
-        header: 'Активация',
+        key: 'region',
+        header: 'Регион',
         width: '200px',
-        sortValue: (user) => (user.activatedAt ? 1 : 0),
-        // Показываем только проблему: активные аккаунты не засоряют колонку.
-        render: (user) => {
-          if (user.activatedAt) return null;
-          const days = daysSince(user.createdAt);
-          const tone = days > 7 ? 'red' : days > 3 ? 'yellow' : 'gray';
-          return (
-            <Badge tone={tone} icon="warning" maxWidth={190}>
-              {days === 0 ? 'Не активирован · сегодня' : `Не активирован · ${days} дн.`}
-            </Badge>
-          );
-        },
+        sortValue: (user) => user.regionName ?? '',
+        render: (user) => user.regionName ?? '—',
       },
       {
         key: 'role',
@@ -444,7 +446,21 @@ export function UsersPage() {
       {
         key: 'created_at',
         header: 'Создан',
-        render: (user) => formatDate(user.createdAt),
+        // Пометка активации — рядом с датой создания и только для неактивных аккаунтов:
+        // отдельный столбец занимал бы место и почти всегда был пуст.
+        render: (user) => {
+          if (user.activatedAt) return formatDate(user.createdAt);
+          const days = daysSince(user.createdAt);
+          const tone = days > 7 ? 'red' : days > 3 ? 'yellow' : 'gray';
+          return (
+            <span className={styles.createdCell}>
+              {formatDate(user.createdAt)}
+              <Badge tone={tone} icon="warning" maxWidth={190}>
+                {days === 0 ? 'Не активирован · сегодня' : `Не активирован · ${days} дн.`}
+              </Badge>
+            </span>
+          );
+        },
         sortValue: (user) => user.createdAt,
       },
       {

@@ -55,3 +55,24 @@
 .rowInactiveDanger {
   background-color: var(--tone-red-bg);
 }
+
+/* Дата создания + пометка «не активирован» для неактивных аккаунтов. */
+.createdCell {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+/* --- Адаптив --- */
+@media (max-width: 640px) {
+  /* Панель расширенных фильтров — в одну колонку и на всю ширину. */
+  .filtersPanel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .countRange {
+    max-width: none;
+  }
+}

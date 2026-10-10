@@ -18,6 +18,8 @@ function toPublicUser(user: {
   surname: string | null;
   name: string | null;
   patronymic: string | null;
+  region_id: number | null;
+  region?: { name: string } | null;
   activated_at: Date | null;
 }): PublicUser {
   return {
@@ -27,6 +29,8 @@ function toPublicUser(user: {
     surname: user.surname,
     name: user.name,
     patronymic: user.patronymic,
+    regionId: user.region_id,
+    regionName: user.region?.name ?? null,
     activatedAt: user.activated_at,
   };
 }
@@ -48,7 +52,7 @@ authRouter.post(
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
     if (!email || !password) throw httpError(400, 'Укажите email и пароль', 'INVALID_BODY');
 
-    const user = await prisma.users.findUnique({ where: { email } });
+    const user = await prisma.users.findUnique({ where: { email }, include: { region: { select: { name: true } } } });
     if (!user || user.deleted_at || !(await verifyPassword(password, user.password_hash))) {
       log.audit('auth.login_failed', { email });
       throw httpError(401, 'Неверный email или пароль', 'INVALID_CREDENTIALS');
@@ -75,6 +79,7 @@ authRouter.post(
         surname: req.body?.surname,
         name: req.body?.name,
         patronymic: req.body?.patronymic,
+        region_id: req.body?.region_id,
         accept_terms: req.body?.accept_terms,
         accept_personal_data_consent: req.body?.accept_personal_data_consent,
       },
@@ -102,7 +107,7 @@ authRouter.get(
   '/me',
   requireAuthAllowInactive,
   asyncHandler(async (req, res) => {
-    const user = await prisma.users.findUnique({ where: { id: req.user!.id } });
+    const user = await prisma.users.findUnique({ where: { id: req.user!.id }, include: { region: { select: { name: true } } } });
     if (!user || user.deleted_at) throw httpError(401, 'Пользователь не найден', 'UNAUTHORIZED');
     res.json({ user: toPublicUser(user) });
   }),
@@ -121,6 +126,7 @@ authRouter.post(
         surname: req.body?.surname,
         name: req.body?.name,
         patronymic: req.body?.patronymic,
+        region_id: req.body?.region_id,
         password: req.body?.password,
         accept_terms: req.body?.accept_terms,
         accept_personal_data_consent: req.body?.accept_personal_data_consent,

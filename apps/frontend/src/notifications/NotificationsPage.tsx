@@ -6,7 +6,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Badge, Button, Container, Icon, StateMessage, useIsMobile } from '../components/ui';
 import { notificationsApi, type NotificationItem } from '../api/notifications';
 import { ApiError } from '../api/client';
-import { NOTIFICATION_TYPE_META } from '../lib/notification-types';
+import { NOTIFICATION_TYPE_META, notificationTypesForRole } from '../lib/notification-types';
+import { useAuth } from '../auth/AuthContext';
 import { formatDateTime } from '../lib/format';
 import { PostContent } from '../features/posts/PostContent';
 import { NotificationFilters, type NotificationFilter } from './NotificationFilters';
@@ -19,11 +20,15 @@ const PAGE_SIZE = 100;
 export function NotificationsPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { user } = useAuth();
   const { unread, markRead, markAllRead } = useNotifications();
+  // Служебные категории (неактивный/новый пользователь) показываем только админу.
+  const availableTypes = user ? notificationTypesForRole(user.role) : [];
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [filter, setFilter] = useState<NotificationFilter>('all');
   const [items, setItems] = useState<NotificationItem[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -38,6 +43,7 @@ export function NotificationsPage() {
         offset: 0,
       });
       setItems(response.notifications);
+      setCounts(response.counts ?? {});
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить уведомления');
     } finally {
@@ -79,11 +85,11 @@ export function NotificationsPage() {
     }
   };
 
+  // «Прочитать все» — по активной категории: в «Все» отмечаем всё, в категории — только её.
   const handleMarkAll = async () => {
-    if (unread === 0) return;
     try {
-      await markAllRead();
-      setItems((prev) => prev.map((row) => ({ ...row, isRead: true })));
+      await markAllRead(filter === 'all' ? undefined : filter);
+      setItems((prev) => prev.map((row) => (filter === 'all' || row.type === filter ? { ...row, isRead: true } : row)));
     } catch {
       /* тихо */
     }
@@ -102,10 +108,17 @@ export function NotificationsPage() {
       }
     >
       <div className={styles.layout}>
+        <nav className={styles.categories} aria-label="Категории уведомлений">
+          <NotificationFilters
+            value={filter}
+            onChange={handleFilter}
+            vertical
+            counts={counts}
+            types={availableTypes}
+          />
+        </nav>
+
         <aside className={`${styles.sidebar} ${isMobile && selected ? styles.hiddenOnMobile : ''}`}>
-          <div className={styles.filtersBar}>
-            <NotificationFilters value={filter} onChange={handleFilter} />
-          </div>
           <div className={styles.list}>
             {loading ? (
               <StateMessage state="loading" />

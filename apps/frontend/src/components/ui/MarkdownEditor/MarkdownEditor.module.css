@@ -4,6 +4,59 @@
   overflow: hidden;
 }
 
+/*
+ * MDXEditor задаёт свои CSS-переменные на корневом `.mdxeditor` и НЕ наследует
+ * их от родителя, поэтому переопределять надо именно на нём. Иначе редактор
+ * остаётся на дефолтной светлой теме Radix даже в тёмном режиме.
+ */
+.editor :global(.mdxeditor) {
+  --basePageBg: var(--color-surface);
+  --baseBase: var(--color-bg);
+  --baseBgSubtle: var(--color-bg);
+  --baseBg: var(--color-surface);
+  --baseBgHover: var(--tone-neutral-bg);
+  --baseBgActive: var(--tone-neutral-bg-light);
+  --baseLine: var(--color-border);
+  --baseBorder: var(--color-border);
+  --baseBorderHover: var(--color-primary);
+  --baseSolid: var(--color-muted);
+  --baseSolidHover: var(--color-text);
+  --baseText: var(--color-text);
+  --baseTextContrast: var(--color-text);
+
+  --accentSolid: var(--color-primary);
+  --accentSolidHover: var(--color-primary-hover);
+  --accentText: var(--color-primary);
+  --accentTextContrast: #fff;
+  --accentBorder: var(--color-primary);
+  --accentBorderHover: var(--color-primary-hover);
+  --accentLine: var(--color-border);
+
+  --error-color: var(--color-danger);
+}
+
+/* Тулбар: принудительно на поверхности, чтобы не оставался светлым в тёмной теме. */
+.editor :global(.mdxeditor-toolbar) {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Всплывающие слои MDXEditor (меню, диалоги) портируются в body: задаём
+   фон/цвет из темы и поднимаем z-index выше оверлеев приложения. */
+:global(.mdxeditor-popup-container) {
+  --basePageBg: var(--color-surface);
+  --baseBg: var(--color-surface);
+  --baseBgHover: var(--tone-neutral-bg);
+  --baseBorder: var(--color-border);
+  --baseText: var(--color-text);
+  --baseTextContrast: var(--color-text);
+  --accentSolid: var(--color-primary);
+  --accentText: var(--color-primary);
+  color: var(--color-text);
+  z-index: 200;
+}
+
 /* Область ввода: комфортная высота и типографика. */
 .content {
   min-height: 320px;
@@ -30,13 +83,4 @@
 .content img {
   max-width: 100%;
   height: auto;
-}
-
-/*
- * Всплывающие слои редактора (выбор стиля блока, меню таблицы, диалоги ссылки и картинки)
- * портируются в `body`. У MDXEditor они с z-index до 52 — поднимаем выше оверлеев приложения,
- * чтобы попапы не уходили под модальное окно (например, при правке из карточки заявки).
- */
-:global(.mdxeditor-popup-container) {
-  z-index: 200;
 }

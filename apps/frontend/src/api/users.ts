@@ -33,6 +33,7 @@ export interface UserPayload {
   surname?: string | null;
   name?: string | null;
   patronymic?: string | null;
+  region_id?: number | null;
 }
 
 export interface UserPatch {
@@ -41,6 +42,7 @@ export interface UserPatch {
   surname?: string | null;
   name?: string | null;
   patronymic?: string | null;
+  region_id?: number | null;
 }
 
 /** Эксперт для селекта назначения (без служебных полей). */

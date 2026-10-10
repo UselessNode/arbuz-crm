@@ -1,30 +1,28 @@
-// Страница «О проекте».
-import { Container } from '../components/ui';
+// Страница «О проекте». Текст редактируется администратором (настройки сайта, ключ `about`).
+import { Container, StateMessage } from '../components/ui';
+import { useSiteSetting } from '../lib/site/use-site-setting';
 import styles from './AboutPage.module.css';
 
+/** Запасной текст, если настройка недоступна. */
+const FALLBACK = [
+  '**#Арбузныйгрант** — информационная система приёма и рассмотрения грантовых заявок для некоммерческих организаций.',
+  '',
+  'Система сопровождает полный цикл: подача заявки, её экспертиза и итоговое решение.',
+].join('\n');
+
 export function AboutPage() {
+  const setting = useSiteSetting('about', FALLBACK);
+
   return (
     <div className={styles.page}>
       <Container title="О проекте">
-        <div className={styles.content}>
-          <p>
-            <strong>Arbuz CRM</strong> — информационная система приёма и рассмотрения грантовых
-            заявок для некоммерческих организаций. Система сопровождает полный цикл: подача заявки,
-            её экспертиза и итоговое решение.
-          </p>
-          <p>Основные возможности:</p>
-          <ul>
-            <li>регистрация заявителей и подача заявок с составом команды, планом и бюджетом проекта;</li>
-            <li>прикрепление материалов и файлов согласий на обработку персональных данных;</li>
-            <li>назначение экспертов и проведение экспертиз по критериям конкурса;</li>
-            <li>управление конкурсами, направлениями и справочниками;</li>
-            <li>публикации и новости как канал обратной связи с пользователями;</li>
-            <li>выгрузка заявки в PDF.</li>
-          </ul>
-          <p className={styles.muted}>
-            Контактная информация организации будет добавлена позже.
-          </p>
-        </div>
+        {setting.loading ? (
+          <StateMessage state="loading" />
+        ) : (
+          <div className={styles.content}>
+            <div className={styles.document} dangerouslySetInnerHTML={{ __html: setting.html }} />
+          </div>
+        )}
       </Container>
     </div>
   );

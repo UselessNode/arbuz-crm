@@ -28,6 +28,8 @@ export interface NotificationListResult {
   total: number;
   /** Всего непрочитанных (независимо от фильтра). */
   unread: number;
+  /** Количество уведомлений по каждому типу + `all` (всего). Для счётчиков в фильтре. */
+  counts: Record<string, number>;
 }
 
 export const notificationsApi = {
@@ -46,7 +48,9 @@ export const notificationsApi = {
   markRead(id: number) {
     return api.patch<{ ok: boolean }>(`/notifications/${id}/read`, {});
   },
-  markAllRead() {
-    return api.post<{ ok: boolean }>('/notifications/read-all', {});
+  /** Без типа — все категории; с типом — только выбранная. */
+  markAllRead(type?: NotificationType) {
+    const suffix = type ? `?type=${encodeURIComponent(type)}` : '';
+    return api.post<{ ok: boolean }>(`/notifications/read-all${suffix}`, {});
   },
 };

@@ -1,6 +1,6 @@
 {
   "name": "@arbuz/shared",
-  "version": "1.27.2",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "main": "./index.ts",

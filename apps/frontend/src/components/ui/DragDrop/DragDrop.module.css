@@ -1,4 +1,5 @@
 .zone {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -42,4 +43,20 @@
 .text {
   font-size: 14px;
   text-align: center;
+}
+
+/*
+ * Поле выбора файла скрыто визуально, но реально в потоке (не `display:none`),
+ * чтобы клик по label открывал системный диалог во всех браузерах.
+ */
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }

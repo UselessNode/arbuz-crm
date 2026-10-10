@@ -361,3 +361,15 @@
   font-size: 13px;
   color: var(--color-muted);
 }
+
+/* --- Адаптив --- */
+@media (max-width: 640px) {
+  /* Длинные имена материалов переносятся на строку-кнопку целиком. */
+  .materialRow {
+    flex-wrap: wrap;
+  }
+
+  .materialName {
+    max-width: 100%;
+  }
+}

@@ -46,17 +46,27 @@
 .contacts a,
 .copy a {
   color: var(--color-muted);
-  text-decoration: none;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .contacts a:hover,
 .copy a:hover {
   color: var(--color-primary);
-  text-decoration: underline;
 }
 
-.contacts a:active,
-.copy a:active {
-  color: var(--color-primary-hover);
+/* Реквизиты и дополнительный текст (из настроек сайта). */
+.legal {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.legal :first-child {
+  margin-top: 0;
+}
+
+.legal :last-child {
+  margin-bottom: 0;
 }

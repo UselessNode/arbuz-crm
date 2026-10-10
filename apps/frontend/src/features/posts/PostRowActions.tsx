@@ -44,7 +44,7 @@ export function buildPostRowActions(post: Post, h: Handlers): RowActionItem[] {
     {
       key: 'copy',
       label: 'Копировать ссылку',
-      icon: 'link',
+      icon: 'chain',
       placement: 'primary',
       disabled: h.busy,
       title: 'Скопировать ссылку на публикацию',
