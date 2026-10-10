@@ -26,6 +26,8 @@ export interface TableColumn<T> {
 export interface TableSelection<T> {
   isSelected: (row: T) => boolean;
   onToggle: (row: T) => void;
+  /** Можно ли выбирать строку. Если `false` — чекбокс не показывается (и «выбрать все» её пропускает). */
+  isSelectable?: (row: T) => boolean;
   header?: ReactNode;
   /** Выбрать/снять всё. Если задано — в шапке появляется чекбокс. */
   onToggleAll?: () => void;
@@ -218,11 +220,13 @@ export function Table<T>({
                 >
                   {selection ? (
                     <td className={styles.checkCell} onClick={(event) => event.stopPropagation()}>
-                      <Checkbox
-                        label=""
-                        checked={selection.isSelected(row)}
-                        onChange={() => selection.onToggle(row)}
-                      />
+                      {selection.isSelectable && !selection.isSelectable(row) ? null : (
+                        <Checkbox
+                          label=""
+                          checked={selection.isSelected(row)}
+                          onChange={() => selection.onToggle(row)}
+                        />
+                      )}
                     </td>
                   ) : null}
                   {columns.map((column) => (

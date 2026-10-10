@@ -111,17 +111,21 @@ export function DataView<T>({
   };
 
   // Выбор строк на текущей странице (с «выбрать всё» в шапке).
+  // Учитываем только выбираемые строки (`isSelectable`): невыбираемые (напр. сам админ)
+  // не ломают состояние «выбрано всё»/«снято всё» и не получают чекбокс.
   const selectionProps = useMemo<TableSelection<T> | undefined>(() => {
     if (!selection) return undefined;
-    const selectedOnPage = rows.filter((row) => selection.isSelected(row)).length;
-    const allSelected = rows.length > 0 && selectedOnPage === rows.length;
+    const selectableRows = rows.filter((row) => selection.isSelectable?.(row) ?? true);
+    const selectedOnPage = selectableRows.filter((row) => selection.isSelected(row)).length;
+    const allSelected = selectableRows.length > 0 && selectedOnPage === selectableRows.length;
     const someSelected = selectedOnPage > 0 && !allSelected;
     return {
       isSelected: selection.isSelected,
       onToggle: selection.onToggle,
+      isSelectable: selection.isSelectable,
       onToggleAll: () => {
-        const selectAll = !(rows.length > 0 && rows.every(selection.isSelected));
-        for (const row of rows) {
+        const selectAll = !(selectableRows.length > 0 && selectableRows.every(selection.isSelected));
+        for (const row of selectableRows) {
           const isSelected = selection.isSelected(row);
           if (selectAll ? !isSelected : isSelected) selection.onToggle(row);
         }
@@ -184,7 +188,7 @@ export function DataView<T>({
         </div>
       ) : null}
 
-      {bulkActions ? (
+      {bulkActions && selectedCount ? (
         <div className={styles.bulk}>
           {selectedCount !== undefined ? <span className={styles.bulkCount}>Выбрано: {selectedCount}</span> : null}
           {bulkActions}

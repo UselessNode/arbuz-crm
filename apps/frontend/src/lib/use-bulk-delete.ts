@@ -47,6 +47,8 @@ export function useBulkDelete<T>({
 
   const isSelected = useCallback((row: T) => selected.has(getKey(row)), [selected, getKey]);
 
+  const isSelectable = useCallback((row: T) => !(isDisabled?.(row) ?? false), [isDisabled]);
+
   const toggle = useCallback(
     (row: T) => {
       if (isDisabled?.(row)) return;
@@ -61,7 +63,10 @@ export function useBulkDelete<T>({
     [getKey, isDisabled],
   );
 
-  const selection = useMemo(() => ({ isSelected, onToggle: toggle }), [isSelected, toggle]);
+  const selection = useMemo(
+    () => ({ isSelected, onToggle: toggle, isSelectable }),
+    [isSelected, toggle, isSelectable],
+  );
 
   const openConfirm = useCallback(() => {
     setError(null);
