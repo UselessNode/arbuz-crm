@@ -32,6 +32,9 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
+            echo ">>> Backing up database and files"
+            bash scripts/backup.sh
+
             echo ">>> Pulling new images"
             docker compose pull arbuz-backend arbuz-frontend
 

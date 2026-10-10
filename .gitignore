@@ -27,6 +27,9 @@ uploads/
 logs/
 *.log
 
+# --- Резервные копии (создаются на сервере при деплое, см. scripts/backup.sh) ---
+backups/
+
 # --- Покрытие тестов ---
 coverage/
 *.lcov

@@ -32,7 +32,9 @@
     "seed": "dotenv -e .env -- bun --cwd apps/backend seed",
     "seed:base": "dotenv -e .env -- bun --cwd apps/backend seed:base",
     "test:smoke": "dotenv -e .env -- bun --cwd apps/backend test:smoke",
-    "storage:cleanup": "dotenv -e .env -- bun --cwd apps/backend storage:cleanup"
+    "storage:cleanup": "dotenv -e .env -- bun --cwd apps/backend storage:cleanup",
+    "/* === Бэкап (требует bash + Docker; в деплое вызывается автоматически) === */": "",
+    "backup": "bash scripts/backup.sh"
   },
   "devDependencies": {
     "@types/bun": "^1.4.1",

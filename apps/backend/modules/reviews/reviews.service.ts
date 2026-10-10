@@ -268,7 +268,7 @@ export async function updateReview(
   return serializeReview(updated);
 }
 
-/** Снятие эксперта (удаление рецензии). Только администратор. */
+/** Снятие эксперта (удаление рецензии). Только администратор. Удаление физическое. */
 export async function deleteReview(actor: CurrentUser, reviewId: number): Promise<void> {
   if (actor.role !== RoleType.admin) throw httpError(403, 'Действие доступно только администратору', 'FORBIDDEN');
   const review = await prisma.application_reviews.findFirst({
@@ -276,7 +276,7 @@ export async function deleteReview(actor: CurrentUser, reviewId: number): Promis
     select: { id: true, expert_id: true, applications: { select: { id: true, title: true } } },
   });
   if (!review) throw httpError(404, 'Экспертиза не найдена', 'REVIEW_NOT_FOUND');
-  await prisma.application_reviews.update({ where: { id: reviewId }, data: { deleted_at: new Date() } });
+  await prisma.application_reviews.delete({ where: { id: reviewId } });
   // Уведомляем эксперта о снятии с заявки.
   await createNotification(review.expert_id, {
     type: NotificationType.expert_assignment,

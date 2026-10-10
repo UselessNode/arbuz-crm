@@ -6,6 +6,7 @@ import { APPLICATION_STATUS_NAMES } from '../../lib/app-status';
 import type { DateRangeFilter, SortSpec } from '../../lib/query';
 import { createNotification } from '../notifications/notifications.service';
 import type { CurrentUser } from '../files/files.service';
+import { removeStored } from '../files/file-storage';
 
 export type AccessMode = 'view' | 'edit' | 'submit' | 'delete';
 
@@ -591,9 +592,29 @@ export async function updateApplication(
   return getApplicationDetail(user, applicationId);
 }
 
+/**
+ * Физически удаляет заявку и её файлы (материалы + согласия на диск).
+ * Каскад БД уносит состав команды, согласия, планы, бюджет и экспертизы (onDelete: Cascade).
+ * Без проверки прав — вызывать после `getApplicationForAccess(user, id, 'delete')`
+ * либо из админского массового удаления.
+ */
+export async function hardDeleteApplication(applicationId: number): Promise<void> {
+  const [materials, consents] = await Promise.all([
+    prisma.additional_materials.findMany({ where: { application_id: applicationId }, select: { file_path: true } }),
+    prisma.consent_files.findMany({
+      where: { team_members: { application_id: applicationId } },
+      select: { file_path: true },
+    }),
+  ]);
+  for (const file of [...materials, ...consents]) {
+    await removeStored(file.file_path);
+  }
+  await prisma.applications.delete({ where: { id: applicationId } });
+}
+
 export async function deleteApplication(user: CurrentUser, applicationId: number): Promise<void> {
   await getApplicationForAccess(user, applicationId, 'delete');
-  await prisma.applications.update({ where: { id: applicationId }, data: { deleted_at: new Date() } });
+  await hardDeleteApplication(applicationId);
 }
 
 export async function submitApplication(user: CurrentUser, applicationId: number) {

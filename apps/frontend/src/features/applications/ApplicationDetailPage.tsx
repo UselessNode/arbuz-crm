@@ -567,7 +567,7 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
       <ConfirmDialog
         open={deleting}
         title="Удаление заявки"
-        message="Удалить заявку? Действие необратимо (мягкое удаление)."
+        message="Удалить заявку? Заявка и все её данные (команда, согласия, документы, экспертизы) будут удалены безвозвратно."
         confirmLabel="Удалить"
         danger
         loading={deleteSaving}

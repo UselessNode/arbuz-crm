@@ -133,5 +133,14 @@ export async function updateRegion(
 
 export async function deleteRegion(regionId: number): Promise<void> {
   await getRegionOrThrow(regionId);
-  await prisma.regions.update({ where: { id: regionId }, data: { deleted_at: new Date() } });
+  // Регион нельзя удалить, пока на него ссылаются пользователи (FK без каскада).
+  const used = await prisma.users.count({ where: { region_id: regionId } });
+  if (used > 0) {
+    throw httpError(
+      409,
+      `Регион используется пользователями (${used}). Сначала смените их регион.`,
+      'REGION_IN_USE',
+    );
+  }
+  await prisma.regions.delete({ where: { id: regionId } });
 }

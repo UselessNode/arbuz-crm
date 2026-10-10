@@ -11,6 +11,7 @@ import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 import type { DateRangeFilter, SortSpec } from '../../lib/query';
 import type { CurrentUser } from '../files/files.service';
+import { removeStored } from '../files/file-storage';
 import { renderMarkdown } from './markdown';
 import { notifyAll } from '../notifications/notifications.service';
 
@@ -460,9 +461,28 @@ export async function updatePost(user: CurrentUser, postId: number, input: Parti
   return serialize(post);
 }
 
+/**
+ * Физически удаляет публикацию и её вложения (файлы на диске + записи files/posts_files).
+ * Без проверки прав — вызывается из `deletePost` (после requireAdmin) и из массового удаления.
+ */
+export async function hardDeletePost(postId: number): Promise<void> {
+  const files = await prisma.files.findMany({
+    where: { posts_files: { some: { post_id: postId } } },
+    select: { id: true, path: true },
+  });
+  for (const file of files) {
+    if (file.path) await removeStored(file.path);
+  }
+  await prisma.posts_files.deleteMany({ where: { post_id: postId } });
+  if (files.length > 0) {
+    await prisma.files.deleteMany({ where: { id: { in: files.map((file) => file.id) } } });
+  }
+  await prisma.posts.delete({ where: { id: postId } });
+}
+
 export async function deletePost(user: CurrentUser, postId: number): Promise<void> {
   requireAdmin(user);
   const existing = await prisma.posts.findFirst({ where: { id: postId, deleted_at: null }, select: { id: true } });
   if (!existing) throw httpError(404, 'Пост не найден', 'POST_NOT_FOUND');
-  await prisma.posts.update({ where: { id: postId }, data: { deleted_at: new Date() } });
+  await hardDeletePost(postId);
 }

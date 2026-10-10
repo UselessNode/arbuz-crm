@@ -1,14 +1,17 @@
 // Массовое удаление сущностей (только администратор).
 //
-// Операция необратимо скрывает много записей сразу, поэтому требует повторного
+// Операция необратимо удаляет много записей сразу, поэтому требует повторного
 // ввода пароля текущего администратора — защита от случайного клика и от чужого
-// доступа к открытой админ-сессии. Удаление всегда soft-delete (`deleted_at`),
-// как и одиночное удаление в соответствующих разделах.
+// доступа к открытой админ-сессии. Для экспертиз/заявок/публикаций удаление
+// физическое (вместе с файлами), как и одиночное удаление в разделах;
+// пользователи пока удаляются мягко.
 import { RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 import { parseId } from '../../lib/parse';
 import { verifyPassword } from '../auth/auth.service';
+import { hardDeleteApplication } from '../applications/applications.service';
+import { hardDeletePost } from '../posts/posts.service';
 import type { CurrentUser } from '../files/files.service';
 
 /** Сущности, поддерживающие массовое удаление. */
@@ -52,36 +55,28 @@ async function assertPassword(actor: CurrentUser, rawPassword: unknown): Promise
   if (!valid) throw httpError(403, 'Неверный пароль', 'INVALID_PASSWORD');
 }
 
-/** Помечает указанные записи удалёнными (soft-delete) в рамках одной сущности. */
-async function softDeleteEntity(entity: BulkEntity, actor: CurrentUser, ids: number[]): Promise<number> {
-  const now = new Date();
+/** Физически удаляет указанные записи одной сущности (каскад и файлы — в сервисах сущностей). */
+async function purgeEntity(entity: BulkEntity, actor: CurrentUser, ids: number[]): Promise<number> {
   switch (entity) {
     case 'reviews': {
-      const result = await prisma.application_reviews.updateMany({
-        where: { id: { in: ids }, deleted_at: null },
-        data: { deleted_at: now },
-      });
+      const result = await prisma.application_reviews.deleteMany({ where: { id: { in: ids } } });
       return result.count;
     }
     case 'applications': {
-      const result = await prisma.applications.updateMany({
-        where: { id: { in: ids }, deleted_at: null },
-        data: { deleted_at: now },
-      });
-      return result.count;
+      const existing = await prisma.applications.findMany({ where: { id: { in: ids } }, select: { id: true } });
+      for (const application of existing) await hardDeleteApplication(application.id);
+      return existing.length;
     }
     case 'posts': {
-      const result = await prisma.posts.updateMany({
-        where: { id: { in: ids }, deleted_at: null },
-        data: { deleted_at: now },
-      });
-      return result.count;
+      const existing = await prisma.posts.findMany({ where: { id: { in: ids } }, select: { id: true } });
+      for (const post of existing) await hardDeletePost(post.id);
+      return existing.length;
     }
     case 'users': {
-      // Себя удалять нельзя — исключаем id администратора из выборки.
+      // Пользователи пока удаляются мягко — жёсткое удаление с каскадом вынесено в отдельную задачу.
       const result = await prisma.users.updateMany({
         where: { id: { in: ids.filter((id) => id !== actor.id) }, deleted_at: null },
-        data: { deleted_at: now },
+        data: { deleted_at: new Date() },
       });
       return result.count;
     }
@@ -103,6 +98,6 @@ export async function bulkDelete(
   }
   const ids = parseIds(rawIds);
   await assertPassword(actor, rawPassword);
-  const deleted = await softDeleteEntity(rawEntity, actor, ids);
+  const deleted = await purgeEntity(rawEntity, actor, ids);
   return { entity: rawEntity, deleted };
 }
