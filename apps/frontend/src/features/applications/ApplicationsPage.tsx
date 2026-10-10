@@ -12,6 +12,8 @@ import { SECTION_HINT_KEYS, sectionHintsApi, type SectionHintKey } from '../../a
 import { ApiError } from '../../api/client';
 import { formatDateTime, formatUserName } from '../../lib/format';
 import { Roles } from '../../lib/roles';
+import { useBulkDelete } from '../../lib/use-bulk-delete';
+import { BulkDeleteDialog } from '../bulk-delete/BulkDeleteDialog';
 import styles from './Applications.module.css';
 
 type Tab = 'list' | 'template';
@@ -136,6 +138,13 @@ function ApplicationsListTab() {
   const state = useDataViewState({ specs, defaultPageSize: 20 });
   const { query } = state;
 
+  const bulk = useBulkDelete({
+    entity: 'applications',
+    entityLabel: 'Заявки',
+    getKey: (application: ApplicationSummary) => application.id,
+    onDeleted: () => load(),
+  });
+
   const load = useCallback(async () => {
     const statusIds = (query.filters.status as string[] | undefined) ?? [];
     const tenderIds = (query.filters.tender as string[] | undefined) ?? [];
@@ -225,8 +234,17 @@ function ApplicationsListTab() {
         error={error}
         onRetry={() => void load()}
         onRowClick={(application) => navigate(`/admin/applications/${application.id}`)}
+        selection={bulk.selection}
+        bulkActions={
+          <Button size="sm" variant="danger" icon="delete" disabled={bulk.selectedCount === 0} onClick={bulk.openConfirm}>
+            Удалить выбранные
+          </Button>
+        }
+        selectedCount={bulk.selectedCount}
         emptyText="Заявок не найдено"
       />
+
+      <BulkDeleteDialog dialog={bulk.dialog} />
 
       <div className={styles.pageHint}>
         Заявитель подаёт заявки самостоятельно. При необходимости администратор может создать заявку за пользователя и модерировать существующие.

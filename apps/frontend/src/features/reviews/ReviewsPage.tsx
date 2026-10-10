@@ -15,6 +15,8 @@ import { pdfExportApi } from '../../api/pdf-export';
 import { usePdfExport } from '../../lib/use-pdf-export';
 import { reviewsSummaryApi, type ReviewSummary, type ReviewSelection } from '../../api/reviews-summary';
 import { ApiError } from '../../api/client';
+import { useBulkDelete } from '../../lib/use-bulk-delete';
+import { BulkDeleteDialog } from '../bulk-delete/BulkDeleteDialog';
 import { Roles } from '../../lib/roles';
 import { formatDateTime, formatUserName } from '../../lib/format';
 import {
@@ -66,6 +68,9 @@ export function ReviewsPage() {
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Общее число экспертиз на сервере (для пагинации в режиме «без группировки»).
+  const [total, setTotal] = useState(0);
+  const [rowBusy, setRowBusy] = useState<number | null>(null);
 
   // Вердикты — редактируемый справочник: метки и цвета берём с сервера (один раз).
   useEffect(() => {
@@ -157,7 +162,9 @@ export function ReviewsPage() {
     setLoading(true);
     setError(null);
     try {
-      // Список грузим целиком (без пагинации): группировка и выбор отчёта работают по всему набору.
+      // Без группировки — серверная пагинация (как в остальных списках).
+      // С группировкой грузим весь набор: групповые метрики и выбор отчёта считаются по всем строкам.
+      const paginate = !grouped;
       const response = await reviewsApi.list({
         search: query.search || undefined,
         statusIds: statusIds.map(Number),
@@ -169,14 +176,19 @@ export function ReviewsPage() {
         createdTo: created?.to || undefined,
         updatedFrom: updated?.from || undefined,
         updatedTo: updated?.to || undefined,
+        sort: query.sort?.field,
+        order: query.sort?.direction,
+        limit: paginate ? query.pageSize : undefined,
+        offset: paginate ? (query.page - 1) * query.pageSize : undefined,
       });
       setReviews(response.reviews);
+      setTotal(response.total);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить экспертизы');
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, grouped]);
 
   useEffect(() => {
     void load();
@@ -254,6 +266,36 @@ export function ReviewsPage() {
   }, [selection, selectedCount, selectedGroupRows, selectedReviewsCount, grouped]);
 
   const { busy, run } = usePdfExport({ start: startReport, errorMessage: 'Не удалось сформировать отчёт' });
+
+  // Массовое удаление экспертиз доступно только в режиме «без группировки»: строки
+  // там — конкретные экспертизы. Используем то же выделение, что и для отчётов.
+  const selectedReviewIds = useMemo(
+    () => new Set(selectedReviews.map((review) => review.id)),
+    [selectedReviews],
+  );
+  const bulk = useBulkDelete({
+    entity: 'reviews',
+    entityLabel: 'Экспертизы',
+    getKey: (review: ReviewListItem) => review.id,
+    externalSelected: selectedReviewIds,
+    onClearExternal: () => setSelected(new Set()),
+    onDeleted: () => load(),
+  });
+
+  const deleteReview = useCallback(
+    async (review: ReviewListItem) => {
+      setRowBusy(review.id);
+      try {
+        await reviewsApi.remove(review.id);
+        await load();
+      } catch (caught) {
+        setError(caught instanceof ApiError ? caught.message : 'Не удалось удалить экспертизу');
+      } finally {
+        setRowBusy(null);
+      }
+    },
+    [load],
+  );
 
   const openSummary = (query2: Record<string, string>) => {
     navigate(`/admin/reviews/summary?${new URLSearchParams(query2).toString()}`);
@@ -336,28 +378,47 @@ export function ReviewsPage() {
           state={state}
           mode="advanced"
           search={{ placeholder: 'Поиск по заявке и эксперту' }}
-          columns={reviewColumns(verdictOptions, openSummary)}
+          columns={reviewColumns(verdictOptions, openSummary, deleteReview, rowBusy)}
           rows={sortedReviews}
           rowKey={(row) => row.id}
-          total={sortedReviews.length}
-          paginated={false}
+          total={total}
+          paginated
           loading={loading}
           error={error}
           onRetry={() => void load()}
           onRowClick={(row) => navigate(`/admin/applications/${row.applicationId}`)}
           selection={{ isSelected: (row) => selected.has(String(row.id)), onToggle: toggleReviewRow }}
+          bulkActions={
+            <Button
+              size="sm"
+              variant="danger"
+              icon="delete"
+              disabled={selectedReviewsCount === 0}
+              onClick={bulk.openConfirm}
+            >
+              Удалить выбранные
+            </Button>
+          }
+          selectedCount={selectedCount}
           emptyText="Экспертиз пока нет"
           noResultsText="Ничего не найдено"
         />
       )}
 
       <SelectionHint count={selectedCount} reviews={selectedReviewsCount} onClear={() => setSelected(new Set())} />
+
+      <BulkDeleteDialog dialog={bulk.dialog} />
     </Container>
   );
 }
 
 /** Колонки режима «по записям»: строка — конкретная экспертиза. */
-function reviewColumns(verdictOptions: readonly StatusOption<string>[], openSummary: (query: Record<string, string>) => void): TableColumn<ReviewListItem>[] {
+function reviewColumns(
+  verdictOptions: readonly StatusOption<string>[],
+  openSummary: (query: Record<string, string>) => void,
+  onDelete: (row: ReviewListItem) => void,
+  busyId: number | null,
+): TableColumn<ReviewListItem>[] {
   return [
     { key: 'application', header: 'Заявка', render: (row) => row.applicationTitle ?? `Заявка #${row.applicationId}` },
     { key: 'expert', header: 'Эксперт', render: (row) => (row.expert ? formatUserName(row.expert) : '—') },
@@ -372,17 +433,27 @@ function reviewColumns(verdictOptions: readonly StatusOption<string>[], openSumm
     {
       key: 'actions',
       header: '',
-      width: '120px',
+      width: '160px',
       sortable: false,
       render: (row) => (
-        <Button
-          size="sm"
-          variant="secondary"
-          icon="eye"
-          onClick={() => openSummary({ application_id: String(row.applicationId) })}
-        >
-          Сводка
-        </Button>
+        <div className={styles.rowActions}>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="eye"
+            onClick={() => openSummary({ application_id: String(row.applicationId) })}
+          >
+            Сводка
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            icon="delete"
+            title="Удалить экспертизу"
+            loading={busyId === row.id}
+            onClick={() => onDelete(row)}
+          />
+        </div>
       ),
     },
   ];

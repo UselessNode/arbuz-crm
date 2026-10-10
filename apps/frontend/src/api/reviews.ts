@@ -32,6 +32,9 @@ export interface ReviewListParams {
   updatedTo?: string;
   sort?: string;
   order?: 'asc' | 'desc';
+  /** Пагинация: при указании `limit` сервер отдаёт только страницу (иначе — весь список). */
+  limit?: number;
+  offset?: number;
 }
 
 export const reviewsApi = {
@@ -49,6 +52,8 @@ export const reviewsApi = {
     if (params?.updatedTo) query.set('updated_to', params.updatedTo);
     if (params?.sort) query.set('sort', params.sort);
     if (params?.order) query.set('order', params.order);
+    if (params?.limit !== undefined) query.set('limit', String(params.limit));
+    if (params?.offset !== undefined) query.set('offset', String(params.offset));
     const suffix = query.toString() ? `?${query.toString()}` : '';
     return api.get<{ reviews: ReviewListItem[]; total: number }>(`/reviews${suffix}`);
   },

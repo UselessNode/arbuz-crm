@@ -11,6 +11,7 @@ import type { CurrentUser } from '../files/files.service';
 import { fileMime, safeOriginalName } from '../files/file-validation';
 import { openStored } from '../files/file-storage';
 import { requireAdmin } from '../reviews/summary.service';
+import { MAX_REVIEW_SELECTION } from '../reviews/summary.routes';
 import { getJobForUser, startApplicationExport, startReviewsExport } from './pdf-export.service';
 
 export const pdfExportRouter = Router();
@@ -85,6 +86,9 @@ async function parseReviewsExportBody(body: unknown): Promise<{ params: Record<s
   if (source.review_ids !== undefined) {
     if (!Array.isArray(source.review_ids) || source.review_ids.length === 0) {
       throw httpError(400, 'Выберите хотя бы одну экспертизу', 'EMPTY_SELECTION');
+    }
+    if (source.review_ids.length > MAX_REVIEW_SELECTION) {
+      throw httpError(400, `Слишком много экспертиз в выборке (максимум ${MAX_REVIEW_SELECTION})`, 'SELECTION_TOO_LARGE');
     }
     const review_ids = source.review_ids.map((raw) => parseId(raw, 'Некорректный идентификатор экспертизы'));
     return { params: { review_ids }, label };

@@ -24,6 +24,7 @@ import { siteSettingsRouter } from './modules/site-settings/site-settings.routes
 import { reviewsRouter } from './modules/reviews/reviews.routes';
 import { reviewsSummaryRouter } from './modules/reviews/summary.routes';
 import { reviewStatusesRouter } from './modules/reviews/review-statuses.routes';
+import { bulkDeleteRouter } from './modules/bulk-delete/bulk-delete.routes';
 import packageJson from './package.json';
 
 export const API_VERSION = packageJson.version;
@@ -73,6 +74,8 @@ export function createApp(): express.Express {
   app.use('/api', reviewsRouter);
   // pdf-export использует свои пути внутри /api/applications/:id/pdf-export и /api/pdf-export-jobs
   app.use('/api', pdfExportRouter);
+  // Массовое удаление сущностей (admin, с подтверждением пароля).
+  app.use('/api', bulkDeleteRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

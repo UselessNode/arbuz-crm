@@ -1,6 +1,10 @@
 // KebabMenu — кнопка «⋮» с выпадающим списком действий.
 // Используется в таблицах на мобильных, когда полный набор кнопок не помещается.
-import { useEffect, useId, useRef, useState } from 'react';
+//
+// Меню рендерится порталом в `body` с `position: fixed`: иначе внутри контейнера
+// с `overflow: auto/hidden` (таблица, скролл-область) оно обрезается и добавляет прокрутку.
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from '../Icon';
 import styles from './KebabMenu.module.css';
 
@@ -37,6 +41,34 @@ export function KebabMenu({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuId = useId();
+
+  // Позиция меню в координатах окна (меню в портале, position: fixed).
+  const [coords, setCoords] = useState<{ top: number; left?: number; right?: number } | null>(null);
+
+  const updatePosition = () => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const top = rect.bottom + 4;
+    if (align === 'start') setCoords({ top, left: rect.left });
+    else setCoords({ top, right: window.innerWidth - rect.right });
+  };
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setCoords(null);
+      return;
+    }
+    updatePosition();
+    // Пересчёт при прокрутке/изменении размера, чтобы меню следовало за триггером.
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, align]);
 
   // Закрытие по клику вне и по Escape. Escape возвращает фокус на триггер.
   useEffect(() => {
@@ -114,34 +146,38 @@ export function KebabMenu({
         <Icon name={icon} size={16} />
       </button>
 
-      {open ? (
-        <div
-          ref={menuRef}
-          id={menuId}
-          role="menu"
-          aria-label={label}
-          className={[styles.menu, styles[align]].join(' ')}
-          onKeyDown={handleMenuKeyDown}
-        >
-          {items.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              role="menuitem"
-              className={[styles.item, item.danger ? styles.danger : ''].filter(Boolean).join(' ')}
-              disabled={item.disabled}
-              onClick={() => handleSelect(item)}
+      {open && coords
+        ? createPortal(
+            <div
+              ref={menuRef}
+              id={menuId}
+              role="menu"
+              aria-label={label}
+              style={{ top: coords.top, left: coords.left, right: coords.right }}
+              className={[styles.menu, align === 'start' ? styles.start : styles.end].join(' ')}
+              onKeyDown={handleMenuKeyDown}
             >
-              {item.icon ? (
-                <Icon name={item.icon} size={16} className={styles.itemIcon} />
-              ) : (
-                <span className={styles.itemIcon} aria-hidden="true" />
-              )}
-              <span className={styles.itemLabel}>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
+              {items.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  role="menuitem"
+                  className={[styles.item, item.danger ? styles.danger : ''].filter(Boolean).join(' ')}
+                  disabled={item.disabled}
+                  onClick={() => handleSelect(item)}
+                >
+                  {item.icon ? (
+                    <Icon name={item.icon} size={16} className={styles.itemIcon} />
+                  ) : (
+                    <span className={styles.itemIcon} aria-hidden="true" />
+                  )}
+                  <span className={styles.itemLabel}>{item.label}</span>
+                </button>
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

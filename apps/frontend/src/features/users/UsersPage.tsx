@@ -24,6 +24,8 @@ import { useAuth } from '../../auth/AuthContext';
 import { Roles } from '../../lib/roles';
 import { formatDate, formatDateTime, formatUserName } from '../../lib/format';
 import { useRegions } from '../../lib/use-regions';
+import { useBulkDelete } from '../../lib/use-bulk-delete';
+import { BulkDeleteDialog } from '../bulk-delete/BulkDeleteDialog';
 import styles from './UsersPage.module.css';
 
 /** Сколько полных дней прошло с момента создания аккаунта. */
@@ -371,6 +373,15 @@ export function UsersPage() {
   const [deleting, setDeleting] = useState<UserListItem | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
 
+  // Массовое удаление: нельзя выбирать самого себя (сервер тоже отфильтрует).
+  const bulk = useBulkDelete({
+    entity: 'users',
+    entityLabel: 'Пользователи',
+    getKey: (user: UserListItem) => user.id,
+    isDisabled: (user) => currentUser?.id === user.id,
+    onDeleted: () => load(),
+  });
+
   const handleRoleChange = useCallback(
     async (target: UserListItem, role: RoleType) => {
       if (currentUser?.id === target.id) return;
@@ -521,6 +532,13 @@ export function UsersPage() {
         loading={loading}
         error={error}
         onRetry={() => void load()}
+        selection={bulk.selection}
+        bulkActions={
+          <Button size="sm" variant="danger" icon="delete" disabled={bulk.selectedCount === 0} onClick={bulk.openConfirm}>
+            Удалить выбранные
+          </Button>
+        }
+        selectedCount={bulk.selectedCount}
         emptyText="Пользователи не найдены"
         rowClassName={(user) => {
           if (user.activatedAt) return undefined;
@@ -557,6 +575,8 @@ export function UsersPage() {
         onConfirm={() => void handleDelete()}
         onClose={() => setDeleting(null)}
       />
+
+      <BulkDeleteDialog dialog={bulk.dialog} />
     </Container>
   );
 }

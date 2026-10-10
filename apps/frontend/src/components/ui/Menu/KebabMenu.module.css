@@ -37,9 +37,8 @@
 }
 
 .menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  z-index: 20;
+  position: fixed;
+  z-index: 210;
   min-width: 180px;
   max-width: 260px;
   padding: 4px;
@@ -50,11 +49,11 @@
 }
 
 .start {
-  left: 0;
+  /* left задаётся inline-стилем */
 }
 
 .end {
-  right: 0;
+  /* right задаётся inline-стилем */
 }
 
 .item {

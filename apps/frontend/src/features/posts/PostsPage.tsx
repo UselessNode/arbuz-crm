@@ -18,6 +18,8 @@ import { PostStatuses } from '../../lib/post-status';
 import type { Post } from '../../api/posts';
 import { postsApi } from '../../api/posts';
 import { formatDateTime } from '../../lib/format';
+import { useBulkDelete } from '../../lib/use-bulk-delete';
+import { BulkDeleteDialog } from '../bulk-delete/BulkDeleteDialog';
 import { POST_FILTER_OPTIONS, POST_STATUS_OPTIONS } from './posts-helpers';
 import { buildPostRowActions } from './PostRowActions';
 import { usePosts } from './usePosts';
@@ -56,6 +58,8 @@ export function PostsPage() {
 
   const state = useDataViewState({ specs, defaultPageSize: 20 });
   const list = usePosts(state.query);
+
+  const bulk = useBulkDelete({ entity: 'posts', entityLabel: 'Публикации', getKey: (post: Post) => post.id, onDeleted: () => list.load() });
 
   // Порядок можно менять только в «естественном» виде — при активных фильтрах drag отключён.
   const reorderDisabled = state.hasActiveFilters;
@@ -208,9 +212,18 @@ export function PostsPage() {
         separateBorders
         reorder={reorder}
         reorderDisabled={reorderDisabled}
+        selection={bulk.selection}
+        bulkActions={
+          <Button size="sm" variant="danger" icon="delete" disabled={bulk.selectedCount === 0} onClick={bulk.openConfirm}>
+            Удалить выбранные
+          </Button>
+        }
+        selectedCount={bulk.selectedCount}
         emptyText="Публикаций пока нет"
         noResultsText="Ничего не найдено"
       />
+
+      <BulkDeleteDialog dialog={bulk.dialog} />
 
       <ConfirmDialog
         open={deleting !== null}

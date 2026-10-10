@@ -1,16 +1,22 @@
 // Панель «Регионы»: справочник с CRUD (замена хардкода субъектов РФ на данные).
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Button, ConfirmDialog, Container, Input, Modal, StateMessage, Table, useToast } from '../../components/ui';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Button, ConfirmDialog, Container, Input, Modal, Pagination, SearchInput, StateMessage, Table, useToast } from '../../components/ui';
 import type { TableColumn } from '../../components/ui';
 import { regionsApi, type Region } from '../../api/site';
 import { ApiError } from '../../api/client';
 import styles from './SiteSettingsPage.module.css';
+
+/** Варианты размера страницы в справочнике. */
+const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 
 export function RegionsPanel() {
   const toast = useToast();
   const [regions, setRegions] = useState<Region[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [editing, setEditing] = useState<Region | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<Region | null>(null);
@@ -69,6 +75,16 @@ export function RegionsPanel() {
     },
   ];
 
+  // Поиск — клиентский (справочник небольшой), сбрасывает страницу на первую.
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return needle ? regions.filter((region) => region.name.toLowerCase().includes(needle)) : regions;
+  }, [regions, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+
   return (
     <Container
       title="Регионы"
@@ -81,14 +97,38 @@ export function RegionsPanel() {
       <p className={styles.hint}>
         Справочник регионов для форм регистрации и профиля. Регион «по умолчанию» подставляется в формах.
       </p>
+      <div className={styles.toolbar}>
+        <SearchInput
+          onChange={(value) => {
+            setQuery(value);
+            setPage(1);
+          }}
+          placeholder="Поиск по названию"
+        />
+      </div>
       {loading ? (
         <StateMessage state="loading" />
       ) : error ? (
         <StateMessage state="error" message={error} onRetry={() => void load()} />
       ) : regions.length === 0 ? (
         <StateMessage state="empty" message="Регионы не добавлены" />
+      ) : filtered.length === 0 ? (
+        <StateMessage state="empty" message="Ничего не найдено" />
       ) : (
-        <Table columns={columns} data={regions} rowKey={(region) => region.id} />
+        <>
+          <Table columns={columns} data={paged} rowKey={(region) => region.id} />
+          <Pagination
+            page={safePage}
+            pageSize={pageSize}
+            total={filtered.length}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+          />
+        </>
       )}
 
       {creating ? <RegionModal onClose={() => setCreating(false)} onSaved={load} /> : null}

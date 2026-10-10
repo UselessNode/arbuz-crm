@@ -110,6 +110,8 @@ export { Modal } from './Feedback';
 export type { ModalProps } from './Feedback';
 export { ConfirmDialog } from './Feedback';
 export type { ConfirmDialogProps } from './Feedback';
+export { ConfirmPasswordDialog } from './Feedback';
+export type { ConfirmPasswordDialogProps } from './Feedback';
 
 export { Pagination } from './Pagination';
 export type { PaginationProps } from './Pagination';

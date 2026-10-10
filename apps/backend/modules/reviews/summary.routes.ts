@@ -26,6 +26,9 @@ reviewsSummaryRouter.get(
   }),
 );
 
+/** Максимум экспертиз в одной выборке (сводка/отчёт) — защита от тяжёлых IN-запросов. */
+export const MAX_REVIEW_SELECTION = 1000;
+
 /** Ровно один критерий отбора: expert_id | status_id | application_id | review_ids. */
 export function parseSelectionQuery(query: Record<string, unknown>): ReviewSelectionParams {
   // Без критерия либо `all=1` — сводка по всей базе (допустимо только для админа,
@@ -33,9 +36,11 @@ export function parseSelectionQuery(query: Record<string, unknown>): ReviewSelec
   if (query.all === '1' || query.all === 'true') return { all: true };
   const reviewIds = query.review_ids;
   if (typeof reviewIds === 'string' && reviewIds.trim()) {
-    const ids = reviewIds
-      .split(',')
-      .map((raw) => parseId(raw, 'Некорректный идентификатор экспертизы'));
+    const raw = reviewIds.split(',');
+    if (raw.length > MAX_REVIEW_SELECTION) {
+      throw httpError(400, `Слишком много экспертиз в выборке (максимум ${MAX_REVIEW_SELECTION})`, 'SELECTION_TOO_LARGE');
+    }
+    const ids = raw.map((value) => parseId(value, 'Некорректный идентификатор экспертизы'));
     if (ids.length === 0) throw httpError(400, 'Выберите хотя бы одну экспертизу', 'EMPTY_SELECTION');
     return { review_ids: ids };
   }
