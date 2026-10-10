@@ -1,0 +1,65 @@
+name: Purge demo data
+
+# Ручная разовая чистка прод-базы от тестовых данных.
+# Запуск: GitHub → Actions → «Purge demo data» → Run workflow.
+#   mode = dry-run — только отчёт (ничего не удаляется);
+#   mode = apply   — физическое удаление (бэкап делается перед этим автоматически).
+#
+# Сохраняются: администраторы, регионы и системные справочники.
+# Подробнее — apps/backend/scripts/purge-demo.ts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Режим: dry-run (отчёт) или apply (удаление)'
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - apply
+
+concurrency:
+  group: purge-production
+  cancel-in-progress: false
+
+jobs:
+  purge:
+    name: Purge (${{ github.event.inputs.mode }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and purge
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script_stop: true
+          command_timeout: 10m
+          script: |
+            set -e
+            cd ~/arbuz-crm
+
+            echo ">>> Fetching latest repo state"
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo ">>> Ensuring database service is up"
+            docker compose up -d arbuz-postgres
+
+            echo ">>> Backing up database and files"
+            bash scripts/backup.sh
+
+            echo ">>> Pulling backend image"
+            docker compose pull arbuz-backend
+
+            if [ "${{ github.event.inputs.mode }}" = "apply" ]; then
+              echo ">>> APPLY: физическое удаление тестовых данных"
+              docker compose run --rm -w /app arbuz-backend bun scripts/purge-demo.ts --apply
+            else
+              echo ">>> DRY-RUN: только отчёт (ничего не удаляется)"
+              docker compose run --rm -w /app arbuz-backend bun scripts/purge-demo.ts
+            fi
+
+            echo ">>> Purge complete"
