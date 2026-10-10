@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "bun --watch index.ts",
     "seed": "bun seed/index.ts",
+    "seed:base": "bun seed/base.ts",
     "test:smoke": "bun tests/run.ts",
     "db:reset": "bun scripts/reset-db.ts",
     "storage:cleanup": "bun scripts/cleanup-storage.ts",

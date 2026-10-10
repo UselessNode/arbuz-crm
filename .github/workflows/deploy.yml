@@ -38,6 +38,9 @@ jobs:
             echo ">>> Syncing database schema"
             docker compose run --rm -w /app arbuz-backend bun db:push --accept-data-loss
 
+            echo ">>> Seeding base data (regions, settings, hints)"
+            docker compose run --rm -w /app arbuz-backend bun seed:base
+
             echo ">>> Restarting services"
             docker compose up -d --remove-orphans
 

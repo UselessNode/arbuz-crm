@@ -30,6 +30,7 @@
     "/* === НАЧАЛЬНОЕ НАПОЛНЕНИЕ И ОБСЛУЖИВАНИЕ === */": "",
     "db:reset": "dotenv -e .env -- bun --cwd apps/backend db:reset",
     "seed": "dotenv -e .env -- bun --cwd apps/backend seed",
+    "seed:base": "dotenv -e .env -- bun --cwd apps/backend seed:base",
     "test:smoke": "dotenv -e .env -- bun --cwd apps/backend test:smoke",
     "storage:cleanup": "dotenv -e .env -- bun --cwd apps/backend storage:cleanup"
   },
