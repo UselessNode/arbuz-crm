@@ -1,4 +1,5 @@
-// HTTP API справочника регионов. Чтение — всем авторизованным, изменения — администратору.
+// HTTP API справочника регионов. Список — публичный (нужен форме регистрации гостя),
+// остальное чтение — авторизованным, изменения — администратору.
 import { RoleType } from '@arbuz/shared';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
@@ -10,8 +11,8 @@ import type { CurrentUser } from '../files/files.service';
 import { createRegion, deleteRegion, getRegionOrThrow, listRegions, updateRegion } from './regions.service';
 
 export const regionsRouter = Router();
-regionsRouter.use(requireAuth);
 
+// Публично: список регионов нужен форме регистрации до входа (данные несекретные).
 regionsRouter.get(
   '/',
   asyncHandler(async (_req: Request, res: Response) => {
@@ -22,6 +23,7 @@ regionsRouter.get(
 
 regionsRouter.post(
   '/',
+  requireAuth,
   requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const region = await createRegion({
@@ -36,6 +38,7 @@ regionsRouter.post(
 
 regionsRouter.get(
   '/:regionId',
+  requireAuth,
   asyncHandler(async (req: Request, res: Response) => {
     const region = await getRegionOrThrow(parseId(req.params.regionId));
     res.json({ region });
@@ -44,6 +47,7 @@ regionsRouter.get(
 
 regionsRouter.patch(
   '/:regionId',
+  requireAuth,
   requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const region = await updateRegion(parseId(req.params.regionId), {
@@ -57,6 +61,7 @@ regionsRouter.patch(
 
 regionsRouter.delete(
   '/:regionId',
+  requireAuth,
   requireRole(RoleType.admin),
   asyncHandler(async (req: Request, res: Response) => {
     const regionId = parseId(req.params.regionId);
