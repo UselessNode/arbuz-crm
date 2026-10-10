@@ -7,6 +7,11 @@ name: Purge demo data
 #
 # Сохраняются: администраторы, регионы и системные справочники.
 # Подробнее — apps/backend/scripts/purge-demo.ts.
+#
+# Внимание: appleboy/ssh-action со `script_stop: true` вставляет проверку кода возврата
+# после каждой строки, поэтому shell-ветвления (`if`/`||`) с отрицательным результатом
+# роняют шаг. Ветвление делаем на уровне GitHub (`if:` у шагов), в самих скриптах —
+# только команды, всегда возвращающие 0.
 
 on:
   workflow_dispatch:
@@ -29,7 +34,7 @@ jobs:
     name: Purge (${{ github.event.inputs.mode }})
     runs-on: ubuntu-latest
     steps:
-      - name: SSH and purge
+      - name: Backup and prepare
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -38,7 +43,7 @@ jobs:
           script_stop: true
           command_timeout: 10m
           script: |
-            set -ex
+            set -e
             cd ~/arbuz-crm
 
             echo ">>> Fetching latest repo state"
@@ -51,18 +56,41 @@ jobs:
             echo ">>> Backing up database and files"
             bash scripts/backup.sh
 
-            echo ">>> Pulling backend image (не критично при сбое)"
+            echo ">>> Pulling backend image"
             docker compose pull arbuz-backend || true
 
-            echo ">>> Checking purge script is present in image"
-            docker compose run --rm -w /app arbuz-backend ls -l apps/backend/scripts/purge-demo.ts
+      - name: Dry-run
+        if: ${{ github.event.inputs.mode != 'apply' }}
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script_stop: true
+          command_timeout: 10m
+          script: |
+            set -e
+            cd ~/arbuz-crm
 
-            if [ "${{ github.event.inputs.mode }}" = "apply" ]; then
-              echo ">>> APPLY: физическое удаление тестовых данных"
-              docker compose run --rm -w /app arbuz-backend bun apps/backend/scripts/purge-demo.ts --apply
-            else
-              echo ">>> DRY-RUN: только отчёт (ничего не удаляется)"
-              docker compose run --rm -w /app arbuz-backend bun apps/backend/scripts/purge-demo.ts
-            fi
+            echo ">>> DRY-RUN: только отчёт (ничего не удаляется)"
+            docker compose run --rm -w /app arbuz-backend bun apps/backend/scripts/purge-demo.ts
+
+            echo ">>> Purge complete"
+
+      - name: Apply (удаление)
+        if: ${{ github.event.inputs.mode == 'apply' }}
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script_stop: true
+          command_timeout: 10m
+          script: |
+            set -e
+            cd ~/arbuz-crm
+
+            echo ">>> APPLY: физическое удаление тестовых данных"
+            docker compose run --rm -w /app arbuz-backend bun apps/backend/scripts/purge-demo.ts --apply
 
             echo ">>> Purge complete"
