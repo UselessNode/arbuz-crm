@@ -1,6 +1,6 @@
 // Секция «План мероприятий» в карточке заявки.
 import { useState, type FormEvent } from 'react';
-import { Button, ConfirmDialog, DateRangeInput, Input, Modal, StateMessage, Table } from '../../components/ui';
+import { Button, ConfirmDialog, DateRangeInput, Input, Modal, StateMessage, Table, Textarea } from '../../components/ui';
 import type { DateRange, TableColumn } from '../../components/ui';
 import { applicationsApi, type PlanPayload, type ProjectPlan } from '../../api/applications';
 import { ApiError } from '../../api/client';
@@ -14,7 +14,15 @@ interface Props {
   onChanged: () => Promise<void>;
 }
 
-const emptyForm = (): PlanPayload => ({ task: '', event_name: '', event_description: '', start_date: '', end_date: '' });
+const emptyForm = (): PlanPayload => ({
+  task: '',
+  event_name: '',
+  event_description: '',
+  start_date: '',
+  end_date: '',
+  results: '',
+  fixation_form: '',
+});
 
 export function PlansSection({ applicationId, plans, readOnly = false, onChanged }: Props) {
   const [open, setOpen] = useState(false);
@@ -40,6 +48,8 @@ export function PlansSection({ applicationId, plans, readOnly = false, onChanged
       event_description: plan.eventDescription,
       start_date: toDateInputValue(plan.startDate),
       end_date: toDateInputValue(plan.endDate),
+      results: plan.results ?? '',
+      fixation_form: plan.fixationForm ?? '',
     });
     setError(null);
     setOpen(true);
@@ -85,6 +95,7 @@ export function PlansSection({ applicationId, plans, readOnly = false, onChanged
     { key: 'task', header: 'Задача', field: 'task' },
     { key: 'start', header: 'Начало', render: (p) => formatDate(p.startDate) },
     { key: 'end', header: 'Окончание', render: (p) => formatDate(p.endDate) },
+    { key: 'results', header: 'Результат', render: (p) => p.results ?? '—' },
   ];
   if (!readOnly) {
     columns.push({
@@ -117,10 +128,17 @@ export function PlansSection({ applicationId, plans, readOnly = false, onChanged
 
       <Modal open={open} title={editing ? 'Мероприятие' : 'Новое мероприятие'} onClose={() => setOpen(false)} width={480}>
         <form className={styles.form} onSubmit={handleSubmit}>
-          <Input label="Мероприятие" value={form.event_name} onChange={(e) => setForm({ ...form, event_name: e.target.value })} required />
-          <Input label="Задача" value={form.task} onChange={(e) => setForm({ ...form, task: e.target.value })} required />
+          {/* Порядок: задача → мероприятие → описание → период → результаты проекта. */}
           <Input
-            label="Описание"
+            label="Задача"
+            value={form.task}
+            onChange={(e) => setForm({ ...form, task: e.target.value })}
+            hint="Посмотрите в «Задачи проекта» и выберите, какую из задач решает это мероприятие"
+            required
+          />
+          <Input label="Мероприятие" value={form.event_name} onChange={(e) => setForm({ ...form, event_name: e.target.value })} required />
+          <Textarea
+            label="Описание мероприятия"
             value={form.event_description ?? ''}
             onChange={(e) => setForm({ ...form, event_description: e.target.value })}
           />
@@ -137,6 +155,16 @@ export function PlansSection({ applicationId, plans, readOnly = false, onChanged
               }))
             }
             hint="Можно ввести даты вручную или выбрать период в календаре"
+          />
+          <Textarea
+            label="Результат (итоги) мероприятия"
+            value={form.results ?? ''}
+            onChange={(e) => setForm({ ...form, results: e.target.value })}
+          />
+          <Textarea
+            label="Форма фиксации результатов (итогов) мероприятия"
+            value={form.fixation_form ?? ''}
+            onChange={(e) => setForm({ ...form, fixation_form: e.target.value })}
           />
           {error ? <div className={styles.error}>{error}</div> : null}
           <div className={styles.formActions}>

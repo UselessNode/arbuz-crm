@@ -448,7 +448,6 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
       default:
         return (
           <>
-            <SectionHint>{renderSectionHintText(hints.main)}</SectionHint>
             <ApplicationMainFields
               form={form}
               onChange={updateForm}
@@ -458,6 +457,7 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
               optionsError={optionsError}
               errors={fieldErrors}
               disabled={!canEdit}
+              hints={hints}
             />
             <div className={styles.meta}>
               {meta.map((item) => (

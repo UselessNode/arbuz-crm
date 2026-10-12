@@ -15,6 +15,13 @@ async function main(): Promise<void> {
     [...SECTION_HINT_KEYS],
   );
 
+  // Поля «Основного» — каждому полю своя подсказка.
+  const mainFields = ['title', 'idea', 'importance', 'goal', 'tasks', 'experience', 'results'];
+  smoke.ok(
+    'есть подсказки для всех полей «Основного»',
+    mainFields.every((key) => initial.some((hint) => hint.sectionKey === key)),
+  );
+
   const key = 'materials';
   const before = initial.find((hint) => hint.sectionKey === key)?.text ?? null;
   try {

@@ -1,8 +1,10 @@
 // Основные поля заявки: название, конкурс, направление и текстовые разделы.
 // Общий компонент для формы редактирования (карточка заявки) и формы создания.
-import { Input, Select, Textarea } from '../../components/ui';
+// Подсказки (если заданы администратором) выводятся над соответствующим полем.
+import { Input, Select, SectionHint, Textarea } from '../../components/ui';
 import type { SelectOption } from '../../components/ui';
 import type { ApplicationPayload } from '../../api/applications';
+import { renderSectionHintText } from './section-hint-text';
 import styles from './Applications.module.css';
 
 interface Props {
@@ -15,12 +17,20 @@ interface Props {
   /** Ошибки полей: ключ — имя поля payload, значение — текст ошибки. */
   errors?: Record<string, string>;
   disabled?: boolean;
+  /** Подсказки к отдельным полям «Основного» (по ключам `title`, `idea`, …). */
+  hints?: Partial<Record<'title' | 'idea' | 'importance' | 'goal' | 'tasks' | 'experience' | 'results', string>>;
   /** Выбор владельца заявки — только администратор при создании. */
   owner?: {
     value: string;
     options: readonly SelectOption<string>[];
     onChange: (value: string) => void;
   };
+}
+
+/** Подсказка над полем — рендерится, только если администратор задал текст. */
+function Hint({ text }: { text?: string }) {
+  if (!text || !text.trim()) return null;
+  return <SectionHint>{renderSectionHintText(text)}</SectionHint>;
 }
 
 export function ApplicationMainFields({
@@ -32,11 +42,13 @@ export function ApplicationMainFields({
   optionsError = null,
   errors = {},
   disabled = false,
+  hints = {},
   owner,
 }: Props) {
   return (
     <div className={styles.form}>
       {optionsError ? <div className={styles.error}>{optionsError}</div> : null}
+      <Hint text={hints.title} />
       <Input
         label="Название заявки"
         value={form.title}
@@ -76,6 +88,7 @@ export function ApplicationMainFields({
         />
       </div>
 
+      <Hint text={hints.idea} />
       <Textarea
         label="Идея проекта"
         value={form.idea_description}
@@ -84,6 +97,7 @@ export function ApplicationMainFields({
         error={errors.idea_description}
         required
       />
+      <Hint text={hints.importance} />
       <Textarea
         label="Значимость для команды"
         value={form.importance_to_team}
@@ -92,6 +106,7 @@ export function ApplicationMainFields({
         error={errors.importance_to_team}
         required
       />
+      <Hint text={hints.goal} />
       <Textarea
         label="Цель проекта"
         value={form.project_goal}
@@ -100,6 +115,7 @@ export function ApplicationMainFields({
         error={errors.project_goal}
         required
       />
+      <Hint text={hints.tasks} />
       <Textarea
         label="Задачи проекта"
         value={form.project_tasks}
@@ -108,12 +124,14 @@ export function ApplicationMainFields({
         error={errors.project_tasks}
         required
       />
+      <Hint text={hints.experience} />
       <Textarea
         label="Опыт реализации"
         value={form.implementation_experience ?? ''}
         onChange={(event) => onChange({ implementation_experience: event.target.value })}
         disabled={disabled}
       />
+      <Hint text={hints.results} />
       <Textarea
         label="Ожидаемые результаты"
         value={form.results_description ?? ''}

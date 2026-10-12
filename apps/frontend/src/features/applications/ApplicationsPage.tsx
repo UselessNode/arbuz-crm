@@ -19,6 +19,15 @@ import styles from './Applications.module.css';
 type Tab = 'list' | 'template';
 
 const SECTION_LABELS: Record<SectionHintKey, string> = {
+  // Поля «Основного» — по одной подсказке на поле.
+  title: 'Название заявки',
+  idea: 'Идея проекта',
+  importance: 'Значимость для команды',
+  goal: 'Цель проекта',
+  tasks: 'Задачи проекта',
+  experience: 'Опыт реализации',
+  results: 'Ожидаемые результаты',
+  // Составные разделы.
   main: 'Основное',
   team: 'Команда',
   plans: 'План мероприятий',

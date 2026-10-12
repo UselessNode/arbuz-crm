@@ -3,7 +3,23 @@ import { prisma } from '../../lib/prisma';
 import { httpError } from '../../lib/http';
 
 /** Ключи разделов формы заявки — совпадают с SECTION_HINT_KEYS во фронтенде. */
-export const SECTION_HINT_KEYS = ['main', 'team', 'plans', 'budget', 'materials', 'reviews'] as const;
+export const SECTION_HINT_KEYS = [
+  // «Основное» разбито на отдельные поля — каждому можно задать свою подсказку.
+  'title',
+  'idea',
+  'importance',
+  'goal',
+  'tasks',
+  'experience',
+  'results',
+  // Составные разделы формы заявки.
+  'main',
+  'team',
+  'plans',
+  'budget',
+  'materials',
+  'reviews',
+] as const;
 export type SectionHintKey = (typeof SECTION_HINT_KEYS)[number];
 
 export interface SectionHint {

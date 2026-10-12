@@ -124,9 +124,11 @@
   (подтверждение, соглашение, отчёт проверки).
 - Тексты-подсказки разделов формы заявки теперь **в БД** (`application_section_hints`): админ правит их
   в «Заявки → Настройка шаблона» (`/admin/applications`). Ссылки задаются markdown-синтаксисом
-  `[подпись](url)`. `apps/frontend/src/features/applications/section-hints.ts` — значения по умолчанию
-  (запасной вариант, если API недоступен) и синхронизированы с `apps/backend/seed/section-hints.ts`.
-  API: `GET/PUT /api/application-section-hints`; рендерит компонент `SectionHint`.
+  `[подпись](url)`. Ключи: 6 разделов (`main`/`team`/`plans`/`budget`/`materials`/`reviews`) + по
+  одному на каждое поле «Основного» (`title`/`idea`/`importance`/`goal`/`tasks`/`experience`/`results`;
+  тексты по умолчанию пусты — их задаёт заказчик). `apps/frontend/src/features/applications/section-hints.ts`
+  — значения по умолчанию (запасной вариант, если API недоступен) и синхронизированы с
+  `apps/backend/seed/section-hints.ts`. API: `GET/PUT /api/application-section-hints`; рендерит компонент `SectionHint`.
 - **Редактор публикаций** — `components/ui/MarkdownEditor` (MDXEditor): в barrel не входит и
   импортируется только через `lazy` — иначе ~750 КБ редактора уезжают в основной чанк.
   Русские подписи — `MarkdownEditor/translations.ts` (словарь перевода MDXEditor).

@@ -159,6 +159,8 @@ export interface PlanPayload {
   event_description?: string | null;
   start_date?: string | null;
   end_date?: string | null;
+  results?: string | null;
+  fixation_form?: string | null;
 }
 
 export interface BudgetPayload {
