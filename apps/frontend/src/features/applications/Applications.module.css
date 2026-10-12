@@ -293,27 +293,106 @@
   margin-top: var(--space-3);
 }
 
-/* --- Настройка шаблона: редакторы подсказок разделов --- */
-.hintEditors {
+/* --- Настройка шаблона: skeleton-форма заявки с редакторами подсказок --- */
+.templateEditor {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  /* Отступ снизу — чтобы плавающая панель не перекрывала последнюю секцию. */
+  padding-bottom: 72px;
 }
 
-.hintEditor {
+/* Блок-подсказка рядом с местом формы. */
+.hintField {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3);
+  margin-bottom: var(--space-3);
   border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-primary);
   border-radius: var(--radius-sm);
+  background: var(--tone-blue-bg);
 }
 
-.hintEditorHead {
+.hintFieldLabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+}
+
+/* Сетка подсказок к отдельным полям «Основного». */
+.hintGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+/* Скелет-форма: нередактируемые поля-ориентиры. */
+.skeletonSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.skeletonSectionTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.skeletonField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.skeletonLabel {
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.skeletonBox,
+.skeletonBoxLarge {
+  display: block;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--tone-neutral-bg);
+}
+
+.skeletonBox {
+  height: 20px;
+}
+
+.skeletonBoxLarge {
+  height: 44px;
+}
+
+/* Плавающая панель сохранения — одна на всю вкладку. */
+.floatingSave {
+  position: sticky;
+  bottom: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.floatingSaveInfo {
+  margin-right: auto;
+  font-size: 13px;
+  color: var(--color-muted);
 }
 
 .materialsTop {

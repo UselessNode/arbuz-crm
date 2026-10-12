@@ -95,7 +95,8 @@ export function PlansSection({ applicationId, plans, readOnly = false, onChanged
     { key: 'task', header: 'Задача', field: 'task' },
     { key: 'start', header: 'Начало', render: (p) => formatDate(p.startDate) },
     { key: 'end', header: 'Окончание', render: (p) => formatDate(p.endDate) },
-    { key: 'results', header: 'Результат', render: (p) => p.results ?? '—' },
+    { key: 'results', header: 'Результат (итоги)', render: (p) => p.results ?? '—' },
+    { key: 'fixation', header: 'Форма фиксации', render: (p) => p.fixationForm ?? '—' },
   ];
   if (!readOnly) {
     columns.push({

@@ -1,40 +1,21 @@
 // Админский раздел «Заявки»: список заявок и настройка подсказок к разделам формы.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge, Button, Container, DataView, MultiSelectFilter, StateMessage, StatusBadge, Textarea, useDataViewState, useToast } from '../../components/ui';
+import { Badge, Button, Container, DataView, StatusBadge, useDataViewState } from '../../components/ui';
 import type { DateRangeValue, FilterSpec, StatusOption, TableColumn } from '../../components/ui';
 import { toneFromString } from '../../components/ui/Badge/Badge';
 import { applicationsApi, type ApplicationSummary } from '../../api/applications';
 import { statusesApi, tendersApi } from '../../api/references';
 import { usersApi } from '../../api/users';
-import { documentsApi, type PublicDocument } from '../../api/documents';
-import { SECTION_HINT_KEYS, sectionHintsApi, type SectionHintKey } from '../../api/section-hints';
 import { ApiError } from '../../api/client';
 import { formatDateTime, formatUserName } from '../../lib/format';
 import { Roles } from '../../lib/roles';
 import { useBulkDelete } from '../../lib/use-bulk-delete';
 import { BulkDeleteDialog } from '../bulk-delete/BulkDeleteDialog';
+import { TemplateSettingsTab } from './TemplateSettingsTab';
 import styles from './Applications.module.css';
 
 type Tab = 'list' | 'template';
-
-const SECTION_LABELS: Record<SectionHintKey, string> = {
-  // Составные разделы (в порядке формы).
-  main: 'Основное (общая подсказка раздела)',
-  team: 'Команда',
-  plans: 'План мероприятий',
-  budget: 'Бюджет',
-  materials: 'Материалы',
-  reviews: 'Экспертизы',
-  // Поля «Основного» — по одной подсказке на поле.
-  title: 'Название заявки',
-  idea: 'Идея проекта',
-  importance: 'Значимость для команды',
-  goal: 'Цель проекта',
-  tasks: 'Задачи проекта',
-  experience: 'Опыт реализации',
-  results: 'Ожидаемые результаты',
-};
 
 export function ApplicationsPage() {
   const [tab, setTab] = useState<Tab>('list');
@@ -262,137 +243,3 @@ function ApplicationsListTab() {
   );
 }
 
-// --- Раздел «Настройка шаблона» (подсказки к разделам формы) ---
-
-/** Ссылка на документ в тексте подсказки: `/api/documents/<id>/download` (с любым origin). */
-const DOCUMENT_LINK_RE = /[ \t]*\[[^\]]*\]\((?:https?:\/\/[^)\s]*?)?\/api\/documents\/(\d+)\/download\)/g;
-
-/** Отделяет свободный текст подсказки от ссылок на документы (для multi-select). */
-function splitHint(text: string): { text: string; docIds: string[] } {
-  const docIds: string[] = [];
-  const cleaned = text
-    .replace(DOCUMENT_LINK_RE, (_match, id: string) => {
-      if (!docIds.includes(id)) docIds.push(id);
-      return '';
-    })
-    .trim();
-  return { text: cleaned, docIds };
-}
-
-/** Собирает итоговый текст подсказки: свободный текст + markdown-ссылки на выбранные документы. */
-function composeHint(text: string, docIds: string[], documents: PublicDocument[]): string {
-  const links = docIds.map((id) => {
-    const document = documents.find((item) => String(item.id) === id);
-    const title = document?.title ?? `Документ ${id}`;
-    return `[${title}](${window.location.origin}${documentsApi.downloadUrl(Number(id))})`;
-  });
-  return [text.trim(), ...links].filter(Boolean).join(' ');
-}
-
-function TemplateSettingsTab() {
-  const toast = useToast();
-  const [drafts, setDrafts] = useState<Record<SectionHintKey, string>>(
-    () => Object.fromEntries(SECTION_HINT_KEYS.map((key) => [key, ''])) as Record<SectionHintKey, string>,
-  );
-  const [selectedDocs, setSelectedDocs] = useState<Record<SectionHintKey, string[]>>(
-    () => Object.fromEntries(SECTION_HINT_KEYS.map((key) => [key, [] as string[]])) as Record<SectionHintKey, string[]>,
-  );
-  const [documents, setDocuments] = useState<PublicDocument[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [savingKey, setSavingKey] = useState<SectionHintKey | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    Promise.all([sectionHintsApi.list(), documentsApi.list()])
-      .then(([hintsResponse, documentsResponse]) => {
-        if (cancelled) return;
-        const nextDrafts = {} as Record<SectionHintKey, string>;
-        const nextSelected = {} as Record<SectionHintKey, string[]>;
-        for (const key of SECTION_HINT_KEYS) {
-          const parsed = splitHint(hintsResponse.hints.find((hint) => hint.sectionKey === key)?.text ?? '');
-          nextDrafts[key] = parsed.text;
-          nextSelected[key] = parsed.docIds;
-        }
-        setDrafts(nextDrafts);
-        setSelectedDocs(nextSelected);
-        setDocuments(documentsResponse.documents);
-      })
-      .catch((caught) => {
-        if (!cancelled) setError(caught instanceof ApiError ? caught.message : 'Не удалось загрузить данные');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Асинхронный источник вариантов для multi-select (как в фильтрах DataView).
-  const loadDocumentOptions = useCallback(
-    async (search: string) => {
-      const needle = search.trim().toLowerCase();
-      return documents
-        .filter((document) => !needle || document.title.toLowerCase().includes(needle))
-        .map((document) => ({ value: String(document.id), label: document.title }));
-    },
-    [documents],
-  );
-
-  const save = async (key: SectionHintKey) => {
-    setSavingKey(key);
-    try {
-      await sectionHintsApi.update(key, composeHint(drafts[key], selectedDocs[key], documents));
-      toast.showToast({ message: `Подсказка раздела «${SECTION_LABELS[key]}» сохранена`, tone: 'success' });
-    } catch (caught) {
-      toast.showToast({ message: caught instanceof ApiError ? caught.message : 'Не удалось сохранить', tone: 'error' });
-    } finally {
-      setSavingKey(null);
-    }
-  };
-
-  return (
-    <Container title="Настройка шаблона">
-      <p className={styles.pageHint}>
-        Тексты подсказок к разделам формы заявки. Ссылки на документы выбираются ниже (из раздела
-        «Документы») и добавляются в подсказку автоматически; в самом тексте ссылки можно задавать
-        markdown-синтаксисом <code>[подпись](адрес)</code>.
-      </p>
-
-      {loading ? (
-        <StateMessage state="loading" />
-      ) : error ? (
-        <StateMessage state="error" message={error} />
-      ) : (
-        <div className={styles.hintEditors}>
-          {SECTION_HINT_KEYS.map((key) => (
-            <div key={key} className={styles.hintEditor}>
-              <div className={styles.hintEditorHead}>
-                <strong>{SECTION_LABELS[key]}</strong>
-                <Button size="sm" variant="secondary" icon="check" loading={savingKey === key} onClick={() => void save(key)}>
-                  Сохранить
-                </Button>
-              </div>
-              <Textarea
-                label="Текст подсказки"
-                value={drafts[key]}
-                rows={3}
-                onChange={(event) => setDrafts((prev) => ({ ...prev, [key]: event.target.value }))}
-              />
-              <MultiSelectFilter
-                label="Ссылки на документы"
-                placeholder="Найдите документ…"
-                value={selectedDocs[key]}
-                onChange={(value) => setSelectedDocs((prev) => ({ ...prev, [key]: value }))}
-                loadOptions={loadDocumentOptions}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-    </Container>
-  );
-}

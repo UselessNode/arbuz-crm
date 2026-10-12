@@ -129,6 +129,8 @@
   тексты по умолчанию пусты — их задаёт заказчик). `apps/frontend/src/features/applications/section-hints.ts`
   — значения по умолчанию (запасной вариант, если API недоступен) и синхронизированы с
   `apps/backend/seed/section-hints.ts`. API: `GET/PUT /api/application-section-hints`; рендерит компонент `SectionHint`.
+  UI настройки — `features/applications/TemplateSettingsTab.tsx`: skeleton-форма заявки (подсказка
+  задаётся рядом с соответствующим местом формы), одна плавающая кнопка «Сохранить изменения».
 - **Редактор публикаций** — `components/ui/MarkdownEditor` (MDXEditor): в barrel не входит и
   импортируется только через `lazy` — иначе ~750 КБ редактора уезжают в основной чанк.
   Русские подписи — `MarkdownEditor/translations.ts` (словарь перевода MDXEditor).
