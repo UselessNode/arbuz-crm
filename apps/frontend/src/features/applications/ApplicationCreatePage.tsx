@@ -2,7 +2,7 @@
 // После создания заявки переходим в её карточку, где доступны остальные секции (команда, план и т.д.).
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Accordion, AccordionItem, Button, Container, StateMessage, useToast } from '../../components/ui';
+import { Accordion, AccordionItem, Button, Container, SectionHint, StateMessage, useToast } from '../../components/ui';
 import type { SelectOption } from '../../components/ui';
 import { applicationsApi, type ApplicationPayload } from '../../api/applications';
 import { directionsApi, tendersApi } from '../../api/references';
@@ -12,6 +12,7 @@ import { Roles } from '../../lib/roles';
 import { formatUserName } from '../../lib/format';
 import { ApplicationMainFields } from './ApplicationMainFields';
 import { validateMainFields } from './validate-main';
+import { renderSectionHintText } from './section-hint-text';
 import { useSectionHints } from './use-section-hints';
 import styles from './Applications.module.css';
 
@@ -167,6 +168,7 @@ export function ApplicationCreatePage({ area = 'applicant' }: Props) {
         {error ? <div className={styles.error}>{error}</div> : null}
         <Accordion allowMultiple>
           <AccordionItem itemKey="main" title="Основное" defaultOpen invalid={hasErrors}>
+            {hints.main ? <SectionHint>{renderSectionHintText(hints.main)}</SectionHint> : null}
             <ApplicationMainFields
               form={form}
               onChange={updateForm}

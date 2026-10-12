@@ -19,6 +19,13 @@ import styles from './Applications.module.css';
 type Tab = 'list' | 'template';
 
 const SECTION_LABELS: Record<SectionHintKey, string> = {
+  // Составные разделы (в порядке формы).
+  main: 'Основное (общая подсказка раздела)',
+  team: 'Команда',
+  plans: 'План мероприятий',
+  budget: 'Бюджет',
+  materials: 'Материалы',
+  reviews: 'Экспертизы',
   // Поля «Основного» — по одной подсказке на поле.
   title: 'Название заявки',
   idea: 'Идея проекта',
@@ -27,13 +34,6 @@ const SECTION_LABELS: Record<SectionHintKey, string> = {
   tasks: 'Задачи проекта',
   experience: 'Опыт реализации',
   results: 'Ожидаемые результаты',
-  // Составные разделы.
-  main: 'Основное',
-  team: 'Команда',
-  plans: 'План мероприятий',
-  budget: 'Бюджет',
-  materials: 'Материалы',
-  reviews: 'Экспертизы',
 };
 
 export function ApplicationsPage() {

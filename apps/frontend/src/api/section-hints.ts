@@ -3,6 +3,13 @@ import { api } from './client';
 
 /** Ключи разделов — зеркало SECTION_HINT_KEYS на бэкенде. */
 export const SECTION_HINT_KEYS = [
+  // Составные разделы формы заявки.
+  'main',
+  'team',
+  'plans',
+  'budget',
+  'materials',
+  'reviews',
   // Поля «Основного» (каждому — своя подсказка).
   'title',
   'idea',
@@ -11,13 +18,6 @@ export const SECTION_HINT_KEYS = [
   'tasks',
   'experience',
   'results',
-  // Составные разделы формы заявки.
-  'main',
-  'team',
-  'plans',
-  'budget',
-  'materials',
-  'reviews',
 ] as const;
 export type SectionHintKey = (typeof SECTION_HINT_KEYS)[number];
 

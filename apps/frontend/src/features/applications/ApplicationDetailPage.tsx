@@ -399,40 +399,44 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
       : []),
   ];
 
+  // Подсказка раздела выводится, только если администратор задал текст (пустой — не показываем).
+  const sectionHint = (text: string | undefined) =>
+    text && text.trim() ? <SectionHint>{renderSectionHintText(text)}</SectionHint> : null;
+
   const renderSection = (key: SectionKey) => {
     switch (key) {
       case 'team':
         return (
           <>
-            <SectionHint>{renderSectionHintText(hints.team)}</SectionHint>
+            {sectionHint(hints.team)}
             <TeamMembersSection applicationId={application.id} members={application.teamMembers} readOnly={!canEdit} onChanged={refresh} />
           </>
         );
       case 'plans':
         return (
           <>
-            <SectionHint>{renderSectionHintText(hints.plans)}</SectionHint>
+            {sectionHint(hints.plans)}
             <PlansSection applicationId={application.id} plans={application.projectPlans} readOnly={!canEdit} onChanged={refresh} />
           </>
         );
       case 'budget':
         return (
           <>
-            <SectionHint>{renderSectionHintText(hints.budget)}</SectionHint>
+            {sectionHint(hints.budget)}
             <BudgetSection applicationId={application.id} items={application.projectBudget} readOnly={!canEdit} onChanged={refresh} />
           </>
         );
       case 'materials':
         return (
           <>
-            <SectionHint>{renderSectionHintText(hints.materials)}</SectionHint>
+            {sectionHint(hints.materials)}
             <MaterialsSection applicationId={application.id} materials={application.materials} readOnly={!canEdit} onChanged={refresh} />
           </>
         );
       case 'reviews':
         return (
           <>
-            <SectionHint>{renderSectionHintText(hints.reviews)}</SectionHint>
+            {sectionHint(hints.reviews)}
             {isExpertArea ? <ExpertEvaluationSection application={application} onChanged={refresh} /> : null}
             {isAdmin ? (
               <ReviewsSection
@@ -448,6 +452,7 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
       default:
         return (
           <>
+            {sectionHint(hints.main)}
             <ApplicationMainFields
               form={form}
               onChange={updateForm}

@@ -4,6 +4,13 @@ import { httpError } from '../../lib/http';
 
 /** Ключи разделов формы заявки — совпадают с SECTION_HINT_KEYS во фронтенде. */
 export const SECTION_HINT_KEYS = [
+  // Составные разделы формы заявки.
+  'main',
+  'team',
+  'plans',
+  'budget',
+  'materials',
+  'reviews',
   // «Основное» разбито на отдельные поля — каждому можно задать свою подсказку.
   'title',
   'idea',
@@ -12,13 +19,6 @@ export const SECTION_HINT_KEYS = [
   'tasks',
   'experience',
   'results',
-  // Составные разделы формы заявки.
-  'main',
-  'team',
-  'plans',
-  'budget',
-  'materials',
-  'reviews',
 ] as const;
 export type SectionHintKey = (typeof SECTION_HINT_KEYS)[number];
 
