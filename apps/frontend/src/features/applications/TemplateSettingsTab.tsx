@@ -1,9 +1,3 @@
-// «Настройка шаблона»: точная копия формы заявки, где все контролы заблокированы
-// и нужны лишь как визуальный ориентир, а редактируются только подсказки —
-// рядом с теми местами, где они появятся на реальной форме.
-//
-// Принцип: админ видит форму заявки и правит подсказки «на ней», а не список полей.
-// Одна плавающая кнопка сохраняет все изменённые подсказки разом.
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Accordion,
@@ -11,6 +5,7 @@ import {
   Button,
   Container,
   Icon,
+  Input,
   MultiSelectFilter,
   StateMessage,
   Table,
@@ -23,10 +18,8 @@ import { documentsApi, type PublicDocument } from '../../api/documents';
 import { ApiError } from '../../api/client';
 import styles from './Applications.module.css';
 
-/** Ссылка на документ в тексте подсказки: `/api/documents/<id>/download` (с любым origin). */
 const DOCUMENT_LINK_RE = /[ \t]*\[[^\]]*\]\((?:https?:\/\/[^)\s]*?)?\/api\/documents\/(\d+)\/download\)/g;
 
-/** Отделяет свободный текст подсказки от ссылок на документы (для селектора). */
 function splitHint(text: string): { text: string; docIds: string[] } {
   const docIds: string[] = [];
   const cleaned = text
@@ -38,7 +31,6 @@ function splitHint(text: string): { text: string; docIds: string[] } {
   return { text: cleaned, docIds };
 }
 
-/** Собирает итоговый текст подсказки: свободный текст + markdown-ссылки на выбранные документы. */
 function composeHint(text: string, docIds: string[], documents: PublicDocument[]): string {
   const links = docIds.map((id) => {
     const document = documents.find((item) => String(item.id) === id);
@@ -48,28 +40,27 @@ function composeHint(text: string, docIds: string[], documents: PublicDocument[]
   return [text.trim(), ...links].filter(Boolean).join(' ');
 }
 
-// --- Заблокированные визуальные поля формы (ориентиры) ---
-
-/** Поле-ориентир: визуально повторяет Input/Textarea, но только для показа. */
+/** Поле-ориентир: визуально повторяет Input/Textarea, но только для показа (disabled). */
 function LockedField({ label, multiline = false, placeholder = '' }: { label: string; multiline?: boolean; placeholder?: string }) {
+  const wrapper = [styles.lockedField].filter(Boolean).join(' ');
+  if (multiline) {
+    return (
+      <div className={wrapper} aria-hidden>
+        <Textarea label={label} value="" placeholder={placeholder} rows={3} disabled onChange={() => undefined} />
+      </div>
+    );
+  }
   return (
-    <label className={`${styles.field} ${styles.lockedField}`}>
-      <span className={styles.fieldLabel}>{label}</span>
-      {multiline ? (
-        <textarea className={styles.lockedControl} rows={3} placeholder={placeholder} disabled />
-      ) : (
-        <input className={styles.lockedControl} placeholder={placeholder} disabled />
-      )}
-    </label>
+    <div className={wrapper} aria-hidden>
+      <Input label={label} value="" placeholder={placeholder} disabled onChange={() => undefined} />
+    </div>
   );
 }
 
-/** Два поля в ряд (как grid2 в реальной форме). */
 function LockedRow({ children }: { children: ReactNode }) {
   return <div className={styles.grid2}>{children}</div>;
 }
 
-/** Таблица-ориентир: показывает только шапку — столбцы соответствующей секции. */
 function LockedTable({ headers }: { headers: string[] }) {
   type Row = { key: number };
   const columns: TableColumn<Row>[] = headers.map((header, index) => ({
@@ -84,8 +75,6 @@ function LockedTable({ headers }: { headers: string[] }) {
   );
 }
 
-// --- Редактор одной подсказки (рядом с её местом на форме) ---
-
 interface HintFieldProps {
   hintKey: SectionHintKey;
   value: string;
@@ -96,6 +85,8 @@ interface HintFieldProps {
 }
 
 function HintField({ hintKey, value, docIds, onText, onDocs, loadDocumentOptions }: HintFieldProps) {
+  // Свёрнутое состояние: только кнопка-«плюс», как у свёрнутого поиска (SearchField).
+  // По нажатию кнопка «разворачивается» в поле с автодополнением и чипами.
   const [docsOpen, setDocsOpen] = useState(docIds.length > 0);
 
   return (
@@ -103,36 +94,37 @@ function HintField({ hintKey, value, docIds, onText, onDocs, loadDocumentOptions
       <div className={styles.hintEditorHead}>
         <Icon name="info" size={15} className={styles.hintEditorIcon} />
         <span className={styles.hintEditorTitle}>Подсказка на форме</span>
-        {/* Раскрытие выбора ссылок на документы (по аналогии с поиском-«лупой»). */}
-        <button
-          type="button"
-          className={`${styles.docsToggle} ${docsOpen ? styles.docsToggleActive : ''}`}
-          aria-label={docsOpen ? 'Скрыть ссылки на документы' : 'Добавить ссылку на документ'}
-          title="Добавить ссылку на документ"
-          aria-expanded={docsOpen}
-          onClick={() => setDocsOpen((prev) => !prev)}
-        >
-          <Icon name={docsOpen ? 'minus' : 'plus'} size={16} />
-        </button>
       </div>
 
       <Textarea
         value={value}
         rows={2}
-        placeholder="Текст подсказки (пусто — подсказки не будет)"
+        placeholder="Текст подсказки. Если оставить пустым, то подсказка не будет отображаться)"
         onChange={(event) => onText(event.target.value)}
         aria-label={`Подсказка ${hintKey}`}
       />
 
+      {/* Ссылки на документы добавляются в конец подсказки — блок идёт под текстом. */}
       {docsOpen ? (
         <MultiSelectFilter
-          label="Ссылки на документы (появятся в конце подсказки)"
+          label="Ссылки на документы (добавляются в конец подсказки)"
           placeholder="Начните вводить название…"
           value={docIds}
           onChange={onDocs}
           loadOptions={loadDocumentOptions}
         />
-      ) : null}
+      ) : (
+        <div className={styles.docsAddRow}>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="plus"
+            aria-label="Добавить ссылку на документ"
+            title="Добавить ссылку на документ"
+            onClick={() => setDocsOpen(true)}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -237,7 +229,6 @@ export function TemplateSettingsTab() {
     />
   );
 
-  // Вкладки — те же, что на реальной форме заявки.
   const tabs: ReadonlyArray<{ key: 'all' | SectionHintKey; label: string }> = [
     { key: 'all', label: 'ВСЕ' },
     { key: 'main', label: 'Основное' },

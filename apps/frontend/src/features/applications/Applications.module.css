@@ -308,29 +308,6 @@
   pointer-events: none;
 }
 
-.fieldLabel {
-  display: block;
-  font-size: 13px;
-  color: var(--color-muted);
-  margin-bottom: var(--space-1);
-}
-
-.lockedControl {
-  width: 100%;
-  padding: 9px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: 14px;
-  resize: none;
-}
-
-.lockedControl::placeholder {
-  color: var(--color-muted);
-}
-
 /* Таблица-ориентир — только шапка, приглушена. */
 .lockedTable {
   opacity: 0.55;
@@ -371,34 +348,10 @@
   color: var(--tone-blue-text);
 }
 
-/* Кнопка раскрытия выбора ссылок на документы (по аналогии с лупой поиска). */
-.docsToggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.docsToggle:hover {
-  background-color: var(--tone-neutral-bg);
-}
-
-.docsToggle:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
-}
-
-.docsToggleActive {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+/* Ряд с кнопкой-«плюсом» добавления ссылки (когда селектор свёрнут). */
+.docsAddRow {
+  display: flex;
+  justify-content: flex-start;
 }
 
 /* Плавающая панель сохранения — одна на всю вкладку. */
