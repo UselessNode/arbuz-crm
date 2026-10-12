@@ -83,26 +83,9 @@
   font-size: 13px;
 }
 
+/* Ссылка-подпись соглашения: вид ссылки даёт Button variant="link", здесь — только раскладка в строке с чекбоксом. */
 .agreementLink {
   flex: 1 1 auto;
-  padding: 0;
-  border: none;
-  background-color: transparent;
-  color: var(--color-primary);
-  font: inherit;
-  text-align: left;
-  text-decoration: underline;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.agreementLink:hover {
-  color: var(--color-primary-hover);
-}
-
-.agreementLink:active {
-  color: var(--color-primary-hover);
-  opacity: 0.85;
 }
 
 .footer {

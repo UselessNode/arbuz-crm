@@ -138,13 +138,13 @@ export function RegisterPage() {
                   if (!accepted[item.type]) setOpenDocument(item.type);
                 }}
               />
-              <button
-                type="button"
+              <Button
+                variant="link"
                 className={styles.agreementLink}
                 onClick={() => setOpenDocument(item.type)}
               >
                 {item.label}
-              </button>
+              </Button>
             </div>
           ))}
 

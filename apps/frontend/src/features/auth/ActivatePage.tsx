@@ -137,9 +137,9 @@ function ActivateForm({ user }: { user: AuthUser }) {
                   if (!accepted[item.type]) setOpenDocument(item.type);
                 }}
               />
-              <button type="button" className={styles.agreementLink} onClick={() => setOpenDocument(item.type)}>
+              <Button variant="link" className={styles.agreementLink} onClick={() => setOpenDocument(item.type)}>
                 {item.label}
-              </button>
+              </Button>
             </div>
           ))}
 

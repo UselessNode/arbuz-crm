@@ -291,17 +291,19 @@ function FormsTab() {
     <div className={styles.panel}>
       <DocItem
         title="Button"
-        description="Основное действие — primary (один на экран), вторичные — secondary/ghost, деструктивные — danger. Есть размеры, иконка и состояние загрузки."
+        description="Основное действие — primary (один на экран), вторичные — secondary/ghost, деструктивные — danger, ссылка в тексте — link. Есть размеры, иконка и состояние загрузки."
         code={`<Button icon="add" onClick={...}>Добавить</Button>
 <Button variant="secondary">Отмена</Button>
 <Button variant="ghost" icon="edit" aria-label="Изменить" />
 <Button variant="danger">Удалить</Button>
+<Button variant="link">Ссылка в тексте</Button>
 <Button loading>Сохраняем…</Button>`}
       >
         <Button>Primary</Button>
         <Button variant="secondary">Secondary</Button>
         <Button variant="ghost">Ghost</Button>
         <Button variant="danger">Danger</Button>
+        <Button variant="link">Ссылка в тексте</Button>
         <Button icon="add">С иконкой</Button>
         <Button loading>Загрузка</Button>
         <Button disabled>Недоступно</Button>

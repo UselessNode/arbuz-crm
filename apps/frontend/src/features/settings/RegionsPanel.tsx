@@ -1,6 +1,6 @@
 // Панель «Регионы»: справочник с CRUD (замена хардкода субъектов РФ на данные).
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Button, ConfirmDialog, Container, Input, Modal, Pagination, SearchInput, StateMessage, Table, useToast } from '../../components/ui';
+import { Button, Checkbox, ConfirmDialog, Container, Input, Modal, Pagination, SearchInput, StateMessage, Table, useToast } from '../../components/ui';
 import type { TableColumn } from '../../components/ui';
 import { regionsApi, type Region } from '../../api/site';
 import { ApiError } from '../../api/client';
@@ -178,10 +178,11 @@ function RegionModal({ region, onClose, onSaved }: { region?: Region; onClose: (
     <Modal open title={isEdit ? 'Регион' : 'Новый регион'} onClose={onClose} width={440}>
       <form className={styles.form} onSubmit={handleSubmit}>
         <Input label="Название" value={name} onChange={(event) => setName(event.target.value)} required />
-        <label className={styles.checkboxRow}>
-          <input type="checkbox" checked={isDefault} onChange={(event) => setIsDefault(event.target.checked)} />
-          <span>Регион по умолчанию (подставляется в формах)</span>
-        </label>
+        <Checkbox
+          checked={isDefault}
+          onChange={setIsDefault}
+          label="Регион по умолчанию (подставляется в формах)"
+        />
         {error ? <div className={styles.error}>{error}</div> : null}
         <div className={styles.formActions}>
           <Button variant="secondary" type="button" onClick={onClose} disabled={saving}>
