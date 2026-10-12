@@ -77,6 +77,8 @@ function LockedTable({ headers }: { headers: string[] }) {
 interface HintFieldProps {
   /** Человекочитаемое имя места формы — для заголовка и подписи поля. */
   label: string;
+  /** Ключ раздела — нужен, чтобы показать особую пометку у секции экспертиз. */
+  hintKey: SectionHintKey;
   value: string;
   documentIds: string[];
   onText: (value: string) => void;
@@ -84,17 +86,25 @@ interface HintFieldProps {
   loadDocumentOptions: (search: string) => Promise<{ value: string; label: string }[]>;
 }
 
-function HintField({ label, value, documentIds, onText, onDocuments, loadDocumentOptions }: HintFieldProps) {
+function HintField({ label, hintKey, value, documentIds, onText, onDocuments, loadDocumentOptions }: HintFieldProps) {
   // Свёрнутое состояние: кнопка-«ссылка», по нажатию разворачивается в селектор документов.
   // Пока выбраны документы — поле всегда раскрыто; при пустом списке его можно свернуть.
   const [documentsOpen, setDocumentsOpen] = useState(documentIds.length > 0);
   const documentsVisible = documentsOpen || documentIds.length > 0;
 
+  // Секция экспертиз доступна только эксперту — помечаем это для администратора.
+  const isExpertSection = hintKey === 'reviews';
+
   return (
     <div className={styles.hintEditor}>
       <div className={styles.hintEditorHead}>
         <Icon name="info" size={15} className={styles.hintEditorIcon} />
-        <span className={styles.hintEditorTitle}>Подсказка: {label}</span>
+        <span className={styles.hintEditorTitle}>
+          Подсказка: {label}
+          {isExpertSection && (
+            <span className={styles.expertNote}> (Эту секцию видит только эксперт)</span>
+          )}
+        </span>
       </div>
 
       <Textarea
@@ -251,6 +261,7 @@ export function TemplateSettingsTab() {
     const label = fieldLabels[key] ?? labelOf(key);
     return (
       <HintField
+        hintKey={key}
         label={label}
         value={drafts[key]}
         documentIds={selectedDocs[key]}

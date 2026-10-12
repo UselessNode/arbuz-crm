@@ -353,6 +353,14 @@
   color: var(--tone-blue-text);
 }
 
+/* Пометка о видимости секции — обычным регистром и приглушённо, чтобы не сливалась с заголовком. */
+.expertNote {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  opacity: 0.75;
+}
+
 /* Блок ссылок на документы в подсказке. */
 .docsBlock {
   display: flex;
