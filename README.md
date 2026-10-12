@@ -1,10 +1,17 @@
 # 🍉 Arbuz CRM
 
+[![CI & Publish Images](https://github.com/UselessNode/arbuz-crm/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/UselessNode/arbuz-crm/actions/workflows/ci.yml)
+[![Deploy](https://github.com/UselessNode/arbuz-crm/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/UselessNode/arbuz-crm/actions/workflows/deploy.yml)
+[![Version](https://img.shields.io/badge/version-2.3.1-blue)](CHANGELOG.md)
+[![Bun](https://img.shields.io/badge/Bun-1.4.2-fbf0df?logo=bun&logoColor=000)](https://bun.sh)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169e1?logo=postgresql&logoColor=fff)](https://www.postgresql.org)
+[![Prisma](https://img.shields.io/badge/Prisma-7-2d3748?logo=prisma&logoColor=fff)](https://www.prisma.io)
+
 CRM-система для некоммерческой организации: цифровизация приёма и рассмотрения грантовых
 заявок. Основной объект — **заявка** (`applications`): конкурс и направление, состав команды
 с файлами согласий, план мероприятий, бюджет, материалы, экспертизы, статусы и публикации.
 
-Монорепозиторий на Bun workspaces. Текущая версия — **2.3.0**
+Монорепозиторий на Bun workspaces. Текущая версия — **2.3.1**
 (см. [`CHANGELOG.md`](CHANGELOG.md)); проект развёрнут на проде (`arbuzdobra.ru`) через Docker + GitHub Actions,
 далее — этап поддержки. План работ и заметки заказчика держим локально (не коммитятся).
 
