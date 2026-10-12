@@ -83,26 +83,6 @@
   background-color: var(--color-danger-active);
 }
 
-/* Ссылка в тексте: без фона, рамки и отступов кнопки — только как ссылка. */
-.link {
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  background-color: transparent;
-  color: var(--color-link);
-  font: inherit;
-  text-align: left;
-  text-decoration: underline;
-  white-space: normal;
-}
-.link:hover:not(:disabled) {
-  color: var(--color-link-hover);
-}
-.link:active:not(:disabled) {
-  box-shadow: none;
-  opacity: 0.85;
-}
-
 /* Размеры */
 .sm {
   padding: 6px 10px;
@@ -119,4 +99,27 @@
 
 .fullWidth {
   width: 100%;
+}
+
+/* Ссылка в тексте: без фона, рамки, отступов и зазора кнопки — только как ссылка.
+   Объявлен после размеров, чтобы перебить их padding/font-size. */
+.link {
+  padding: 0;
+  gap: 0;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--color-link);
+  font: inherit;
+  justify-content: flex-start;
+  text-align: left;
+  text-decoration: underline;
+  white-space: normal;
+}
+.link:hover:not(:disabled) {
+  color: var(--color-link-hover);
+}
+.link:active:not(:disabled) {
+  box-shadow: none;
+  opacity: 0.85;
 }

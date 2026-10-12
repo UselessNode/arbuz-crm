@@ -85,7 +85,8 @@
 
 /* Ссылка-подпись соглашения: вид ссылки даёт Button variant="link", здесь — только раскладка в строке с чекбоксом. */
 .agreementLink {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .footer {

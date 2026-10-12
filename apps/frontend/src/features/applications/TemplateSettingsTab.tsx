@@ -20,19 +20,19 @@ import styles from './Applications.module.css';
 
 const DOCUMENT_LINK_RE = /[ \t]*\[[^\]]*\]\((?:https?:\/\/[^)\s]*?)?\/api\/documents\/(\d+)\/download\)/g;
 
-function splitHint(text: string): { text: string; docIds: string[] } {
-  const docIds: string[] = [];
+function splitHint(text: string): { text: string; documentIds: string[] } {
+  const documentIds: string[] = [];
   const cleaned = text
     .replace(DOCUMENT_LINK_RE, (_match, id: string) => {
-      if (!docIds.includes(id)) docIds.push(id);
+      if (!documentIds.includes(id)) documentIds.push(id);
       return '';
     })
     .trim();
-  return { text: cleaned, docIds };
+  return { text: cleaned, documentIds };
 }
 
-function composeHint(text: string, docIds: string[], documents: PublicDocument[]): string {
-  const links = docIds.map((id) => {
+function composeHint(text: string, documentIds: string[], documents: PublicDocument[]): string {
+  const links = documentIds.map((id) => {
     const document = documents.find((item) => String(item.id) === id);
     const title = document?.title ?? `Документ ${id}`;
     return `[${title}](${window.location.origin}${documentsApi.downloadUrl(Number(id))})`;
@@ -40,18 +40,17 @@ function composeHint(text: string, docIds: string[], documents: PublicDocument[]
   return [text.trim(), ...links].filter(Boolean).join(' ');
 }
 
-/** Поле-ориентир: визуально повторяет Input/Textarea, но только для показа (disabled). */
+/** Поле-ориентир: визуально повторяет Input/Textarea, но только для показа (недоступно). */
 function LockedField({ label, multiline = false, placeholder = '' }: { label: string; multiline?: boolean; placeholder?: string }) {
-  const wrapper = [styles.lockedField].filter(Boolean).join(' ');
   if (multiline) {
     return (
-      <div className={wrapper} aria-hidden>
+      <div className={styles.lockedField} aria-hidden>
         <Textarea label={label} value="" placeholder={placeholder} rows={3} disabled onChange={() => undefined} />
       </div>
     );
   }
   return (
-    <div className={wrapper} aria-hidden>
+    <div className={styles.lockedField} aria-hidden>
       <Input label={label} value="" placeholder={placeholder} disabled onChange={() => undefined} />
     </div>
   );
@@ -76,53 +75,59 @@ function LockedTable({ headers }: { headers: string[] }) {
 }
 
 interface HintFieldProps {
-  hintKey: SectionHintKey;
+  /** Человекочитаемое имя места формы — для заголовка и подписи поля. */
+  label: string;
   value: string;
-  docIds: string[];
+  documentIds: string[];
   onText: (value: string) => void;
-  onDocs: (ids: string[]) => void;
+  onDocuments: (ids: string[]) => void;
   loadDocumentOptions: (search: string) => Promise<{ value: string; label: string }[]>;
 }
 
-function HintField({ hintKey, value, docIds, onText, onDocs, loadDocumentOptions }: HintFieldProps) {
-  // Свёрнутое состояние: только кнопка-«плюс», как у свёрнутого поиска (SearchField).
-  // По нажатию кнопка «разворачивается» в поле с автодополнением и чипами.
-  const [docsOpen, setDocsOpen] = useState(docIds.length > 0);
+function HintField({ label, value, documentIds, onText, onDocuments, loadDocumentOptions }: HintFieldProps) {
+  // Свёрнутое состояние: кнопка-«ссылка», по нажатию разворачивается в селектор документов.
+  // Пока выбраны документы — поле всегда раскрыто; при пустом списке его можно свернуть.
+  const [documentsOpen, setDocumentsOpen] = useState(documentIds.length > 0);
+  const documentsVisible = documentsOpen || documentIds.length > 0;
 
   return (
     <div className={styles.hintEditor}>
       <div className={styles.hintEditorHead}>
         <Icon name="info" size={15} className={styles.hintEditorIcon} />
-        <span className={styles.hintEditorTitle}>Подсказка на форме</span>
+        <span className={styles.hintEditorTitle}>Подсказка: {label}</span>
       </div>
 
       <Textarea
         value={value}
         rows={2}
-        placeholder="Текст подсказки. Если оставить пустым, то подсказка не будет отображаться)"
+        placeholder="Текст подсказки к этому месту формы. Пусто — подсказки не будет."
         onChange={(event) => onText(event.target.value)}
-        aria-label={`Подсказка ${hintKey}`}
+        aria-label={`Подсказка к полю «${label}»`}
       />
 
       {/* Ссылки на документы добавляются в конец подсказки — блок идёт под текстом. */}
-      {docsOpen ? (
-        <MultiSelectFilter
-          label="Ссылки на документы (добавляются в конец подсказки)"
-          placeholder="Начните вводить название…"
-          value={docIds}
-          onChange={onDocs}
-          loadOptions={loadDocumentOptions}
-        />
+      {documentsVisible ? (
+        <div className={styles.docsBlock}>
+          <MultiSelectFilter
+            label="Ссылки на документы (добавляются в конец подсказки)"
+            placeholder="Начните вводить название…"
+            value={documentIds}
+            onChange={onDocuments}
+            loadOptions={loadDocumentOptions}
+          />
+          {documentIds.length === 0 ? (
+            <div>
+              <Button size="sm" variant="ghost" icon="close" onClick={() => setDocumentsOpen(false)}>
+                Свернуть
+              </Button>
+            </div>
+          ) : null}
+        </div>
       ) : (
         <div className={styles.docsAddRow}>
-          <Button
-            size="sm"
-            variant="secondary"
-            icon="plus"
-            aria-label="Добавить ссылку на документ"
-            title="Добавить ссылку на документ"
-            onClick={() => setDocsOpen(true)}
-          />
+          <Button size="sm" variant="secondary" icon="chain" onClick={() => setDocumentsOpen(true)}>
+            Добавить ссылку на документ
+          </Button>
         </div>
       )}
     </div>
@@ -158,8 +163,8 @@ export function TemplateSettingsTab() {
           const raw = hintsResponse.hints.find((hint) => hint.sectionKey === key)?.text ?? '';
           const parsed = splitHint(raw);
           nextDrafts[key] = parsed.text;
-          nextSelected[key] = parsed.docIds;
-          nextInitial.set(key, composeHint(parsed.text, parsed.docIds, documentsResponse.documents));
+          nextSelected[key] = parsed.documentIds;
+          nextInitial.set(key, composeHint(parsed.text, parsed.documentIds, documentsResponse.documents));
         }
         setDrafts(nextDrafts);
         setSelectedDocs(nextSelected);
@@ -197,6 +202,20 @@ export function TemplateSettingsTab() {
     [composed, initial],
   );
 
+  // Откат всех несохранённых правок к последнему сохранённому состоянию.
+  const resetAll = () => {
+    const nextDrafts = {} as Record<SectionHintKey, string>;
+    const nextSelected = {} as Record<SectionHintKey, string[]>;
+    for (const key of SECTION_HINT_KEYS) {
+      const saved = initial.get(key) ?? '';
+      const parsed = splitHint(saved);
+      nextDrafts[key] = parsed.text;
+      nextSelected[key] = parsed.documentIds;
+    }
+    setDrafts(nextDrafts);
+    setSelectedDocs(nextSelected);
+  };
+
   const saveAll = async () => {
     if (changedKeys.length === 0) return;
     setSaving(true);
@@ -218,16 +237,29 @@ export function TemplateSettingsTab() {
   if (loading) return <StateMessage state="loading" />;
   if (error) return <StateMessage state="error" message={error} />;
 
-  const hint = (key: SectionHintKey) => (
-    <HintField
-      hintKey={key}
-      value={drafts[key]}
-      docIds={selectedDocs[key]}
-      onText={(value) => setDrafts((prev) => ({ ...prev, [key]: value }))}
-      onDocs={(ids) => setSelectedDocs((prev) => ({ ...prev, [key]: ids }))}
-      loadDocumentOptions={loadDocumentOptions}
-    />
-  );
+  const fieldLabels: Partial<Record<SectionHintKey, string>> = {
+    title: 'Название заявки',
+    idea: 'Идея проекта',
+    importance: 'Значимость для команды',
+    goal: 'Цель проекта',
+    tasks: 'Задачи проекта',
+    experience: 'Опыт реализации',
+    results: 'Ожидаемые результаты',
+  };
+
+  const hint = (key: SectionHintKey) => {
+    const label = fieldLabels[key] ?? labelOf(key);
+    return (
+      <HintField
+        label={label}
+        value={drafts[key]}
+        documentIds={selectedDocs[key]}
+        onText={(value) => setDrafts((prev) => ({ ...prev, [key]: value }))}
+        onDocuments={(ids) => setSelectedDocs((prev) => ({ ...prev, [key]: ids }))}
+        loadDocumentOptions={loadDocumentOptions}
+      />
+    );
+  };
 
   const tabs: ReadonlyArray<{ key: 'all' | SectionHintKey; label: string }> = [
     { key: 'all', label: 'ВСЕ' },
@@ -262,15 +294,16 @@ export function TemplateSettingsTab() {
 
       <Container title="Форма заявки (шаблон)">
         <p className={styles.pageHint}>
-          Это копия формы заявки: заблокированные поля показывают, где появится подсказка; синие
-          блоки — редактируемые подсказки. Пустой текст — подсказки на форме не будет.
+          Здесь правится текст подсказок к разделам и полям формы заявки. Приглушённые поля показывают,
+          в каком месте формы появится подсказка; пустой текст — подсказки не будет. Ссылки на документы
+          добавляются к тексту подсказки.
         </p>
 
         <Accordion allowMultiple>
           {visibleKeys.map((key) => (
             <AccordionItem key={key} itemKey={key} title={labelOf(key)} defaultOpen>
               {key === 'main' ? (
-                <>
+                <div className={styles.sectionBody}>
                   {hint('main')}
                   {hint('title')}
                   <LockedField label="Название заявки" />
@@ -290,25 +323,25 @@ export function TemplateSettingsTab() {
                   <LockedField label="Опыт реализации" multiline />
                   {hint('results')}
                   <LockedField label="Ожидаемые результаты" multiline />
-                </>
+                </div>
               ) : null}
 
               {key === 'team' ? (
-                <>
+                <div className={styles.sectionBody}>
                   {hint('team')}
                   <LockedTable headers={['ФИО', 'Возраст', 'Задачи', 'Роли', 'Согласие']} />
-                </>
+                </div>
               ) : null}
 
               {key === 'plans' ? (
-                <>
+                <div className={styles.sectionBody}>
                   {hint('plans')}
                   <LockedTable headers={['Мероприятие', 'Задача', 'Начало', 'Окончание', 'Результат (итоги)', 'Форма фиксации']} />
-                </>
+                </div>
               ) : null}
 
               {key === 'budget' ? (
-                <>
+                <div className={styles.sectionBody}>
                   {hint('budget')}
                   <LockedTable
                     headers={[
@@ -320,21 +353,21 @@ export function TemplateSettingsTab() {
                       'Итого, ₽',
                     ]}
                   />
-                </>
+                </div>
               ) : null}
 
               {key === 'materials' ? (
-                <>
+                <div className={styles.sectionBody}>
                   {hint('materials')}
                   <LockedTable headers={['Файл', 'Тип', 'Размер', 'Комментарий', 'Загружен']} />
-                </>
+                </div>
               ) : null}
 
               {key === 'reviews' ? (
-                <>
+                <div className={styles.sectionBody}>
                   {hint('reviews')}
                   <LockedTable headers={['Эксперт', 'Вердикт', 'Балл', 'Комментарий']} />
-                </>
+                </div>
               ) : null}
             </AccordionItem>
           ))}
@@ -343,8 +376,15 @@ export function TemplateSettingsTab() {
 
       <div className={styles.floatingSave}>
         <span className={styles.floatingSaveInfo}>
-          {changedKeys.length > 0 ? `Изменено подсказок: ${changedKeys.length}` : 'Все изменения сохранены'}
+          {changedKeys.length > 0
+            ? `Изменено подсказок: ${changedKeys.length}`
+            : 'Все изменения сохранены'}
         </span>
+        {changedKeys.length > 0 ? (
+          <Button variant="secondary" icon="close" disabled={saving} onClick={resetAll}>
+            Отменить изменения
+          </Button>
+        ) : null}
         <Button icon="check" loading={saving} disabled={changedKeys.length === 0} onClick={() => void saveAll()}>
           Сохранить изменения
         </Button>

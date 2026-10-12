@@ -312,17 +312,22 @@
 .lockedTable {
   opacity: 0.55;
   pointer-events: none;
-  margin-bottom: var(--space-3);
 }
 
-/* Редактор подсказки — выделен, чтобы было ясно: вот здесь вводим текст. */
+/* Тело секции шаблона: единый вертикальный ритм между подсказками и полями. */
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Редактор подсказки — тот же вид, что у SectionHint на реальной форме
+   (фон + левая полоса), плюс заголовок и поле ввода. */
 .hintEditor {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3);
-  margin-bottom: var(--space-3);
-  border: 1px solid var(--color-primary);
   border-left: 3px solid var(--color-primary);
   border-radius: var(--radius-sm);
   background: var(--tone-blue-bg);
@@ -335,7 +340,7 @@
 }
 
 .hintEditorIcon {
-  color: var(--color-primary);
+  color: var(--tone-blue-text);
   flex-shrink: 0;
 }
 
@@ -348,10 +353,29 @@
   color: var(--tone-blue-text);
 }
 
-/* Ряд с кнопкой-«плюсом» добавления ссылки (когда селектор свёрнут). */
+/* Блок ссылок на документы в подсказке. */
+.docsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  animation: hintDocsIn 0.15s ease;
+}
+
+/* Ряд с кнопкой добавления ссылки (когда селектор свёрнут). */
 .docsAddRow {
   display: flex;
   justify-content: flex-start;
+}
+
+@keyframes hintDocsIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Плавающая панель сохранения — одна на всю вкладку. */
@@ -367,6 +391,26 @@
   border-radius: var(--radius-md);
   background: var(--color-surface);
   box-shadow: var(--shadow-md);
+  animation: floatingSaveIn 0.15s ease;
+}
+
+@keyframes floatingSaveIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Уважать системную настройку уменьшенного движения. */
+@media (prefers-reduced-motion: reduce) {
+  .docsBlock,
+  .floatingSave {
+    animation: none;
+  }
 }
 
 .floatingSaveInfo {
