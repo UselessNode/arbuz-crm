@@ -91,19 +91,24 @@ export function Badge({ tone = 'neutral', size = 'sm', icon, className, title, m
   const textRef = useRef<HTMLSpanElement | null>(null);
   const [shift, setShift] = useState(0);
 
-  // Измеряем переполнение текста относительно видимой области бейджа.
+  // Один замер и по ширине содержимого, и по ширине бейджа — иначе они могут разойтись.
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
     const text = textRef.current;
     if (!wrap || !text) {
       setShift(0);
-      return;
+      return undefined;
     }
-    const measure = () => setShift(Math.max(0, Math.ceil(text.scrollWidth - wrap.clientWidth)));
+    const measure = () => {
+      // `rect` — фактическая ширина текста, `clientWidth` — видимая ширина поля.
+      const overflow = Math.ceil(text.getBoundingClientRect().width - wrap.clientWidth);
+      setShift(Math.max(0, overflow));
+    };
     measure();
-    if (typeof ResizeObserver === 'undefined') return;
+    if (typeof ResizeObserver === 'undefined') return undefined;
     const observer = new ResizeObserver(measure);
     observer.observe(wrap);
+    observer.observe(text);
     return () => observer.disconnect();
   }, [children, maxWidth]);
 

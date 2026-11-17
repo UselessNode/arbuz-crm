@@ -136,7 +136,9 @@ export function ReviewsSection({ applicationId, reviews, canManage = true, requi
               <div className={styles.reviewHeader}>
                 <span className={styles.reviewExpert}>
                   <strong>{review.expert ? formatUserName(review.expert) : 'Эксперт удалён'}</strong>
-                  {review.expert?.role ? <StatusBadge value={review.expert.role} options={ROLE_OPTIONS} /> : null}
+                  {review.expert?.role ? (
+                    <StatusBadge value={review.expert.role} options={ROLE_OPTIONS} maxWidth={110} />
+                  ) : null}
                 </span>
                 <span className={styles.actions}>
                   <Badge tone={toBadgeTone(review.status?.tone)} icon="check">

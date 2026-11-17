@@ -19,10 +19,16 @@
   white-space: nowrap;
 }
 
+/* Длинные значения в таблицах (ФИО, названия): обрезаем, полный текст — в подсказке `title`.
+   Вместо бегущей строки: на тач-экранах она недоступна (нужно удержание пальцем). */
 .table td {
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--color-border);
   vertical-align: middle;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .clickable {

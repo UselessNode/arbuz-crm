@@ -421,19 +421,19 @@ function reviewColumns(
   busyId: number | null,
 ): TableColumn<ReviewListItem>[] {
   return [
-    { key: 'application', header: 'Заявка', render: (row) => row.applicationTitle ?? `Заявка #${row.applicationId}` },
+    {
+      key: 'application',
+      header: 'Заявка',
+      // В ячейке длинный текст обрезается (см. `.table td`) — полный — в подсказке.
+      render: (row) => {
+        const title = row.applicationTitle ?? `Заявка #${row.applicationId}`;
+        return <span title={title}>{title}</span>;
+      },
+    },
     {
       key: 'expert',
       header: 'Эксперт',
-      render: (row) =>
-        row.expert ? (
-          <span className={styles.expertCell}>
-            <span>{formatUserName(row.expert)}</span>
-            {row.expert.role === Roles.admin ? <Badge tone="red">Админ</Badge> : null}
-          </span>
-        ) : (
-          '—'
-        ),
+      render: (row) => (row.expert ? <span title={formatUserName(row.expert)}>{formatUserName(row.expert)}</span> : '—'),
     },
     {
       key: 'status',
