@@ -730,11 +730,13 @@ function FeedbackTab() {
         description="Единый вид состояний данных: загрузка, пусто, ошибка с кнопкой повтора."
         code={`<StateMessage state="loading" />
 <StateMessage state="empty" message="Пока ничего нет" />
+<StateMessage state="empty" icon="inbox" message="Уведомлений нет" />
 <StateMessage state="error" message="Не удалось загрузить" onRetry={load} />`}
       >
         <div className={styles.grid2}>
           <StateMessage state="loading" />
           <StateMessage state="empty" message="Ничего не найдено" />
+          <StateMessage state="empty" icon="inbox" message="Уведомлений нет" />
           <StateMessage state="error" message="Ошибка загрузки" onRetry={() => undefined} />
         </div>
       </DocItem>
@@ -936,8 +938,7 @@ export function DesignSystemPage() {
       <header className={styles.header}>
         <h1 className={styles.h1}>Дизайн-система</h1>
         <p className={styles.lead}>
-          Живая документация: назначение каждого компонента, пример использования и код. Все элементы — из общего
-          barrel-импорта <code>components/ui</code>; цвета и отступы задаются токенами темы.
+          Элементы — из общего barrel-импорта <code>components/ui</code>; цвета и отступы задаются токенами темы.
         </p>
       </header>
 

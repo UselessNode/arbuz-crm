@@ -8,6 +8,8 @@ export interface UserBrief {
   name: string | null;
   surname: string | null;
   patronymic: string | null;
+  /** Роль автора экспертизы (заполняется при включении роли в выборку). */
+  role?: RoleType;
 }
 
 export interface AuthUser extends UserBrief {

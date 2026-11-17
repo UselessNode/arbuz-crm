@@ -384,7 +384,7 @@ export async function getApplicationDetail(user: CurrentUser, applicationId: num
         },
         orderBy: { id: 'asc' },
         include: {
-          users: { select: { id: true, name: true, surname: true, patronymic: true, email: true } },
+          users: { select: { id: true, name: true, surname: true, patronymic: true, email: true, role: true } },
           review_statuses: { select: { id: true, name: true, tone: true } },
         },
       },
@@ -483,6 +483,7 @@ export async function getApplicationDetail(user: CurrentUser, applicationId: num
             name: review.users.name,
             surname: review.users.surname,
             patronymic: review.users.patronymic,
+            role: review.users.role,
           }
         : null,
       status: review.review_statuses

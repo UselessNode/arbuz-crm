@@ -26,6 +26,7 @@ import { directionsApi, statusesApi, tendersApi } from '../../api/references';
 import { pdfExportApi } from '../../api/pdf-export';
 import { usePdfExport } from '../../lib/use-pdf-export';
 import { ApiError } from '../../api/client';
+import { useAuth } from '../../auth/AuthContext';
 import { formatDateTime, formatUserName } from '../../lib/format';
 import { ApplicationMainFields } from './ApplicationMainFields';
 import { validateMainFields } from './validate-main';
@@ -82,6 +83,7 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
   const id = Number(applicationId);
   const toast = useToast();
   const hints = useSectionHints();
+  const { user } = useAuth();
   const isAdmin = area === 'admin';
   const isExpertArea = area === 'expert';
   const listPath = isAdmin ? '/admin/applications' : isExpertArea ? '/expert' : '/applications';
@@ -433,11 +435,16 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
             <MaterialsSection applicationId={application.id} materials={application.materials} readOnly={!canEdit} onChanged={refresh} />
           </>
         );
-      case 'reviews':
+      case 'reviews': {
+        // Администратор тоже может быть назначен экспертом (личный аккаунт заказчика):
+        // если у него есть собственная экспертиза — показываем форму оценки.
+        const myReview = user ? application.reviews.some((review) => review.expert?.id === user.id) : false;
         return (
           <>
             {sectionHint(hints.reviews)}
-            {isExpertArea ? <ExpertEvaluationSection application={application} onChanged={refresh} /> : null}
+            {isExpertArea || (isAdmin && myReview) ? (
+              <ExpertEvaluationSection application={application} onChanged={refresh} />
+            ) : null}
             {isAdmin ? (
               <ReviewsSection
                 applicationId={application.id}
@@ -449,6 +456,7 @@ export function ApplicationDetailPage({ area = 'admin' }: Props) {
             ) : null}
           </>
         );
+      }
       default:
         return (
           <>

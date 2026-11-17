@@ -46,7 +46,7 @@ export interface UserPatch {
 }
 
 /** Эксперт для селекта назначения (без служебных полей). */
-export type ExpertItem = UserBrief;
+export type ExpertItem = UserBrief & { role?: RoleType };
 
 export const usersApi = {
   list(params: UserListParams) {
@@ -82,5 +82,9 @@ export const usersApi = {
   },
   listExperts() {
     return api.get<{ experts: ExpertItem[] }>('/users/experts');
+  },
+  /** Кандидаты в эксперты для назначения на заявку: эксперты **и администраторы**. */
+  listAssignableExperts() {
+    return api.get<{ experts: ExpertItem[] }>('/reviews/experts');
   },
 };

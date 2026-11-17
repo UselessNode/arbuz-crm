@@ -111,7 +111,7 @@ export function RegionsPanel() {
       ) : error ? (
         <StateMessage state="error" message={error} onRetry={() => void load()} />
       ) : regions.length === 0 ? (
-        <StateMessage state="empty" message="Регионы не добавлены" />
+        <StateMessage state="empty" icon="box" message="Регионы не добавлены" />
       ) : filtered.length === 0 ? (
         <StateMessage state="empty" message="Ничего не найдено" />
       ) : (

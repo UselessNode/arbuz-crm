@@ -25,6 +25,8 @@ export type BadgeTone =
   | 'violet'
   | 'indigo';
 
+export type BadgeSize = 'sm' | 'md';
+
 /** Все допустимые тона (для валидации значений, пришедших из API/БД). */
 export const BADGE_TONES: readonly BadgeTone[] = [
   'neutral',
@@ -64,6 +66,7 @@ export function toneFromString(value: string): BadgeTone {
 
 export interface BadgeProps {
   tone?: BadgeTone;
+  size?: BadgeSize;
   icon?: IconName;
   className?: string;
   /** Подсказка при наведении; по умолчанию — текстовое содержимое. */
@@ -83,7 +86,7 @@ function toCssSize(value?: number | string): string | undefined {
  * помещается в доступную ширину, оно прокручивается внутри бейджа (бегущая строка)
  * при наведении; полный текст доступен в подсказке (`title`).
  */
-export function Badge({ tone = 'neutral', icon, className, title, maxWidth, children }: BadgeProps) {
+export function Badge({ tone = 'neutral', size = 'sm', icon, className, title, maxWidth, children }: BadgeProps) {
   const wrapRef = useRef<HTMLSpanElement | null>(null);
   const textRef = useRef<HTMLSpanElement | null>(null);
   const [shift, setShift] = useState(0);
@@ -112,9 +115,15 @@ export function Badge({ tone = 'neutral', icon, className, title, maxWidth, chil
       ? ({ '--badge-shift': `${shift}px`, '--badge-speed': `${Math.max(2, Math.round(shift / 40))}s` } as CSSProperties)
       : undefined;
 
+  const sizeClass = size === 'md' ? styles.md : styles.sm;
+
   return (
-    <span className={`${styles.badge} ${styles[tone]} ${className ?? ''}`} style={badgeStyle} title={tooltip}>
-      {icon ? <Icon name={icon} size={13} /> : null}
+    <span
+      className={`${styles.badge} ${styles[tone]} ${sizeClass} ${className ?? ''}`}
+      style={badgeStyle}
+      title={tooltip}
+    >
+      {icon ? <Icon name={icon} size={size === 'md' ? 14 : 13} /> : null}
       <span ref={wrapRef} className={styles.textWrap}>
         <span ref={textRef} className={styles.text} data-scroll={shift > 0 || undefined} style={textStyle}>
           {children}
@@ -134,10 +143,13 @@ export interface StatusOption<V extends string> {
 
 export interface StatusBadgeProps<V extends string>
   extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange' | 'value'> {
-  value: V;
+  /** Текущее значение; может быть пустым, пока справочник загружается (см. `label`). */
+  value?: V;
   options: readonly StatusOption<V>[];
   /** Если задан — бейдж становится выпадающим списком для смены статуса. */
   onChange?: (value: V) => void;
+  /** Подпись для пустого/неизвестного значения (эксперты без роли, ещё не назначенный вердикт). */
+  label?: string;
   /** Максимальная ширина бейджа (число — px). */
   maxWidth?: number | string;
 }
@@ -147,26 +159,24 @@ export function StatusBadge<V extends string>({
   options,
   onChange,
   className,
+  label,
   maxWidth,
   'aria-label': ariaLabel,
   ...rest
 }: StatusBadgeProps<V>) {
-  const current = options.find((option) => option.value === value) ?? {
-    value,
-    label: value,
-    tone: 'neutral' as BadgeTone,
-  };
+  // Запасной вариант нужен только для статичного бейджа (см. `label`).
+  const current: StatusOption<V> | undefined = options.find((option) => option.value === value);
 
   if (!onChange) {
     return (
-      <Badge tone={current.tone} icon={current.icon} maxWidth={maxWidth}>
-        {current.label}
+      <Badge tone={current?.tone ?? 'neutral'} icon={current?.icon} maxWidth={maxWidth}>
+        {current?.label ?? label ?? '—'}
       </Badge>
     );
   }
 
   return (
-    <span className={`${styles.selectWrap} ${styles[current.tone]}`}>
+    <span className={`${styles.selectWrap} ${styles[current?.tone ?? 'neutral']}`}>
       <select
         className={`${styles.select} ${className ?? ''}`}
         value={value}

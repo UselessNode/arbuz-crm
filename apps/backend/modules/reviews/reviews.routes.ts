@@ -1,4 +1,5 @@
 // HTTP API рецензий: назначение экспертов (admin) и оценка (expert/admin).
+import { RoleType } from '@arbuz/shared';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../lib/http';
@@ -12,14 +13,26 @@ import {
   parseSearch,
   parseSort,
 } from '../../lib/query';
-import { requireAuth } from '../auth/auth.middleware';
+import { requireAuth, requireRole } from '../auth/auth.middleware';
 import type { CurrentUser } from '../files/files.service';
+import { listExperts } from '../users/users.service';
 import { assignExpert, deleteReview, listReviews, updateReview } from './reviews.service';
 
 export const reviewsRouter = Router();
 reviewsRouter.use(requireAuth);
 
 const REVIEW_SORT_FIELDS = ['created_at', 'updated_at', 'total_score'] as const;
+
+// Список кандидатов в эксперты для назначения на заявку (только admin):
+// эксперты и администраторы — админ может быть экспертом. Неактивированные не попадают.
+reviewsRouter.get(
+  '/reviews/experts',
+  requireRole(RoleType.admin),
+  asyncHandler(async (_req: Request, res: Response) => {
+    const experts = await listExperts({ includeAdmins: true });
+    res.json({ experts });
+  }),
+);
 
 reviewsRouter.get(
   '/reviews',

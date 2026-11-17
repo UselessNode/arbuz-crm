@@ -127,10 +127,11 @@ async function main(): Promise<void> {
 
     // Формат ФИО: пустое имя не должно давать строку из пробелов.
     smoke.eq('ФИО собирается из частей', formatPerson({ surname: 'Иванов', name: 'Иван', patronymic: 'Иванович' }), 'Иванов Иван Иванович');
+    // Email — это логин, в отчёте он не должен заменять имя (у админов ФИО может быть пустым).
     smoke.eq(
-      'пустое ФИО заменяется адресом',
-      formatPerson({ surname: null, name: null, patronymic: null, email: 'user@arbuz.local' }),
-      'user@arbuz.local',
+      'пустое ФИО в отчёте — прочерк, а не логин',
+      formatPerson({ surname: null, name: null, patronymic: null }),
+      '—',
     );
   } finally {
     // Задание для проверки прав убираем: воркер за ним не запускался, файл не создавался.

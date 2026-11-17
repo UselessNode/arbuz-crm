@@ -118,15 +118,16 @@ export function ReviewsPage() {
         label: 'По эксперту',
         placeholder: 'ФИО или email…',
         loadOptions: async (search) => {
+          // Администратор тоже пишет экспертизы — ищем по обеим ролям и помечаем админа.
           const response = await usersApi.list({
-            roles: [Roles.expert],
+            roles: [Roles.expert, Roles.admin],
             search: search || undefined,
             limit: 20,
             offset: 0,
           });
           return response.users.map((user) => ({
             value: String(user.id),
-            label: `${formatUserName(user)} (${user.email})`,
+            label: `${formatUserName(user)} (${user.email})${user.role === Roles.admin ? ' · администратор' : ''}`,
           }));
         },
       },
@@ -421,7 +422,19 @@ function reviewColumns(
 ): TableColumn<ReviewListItem>[] {
   return [
     { key: 'application', header: 'Заявка', render: (row) => row.applicationTitle ?? `Заявка #${row.applicationId}` },
-    { key: 'expert', header: 'Эксперт', render: (row) => (row.expert ? formatUserName(row.expert) : '—') },
+    {
+      key: 'expert',
+      header: 'Эксперт',
+      render: (row) =>
+        row.expert ? (
+          <span className={styles.expertCell}>
+            <span>{formatUserName(row.expert)}</span>
+            {row.expert.role === Roles.admin ? <Badge tone="red">Админ</Badge> : null}
+          </span>
+        ) : (
+          '—'
+        ),
+    },
     {
       key: 'status',
       header: 'Вердикт',

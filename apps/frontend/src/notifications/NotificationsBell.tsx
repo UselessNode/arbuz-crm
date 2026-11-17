@@ -217,7 +217,11 @@ export function NotificationsBell() {
                 ) : error ? (
                   <StateMessage state="error" message={error} onRetry={() => void load(filter)} />
                 ) : items.length === 0 ? (
-                  <StateMessage state="empty" message="Уведомлений нет" />
+                  <StateMessage
+                    state="empty"
+                    icon="inbox"
+                    message="Уведомлений нет"
+                  />
                 ) : (
                   items.map((item) => {
                     const meta = NOTIFICATION_TYPE_META[item.type];

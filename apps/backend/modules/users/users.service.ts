@@ -212,12 +212,16 @@ export async function getUserOrThrow(userId: number): Promise<PublicUser> {
   return serialize(user);
 }
 
-/** Все активные эксперты (для селекта назначения); неактивированные не предлагаются. */
-export function listExperts() {
+/**
+ * Пользователи, которых можно назначить экспертом (для селекта назначения): эксперты и,
+ * при `includeAdmins`, администраторы. Неактивированные не предлагаются.
+ */
+export function listExperts(options: { includeAdmins?: boolean } = {}) {
+  const roles = options.includeAdmins ? [RoleType.expert, RoleType.admin] : [RoleType.expert];
   return prisma.users.findMany({
-    where: { role: RoleType.expert, deleted_at: null, activated_at: { not: null } },
+    where: { role: { in: roles }, deleted_at: null, activated_at: { not: null } },
     orderBy: { id: 'asc' },
-    select: { id: true, email: true, name: true, surname: true, patronymic: true },
+    select: { id: true, email: true, name: true, surname: true, patronymic: true, role: true },
   });
 }
 

@@ -2,7 +2,7 @@
 import { RoleType } from '@arbuz/shared';
 import { prisma } from '../../lib/prisma';
 import { APPLICATION_STATUS_NAMES } from '../../lib/app-status';
-import { assignExpert, expertsLimitForTender, listReviews } from '../../modules/reviews/reviews.service';
+import { assignExpert, expertsLimitForTender, listReviews, updateReview } from '../../modules/reviews/reviews.service';
 import { createSmoke } from '../helpers/smoke';
 import { asExpert, requireAdmin } from '../helpers/actors';
 
@@ -36,6 +36,7 @@ async function main(): Promise<void> {
   const admin = await requireAdmin();
   let applicationId: number | null = null;
   let repeatApplicationId: number | null = null;
+  let adminApplicationId: number | null = null;
   let tempExpertId: number | null = null;
 
   try {
@@ -121,9 +122,18 @@ async function main(): Promise<void> {
       await prisma.application_reviews.count({ where: { application_id: repeatId, deleted_at: null } }),
       1,
     );
+
+    // Администратор может быть назначен экспертом и писать экспертизу от своего лица.
+    const adminAppId = await createTempApplication(admin.id, tender.id);
+    adminApplicationId = adminAppId;
+    const selfReview = await assignExpert(admin, adminAppId, admin.id);
+    smoke.eq('администратор назначается экспертом', selfReview.expert?.id, admin.id);
+    const selfEdited = await updateReview(admin, selfReview.id, { review_text: 'Экспертиза администратора' });
+    smoke.eq('администратор может править свою экспертизу', selfEdited.text, 'Экспертиза администратора');
   } finally {
     if (applicationId !== null) await prisma.applications.delete({ where: { id: applicationId } });
     if (repeatApplicationId !== null) await prisma.applications.delete({ where: { id: repeatApplicationId } });
+    if (adminApplicationId !== null) await prisma.applications.delete({ where: { id: adminApplicationId } });
     if (tempExpertId !== null) await prisma.users.delete({ where: { id: tempExpertId } });
     await prisma.$disconnect();
   }

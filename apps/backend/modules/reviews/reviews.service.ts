@@ -44,7 +44,14 @@ function serializeReview(review: {
   total_score: number | null;
   updated_at: Date;
   applications?: { id: number; title: string } | null;
-  users?: { id: number; email: string; name: string | null; surname: string | null; patronymic: string | null } | null;
+  users?: {
+    id: number;
+    email: string;
+    name: string | null;
+    surname: string | null;
+    patronymic: string | null;
+    role?: RoleType;
+  } | null;
   review_statuses?: ReviewStatusRef | null;
 }) {
   return {
@@ -58,6 +65,7 @@ function serializeReview(review: {
           name: review.users.name,
           surname: review.users.surname,
           patronymic: review.users.patronymic,
+          role: review.users.role,
         }
       : null,
     status: review.review_statuses
@@ -72,7 +80,7 @@ function serializeReview(review: {
 
 const reviewInclude = {
   applications: { select: { id: true, title: true } },
-  users: { select: { id: true, email: true, name: true, surname: true, patronymic: true } },
+  users: { select: { id: true, email: true, name: true, surname: true, patronymic: true, role: true } },
   review_statuses: { select: { id: true, name: true, tone: true } },
 } as const;
 
@@ -86,6 +94,12 @@ export async function expertsLimitForTender(tenderId: number | null): Promise<nu
   return tender?.experts_count ?? DEFAULT_EXPERTS_COUNT;
 }
 
+/**
+ * Роли, которые можно назначать экспертом: эксперт и администратор
+ * (администратор — личный аккаунт заказчика, может писать экспертизу от своего лица).
+ */
+const EXPERT_ROLES: readonly RoleType[] = [RoleType.expert, RoleType.admin];
+
 /** Назначение эксперта на заявку (создаёт рецензию с вердиктом по умолчанию). Только администратор. */
 export async function assignExpert(actor: CurrentUser, applicationId: number, rawExpertId: unknown) {
   if (actor.role !== RoleType.admin) throw httpError(403, 'Действие доступно только администратору', 'FORBIDDEN');
@@ -93,7 +107,7 @@ export async function assignExpert(actor: CurrentUser, applicationId: number, ra
 
   const expertId = parseId(rawExpertId, 'Некорректный идентификатор эксперта');
   const expert = await prisma.users.findFirst({
-    where: { id: expertId, role: RoleType.expert, deleted_at: null },
+    where: { id: expertId, role: { in: [...EXPERT_ROLES] }, deleted_at: null },
     select: { id: true },
   });
   if (!expert) throw httpError(404, 'Эксперт не найден', 'EXPERT_NOT_FOUND');
@@ -133,13 +147,15 @@ export async function assignExpert(actor: CurrentUser, applicationId: number, ra
         data: { application_id: application.id, expert_id: expertId, status_id: statusId },
         include: reviewInclude,
       });
-  // Уведомляем эксперта о назначении.
-  await createNotification(expertId, {
-    type: NotificationType.expert_assignment,
-    title: 'Вы назначены экспертом',
-    body: `Заявка «${application.title}» назначена вам на экспертизу.`,
-    link: `/expert/applications/${application.id}`,
-  });
+  // О себе уведомление не отправляем: администратор может назначить экспертом самого себя.
+  if (expertId !== actor.id) {
+    await createNotification(expertId, {
+      type: NotificationType.expert_assignment,
+      title: 'Вы назначены экспертом',
+      body: `Заявка «${application.title}» назначена вам на экспертизу.`,
+      link: `/expert/applications/${application.id}`,
+    });
+  }
   return serializeReview(review);
 }
 
@@ -277,13 +293,15 @@ export async function deleteReview(actor: CurrentUser, reviewId: number): Promis
   });
   if (!review) throw httpError(404, 'Экспертиза не найдена', 'REVIEW_NOT_FOUND');
   await prisma.application_reviews.delete({ where: { id: reviewId } });
-  // Уведомляем эксперта о снятии с заявки.
-  await createNotification(review.expert_id, {
-    type: NotificationType.expert_assignment,
-    title: 'Вы сняты с экспертизы',
-    body: `Заявка «${review.applications?.title ?? '—'}» больше не назначена вам.`,
-    link: '/expert',
-  });
+  // Уведомляем эксперта о снятии (о своём снятии администратору не пишем — он сам инициировал действие).
+  if (review.expert_id !== actor.id) {
+    await createNotification(review.expert_id, {
+      type: NotificationType.expert_assignment,
+      title: 'Вы сняты с экспертизы',
+      body: `Заявка «${review.applications?.title ?? '—'}» больше не назначена вам.`,
+      link: '/expert',
+    });
+  }
 }
 
 /**

@@ -288,7 +288,7 @@ function CriteriaModal({
       {loading ? (
         <StateMessage state="loading" />
       ) : criteria.length === 0 ? (
-        <StateMessage state="empty" message="Критериев пока нет" />
+        <StateMessage state="empty" icon="box" message="Критериев пока нет" />
       ) : (
         <Table
           columns={[

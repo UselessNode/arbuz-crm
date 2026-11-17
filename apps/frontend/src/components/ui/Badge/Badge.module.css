@@ -2,15 +2,24 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 3px var(--space-2);
   border-radius: 999px;
-  font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
   border: 1px solid transparent;
   white-space: nowrap;
   max-width: 100%;
   overflow: hidden;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.sm {
+  padding: 3px var(--space-2);
+  font-size: 12px;
+}
+
+.md {
+  padding: 5px var(--space-3);
+  font-size: 13px;
 }
 
 /* Область текста: клипает переполнение, не даёт бейджу расти бесконечно. */
@@ -56,9 +65,10 @@
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, filter 0.15s ease;
 }
 
+/* Лёгкое затемнение тона — отклик на наведение (цвет задаётся классами тонов).
+   `filter: brightness` не используем (см. AGENTS.md): отклики — через токены оверлеев. */
 .selectWrap:hover {
-  /* Лёгкое затемнение тона — отклик на наведение (цвет задаётся классами тонов). */
-  filter: brightness(0.96);
+  box-shadow: inset 0 0 0 999px var(--overlay-hover);
 }
 
 /* Визуальный отклик на нажатие */
@@ -78,6 +88,18 @@
   font-weight: 600;
   line-height: 1.4;
   cursor: pointer;
+}
+
+/* Размерный класс задаёт паддинги/кегль выпадающего списка внутри обёртки
+   (`StatusBadge` ставит на обёртку и `size`, и класс тона). */
+.sm .select {
+  padding: 3px 22px 3px var(--space-2);
+  font-size: 12px;
+}
+
+.md .select {
+  padding: 5px 24px 5px var(--space-3);
+  font-size: 13px;
 }
 
 .selectIcon {

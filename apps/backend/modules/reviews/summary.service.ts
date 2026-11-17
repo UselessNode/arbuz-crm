@@ -237,15 +237,18 @@ function normalizeRating(raw: unknown): Record<string, number> {
   return result;
 }
 
-/** Единый формат ФИО (совпадает с `formatUserName` на фронтенде). */
+/**
+ * Единый формат ФИО (совпадает с `formatUserName` на фронтенде).
+ * Email не подставляем: он попадает в отчёты и сводки как «логин» вместо имени —
+ * у администраторов ФИО может быть пустым, и в PDF оказывался адрес почты.
+ */
 export function formatPerson(person: {
   surname: string | null;
   name: string | null;
   patronymic: string | null;
-  email?: string;
 }): string {
   const full = [person.surname, person.name, person.patronymic].filter(Boolean).join(' ').trim();
-  return full || person.email || '—';
+  return full || '—';
 }
 
 function pluralize(count: number, one: string, few: string, many: string): string {

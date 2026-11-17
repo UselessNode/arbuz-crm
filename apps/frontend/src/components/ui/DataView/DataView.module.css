@@ -109,6 +109,10 @@
   cursor: grab;
 }
 
+.draggableRow:hover {
+  background-color: var(--overlay-hover);
+}
+
 /* Область результатов: фиксированная мин. высота и оверлей загрузки без размонтирования таблицы. */
 .results {
   position: relative;

@@ -1,6 +1,11 @@
 // Multi-select с асинхронным автокомплитом: токены (chips) выбранного + выпадающий список.
+//
+// Список рендерится в портале (`position: fixed`, см. `usePopover` из `Form`): иначе он
+// обрезается контейнерами с overflow (аккордеон секции «Экспертизы», модальные окна).
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from '../Icon';
+import { usePopover } from '../Form/use-popover';
 import type { FilterOption } from '../DataView/types';
 import styles from './Filters.module.css';
 
@@ -12,7 +17,7 @@ export interface MultiSelectFilterProps {
   loadOptions: (search: string) => Promise<FilterOption[]>;
   placeholder?: string;
   minChars?: number;
-  /** Отдаёт карту value → label наружу (для чипов активных фильтров). */
+  /** Отдаёт наружу выбранные подписи в порядке выбора (для одиночного выбора — одна метка). */
   onLabels?: (labels: Record<string, string>) => void;
 }
 
@@ -25,12 +30,11 @@ export function MultiSelectFilter({
   minChars = 1,
   onLabels,
 }: MultiSelectFilterProps) {
+  const { open, setOpen, close, wrapRef, anchorRef, popupRef, style } = usePopover();
   const [input, setInput] = useState('');
   const [options, setOptions] = useState<FilterOption[]>([]);
-  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [labels, setLabels] = useState<Record<string, string>>({});
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const requestRef = useRef(0);
   // Держим колбэки в ref: их идентичность не должна перезапускать загрузку.
   const loadRef = useRef(loadOptions);
@@ -74,21 +78,6 @@ export function MultiSelectFilter({
     labelsCallbackRef.current?.(labels);
   }, [labels]);
 
-  // Закрытие по клику вне.
-  useEffect(() => {
-    if (!open) return undefined;
-    const handle = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Node | null;
-      if (target && wrapperRef.current && !wrapperRef.current.contains(target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handle);
-    document.addEventListener('touchstart', handle);
-    return () => {
-      document.removeEventListener('mousedown', handle);
-      document.removeEventListener('touchstart', handle);
-    };
-  }, [open]);
-
   const toggle = (option: string) => {
     onChange(value.includes(option) ? value.filter((item) => item !== option) : [...value, option]);
   };
@@ -96,14 +85,22 @@ export function MultiSelectFilter({
   return (
     <div className={styles.filterItem}>
       <span className={styles.filterLabel}>{label}</span>
-      <div className={styles.multi} ref={wrapperRef}>
-        <div className={styles.multiControl} onClick={() => setOpen(true)}>
+      <div className={styles.multi} ref={wrapRef}>
+        <button
+          ref={anchorRef}
+          type="button"
+          className={styles.multiControl}
+          onClick={() => setOpen(!open)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label={label}
+        >
           {value.map((item) => (
             <span key={item} className={styles.token}>
               <span className={styles.tokenLabel}>{labels[item] ?? item}</span>
-              <button
-                type="button"
+              <span
                 className={styles.tokenRemove}
+                role="button"
                 aria-label={`Убрать ${labels[item] ?? item}`}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -111,7 +108,7 @@ export function MultiSelectFilter({
                 }}
               >
                 <Icon name="close" size={12} />
-              </button>
+              </span>
             </span>
           ))}
           <input
@@ -132,40 +129,51 @@ export function MultiSelectFilter({
                 setInput('');
               } else if (event.key === 'Backspace' && !input && value.length > 0) {
                 onChange(value.slice(0, -1));
+              } else if (event.key === 'Escape') {
+                close();
               }
             }}
           />
-        </div>
-        {open ? (
-          <div className={styles.options} role="listbox" aria-label={label}>
-            {loading ? (
-              <div className={styles.optionsEmpty}>Загрузка…</div>
-            ) : options.length === 0 ? (
-              <div className={styles.optionsEmpty}>Ничего не найдено</div>
-            ) : (
-              options.map((option) => {
-                const active = value.includes(option.value);
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="option"
-                    aria-selected={active}
-                    className={`${styles.option} ${active ? styles.optionActive : ''}`}
-                    onClick={() => toggle(option.value)}
-                  >
-                    {option.label}
-                    {active ? (
-                      <span className={styles.optionMark}>
-                        <Icon name="check" size={12} />
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })
-            )}
-          </div>
-        ) : null}
+        </button>
+        {open
+          ? createPortal(
+              <div
+                ref={popupRef}
+                className={`${styles.options} ${styles.optionsPortal}`}
+                style={style}
+                role="listbox"
+                aria-label={label}
+              >
+                {loading ? (
+                  <div className={styles.optionsEmpty}>Загрузка…</div>
+                ) : options.length === 0 ? (
+                  <div className={styles.optionsEmpty}>Ничего не найдено</div>
+                ) : (
+                  options.map((option) => {
+                    const active = value.includes(option.value);
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        className={`${styles.option} ${active ? styles.optionActive : ''}`}
+                        onClick={() => toggle(option.value)}
+                      >
+                        {option.label}
+                        {active ? (
+                          <span className={styles.optionMark}>
+                            <Icon name="check" size={12} />
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })
+                )}
+              </div>,
+              document.body,
+            )
+          : null}
       </div>
     </div>
   );
