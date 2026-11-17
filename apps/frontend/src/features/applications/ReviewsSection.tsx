@@ -40,9 +40,6 @@ export function ReviewsSection({ applicationId, reviews, canManage = true, requi
     void loadExperts();
   }, [loadExperts]);
 
-  // Лимит экспертов задаётся в настройках конкурса; сервер проверяет его же.
-  const limitReached = requiredExperts !== undefined && reviews.length >= requiredExperts;
-
   /** Поиск кандидатов по ФИО/email — уже назначенные на заявку исключены. */
   const loadCandidateOptions = useCallback(
     async (search: string): Promise<FilterOption[]> => {
@@ -102,7 +99,7 @@ export function ReviewsSection({ applicationId, reviews, canManage = true, requi
         <div className={styles.assignRow}>
           <div className={styles.assignField}>
             <MultiSelectFilter
-              label="Добавить эксперта"
+              label="Назначение экспертов:"
               value={[]}
               onChange={(values) => void handleAssign(values)}
               loadOptions={loadCandidateOptions}
@@ -111,16 +108,7 @@ export function ReviewsSection({ applicationId, reviews, canManage = true, requi
           </div>
           {requiredExperts !== undefined ? (
             <div className={styles.expertsProgress}>
-              {limitReached ? (
-                <>
-                  Назначено экспертов: <strong>{reviews.length}</strong> из {requiredExperts} — лимит конкурса
-                  исчерпан
-                </>
-              ) : (
-                <>
-                  Назначено экспертов: <strong>{reviews.length}</strong> из {requiredExperts}
-                </>
-              )}
+              Назначено экспертов: <strong>{reviews.length}</strong> из {requiredExperts}
             </div>
           ) : null}
         </div>
@@ -148,7 +136,7 @@ export function ReviewsSection({ applicationId, reviews, canManage = true, requi
                   {canManage ? (
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="danger"
                       icon="close"
                       aria-label={review.expert ? `Снять эксперта ${formatUserName(review.expert)}` : 'Снять эксперта'}
                       onClick={() => setRemoving(review)}

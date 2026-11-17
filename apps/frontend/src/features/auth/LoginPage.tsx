@@ -5,7 +5,6 @@ import { Button, Container, Input } from '../../components/ui';
 import { useAuth } from '../../auth/AuthContext';
 import { ApiError } from '../../api/client';
 import { homePathForRole } from '../../lib/roles';
-import melonLogo from '../../assets/images/Melon.png';
 import heroLogo from '../../assets/images/drawings/hero.svg';
 import styles from './AuthPage.module.css';
 
@@ -47,7 +46,6 @@ export function LoginPage() {
         <div className={styles.brand}>
           <img src={heroLogo} alt="#Арбузныйгрант" className={styles.hero} />
           <div className={styles.brandRow}>
-            <img src={melonLogo} alt="Логотип #Арбузныйгрант" className={styles.logo} />
             <h1 className={styles.title}>#Арбузныйгрант</h1>
           </div>
           <p className={styles.subtitle}>Вход в систему</p>

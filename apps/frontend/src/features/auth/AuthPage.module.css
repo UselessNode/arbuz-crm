@@ -33,6 +33,11 @@
   width: 132px;
   height: auto;
   margin: 0 auto var(--space-2);
+  /* Логотип — чёрный SVG-рисунок: в тёмной теме инвертируем, чтобы он читался. */
+}
+
+:global([data-theme='dark']) .hero {
+  filter: invert(1);
 }
 
 .brandRow {
